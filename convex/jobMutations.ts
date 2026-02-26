@@ -106,6 +106,33 @@ export const update = mutation({
     applicationDeadline: v.optional(v.string()),
     positions: v.number(),
     experienceLevel: v.string(),
+    applicationSettings: v.optional(v.object({
+      requireResume: v.boolean(),
+      requireCoverLetter: v.boolean(),
+      requirePortfolio: v.boolean(),
+      requireLinkedIn: v.boolean(),
+      requireAvailability: v.boolean(),
+      requireSalaryExpectations: v.boolean(),
+      requireWorkAuthorization: v.boolean(),
+      requireWillingToRelocate: v.boolean(),
+      customQuestions: v.optional(v.array(v.object({
+        question: v.string(),
+        type: v.union(
+          v.literal("text"),
+          v.literal("textarea"),
+          v.literal("select"),
+          v.literal("radio"),
+          v.literal("checkbox"),
+          v.literal("file")
+        ),
+        required: v.boolean(),
+        options: v.optional(v.array(v.string())),
+        maxLength: v.optional(v.number()),
+      }))),
+      allowMultipleResumes: v.boolean(),
+      maxFileSize: v.number(),
+      acceptedFileTypes: v.array(v.string()),
+    })),
   },
   handler: async (ctx, args) => {
     const { id, ...updateData } = args;

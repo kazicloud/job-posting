@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../../convex/_generated/dataModel";
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Check, Upload, X, FileText, Briefcase, MapPin, DollarSign, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -48,15 +48,17 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   });
 
   // Pre-fill from profile
-  if (profile && !formData.fullName) {
-    setFormData(prev => ({
-      ...prev,
-      fullName: profile.user?.fullName || "",
-      email: profile.user?.email || "",
-      phone: profile.user?.phone || "",
-      location: profile.jobSeekerProfile?.location || "",
-    }));
-  }
+  useEffect(() => {
+    if (profile && !formData.fullName) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: profile.user?.fullName || "",
+        email: profile.user?.email || "",
+        phone: profile.user?.phone || "",
+        location: profile.jobSeekerProfile?.location || "",
+      }));
+    }
+  }, [profile]);
 
   if (!job || !profile) {
     return (

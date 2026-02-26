@@ -37,6 +37,26 @@ export default function EditJobPage() {
     applicationDeadline: "",
     positions: "1",
     experienceLevel: "mid",
+    applicationSettings: {
+      requireResume: true,
+      requireCoverLetter: false,
+      requirePortfolio: false,
+      requireLinkedIn: false,
+      requireAvailability: false,
+      requireSalaryExpectations: false,
+      requireWorkAuthorization: false,
+      requireWillingToRelocate: false,
+      customQuestions: [] as Array<{
+        question: string;
+        type: "text" | "textarea" | "select" | "radio" | "checkbox" | "file";
+        required: boolean;
+        options?: string[];
+        maxLength?: number;
+      }>,
+      allowMultipleResumes: false,
+      maxFileSize: 5,
+      acceptedFileTypes: ["pdf", "docx"],
+    },
   });
 
   useEffect(() => {
@@ -62,6 +82,20 @@ export default function EditJobPage() {
         applicationDeadline: job.applicationDeadline || "",
         positions: job.positions.toString(),
         experienceLevel: job.experienceLevel,
+        applicationSettings: job.applicationSettings || {
+          requireResume: true,
+          requireCoverLetter: false,
+          requirePortfolio: false,
+          requireLinkedIn: false,
+          requireAvailability: false,
+          requireSalaryExpectations: false,
+          requireWorkAuthorization: false,
+          requireWillingToRelocate: false,
+          customQuestions: [],
+          allowMultipleResumes: false,
+          maxFileSize: 5,
+          acceptedFileTypes: ["pdf", "docx"],
+        },
       });
     }
   }, [job]);
@@ -125,6 +159,7 @@ export default function EditJobPage() {
         applicationDeadline: formData.applicationDeadline,
         positions: parseInt(formData.positions),
         experienceLevel: formData.experienceLevel,
+        applicationSettings: formData.applicationSettings,
       });
       router.push("/employer-dashboard/jobs");
     } catch (error) {
@@ -496,6 +531,92 @@ export default function EditJobPage() {
                     className="w-full px-4 py-2 border border-neutral-border rounded-md h-24 font-mono text-sm"
                   />
                   <p className="text-xs text-neutral-text-muted mt-1">Press Enter to auto-add bullet points</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Application Settings */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-text mb-4">Application Settings</h3>
+              <p className="text-sm text-neutral-text-secondary mb-4">Customize what information you collect from applicants</p>
+              
+              <div className="space-y-4">
+                <div className="border border-neutral-border rounded-lg p-4">
+                  <h4 className="font-medium text-neutral-text mb-3">Required Information</h4>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicationSettings.requireCoverLetter}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          applicationSettings: { ...formData.applicationSettings, requireCoverLetter: e.target.checked }
+                        })}
+                        className="w-4 h-4 text-brand-orange rounded"
+                      />
+                      <span className="text-sm">Cover Letter</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicationSettings.requirePortfolio}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          applicationSettings: { ...formData.applicationSettings, requirePortfolio: e.target.checked }
+                        })}
+                        className="w-4 h-4 text-brand-orange rounded"
+                      />
+                      <span className="text-sm">Portfolio/Work Samples</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicationSettings.requireLinkedIn}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          applicationSettings: { ...formData.applicationSettings, requireLinkedIn: e.target.checked }
+                        })}
+                        className="w-4 h-4 text-brand-orange rounded"
+                      />
+                      <span className="text-sm">LinkedIn Profile</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicationSettings.requireAvailability}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          applicationSettings: { ...formData.applicationSettings, requireAvailability: e.target.checked }
+                        })}
+                        className="w-4 h-4 text-brand-orange rounded"
+                      />
+                      <span className="text-sm">Availability to Start</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicationSettings.requireSalaryExpectations}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          applicationSettings: { ...formData.applicationSettings, requireSalaryExpectations: e.target.checked }
+                        })}
+                        className="w-4 h-4 text-brand-orange rounded"
+                      />
+                      <span className="text-sm">Salary Expectations</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicationSettings.requireWorkAuthorization}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          applicationSettings: { ...formData.applicationSettings, requireWorkAuthorization: e.target.checked }
+                        })}
+                        className="w-4 h-4 text-brand-orange rounded"
+                      />
+                      <span className="text-sm">Work Authorization</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

@@ -22,8 +22,6 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const trackView = useMutation(api.analytics.trackView);
   
   const [isApplying, setIsApplying] = useState(false);
-  const [showApplicationModal, setShowApplicationModal] = useState(false);
-  const [coverLetter, setCoverLetter] = useState("");
   const [activeTab, setActiveTab] = useState<"job" | "company">("job");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [viewTracked, setViewTracked] = useState(false);
@@ -45,22 +43,6 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
       </DashboardLayout>
     );
   }
-
-  const handleApply = async () => {
-    if (hasApplied) return;
-    
-    setIsApplying(true);
-    try {
-      await apply({ jobId, coverLetter: coverLetter || undefined });
-      setShowApplicationModal(false);
-      setShowSuccessModal(true);
-      setCoverLetter("");
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to apply");
-    } finally {
-      setIsApplying(false);
-    }
-  };
 
   const checkProfileCompleteness = () => {
     if (!profile) return { complete: false, missing: ["Profile not loaded"] };
@@ -179,12 +161,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                       <span>Applied</span>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => setShowApplicationModal(true)}
+                    <Link
+                      href={`/dashboard/jobs/${jobId}/apply`}
                       className="px-6 py-3 bg-brand-orange text-white font-semibold rounded-lg hover:bg-brand-orange/90 transition-all hover:shadow-lg hover:shadow-orange-200"
                     >
                       Apply Now
-                    </button>
+                    </Link>
                   )}
                   <div className="flex items-center gap-2">
                     <ShareButton 
@@ -474,7 +456,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 <h3 className="text-lg font-semibold text-neutral-text mb-4">Ready to apply?</h3>
                 
                 {/* Quick Apply Toggle */}
-                {!hasApplied && !showApplicationModal && (
+                {!hasApplied && (
                   <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-start gap-2">
                       <input
@@ -500,43 +482,13 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                       The employer will review your application
                     </p>
                   </div>
-                ) : showApplicationModal ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-text mb-2">
-                        Cover Letter (Optional)
-                      </label>
-                      <textarea
-                        value={coverLetter}
-                        onChange={(e) => setCoverLetter(e.target.value)}
-                        rows={6}
-                        placeholder="Tell the employer why you're a great fit..."
-                        className="w-full px-4 py-3 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 text-sm"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleApply}
-                        disabled={isApplying}
-                        className="flex-1 py-2.5 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 disabled:opacity-50 transition-colors"
-                      >
-                        {isApplying ? "Submitting..." : "Submit Application"}
-                      </button>
-                      <button
-                        onClick={() => setShowApplicationModal(false)}
-                        className="px-4 py-2.5 border border-neutral-border text-neutral-text text-sm rounded-lg hover:bg-neutral-bg-secondary transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
                 ) : (
-                  <button
-                    onClick={() => setShowApplicationModal(true)}
-                    className="w-full py-2.5 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors"
+                  <Link
+                    href={`/dashboard/jobs/${jobId}/apply`}
+                    className="block w-full py-2.5 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors text-center"
                   >
                     Apply Now
-                  </button>
+                  </Link>
                 )}
               </div>
             </div>
