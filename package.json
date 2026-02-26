@@ -1,20 +1,33 @@
 {
   "name": "kazicloudplatform",
   "private": true,
+  "description": "Professional job platform - monorepo",
   "scripts": {
-    "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:backend": "convex dev",
+    "build": "turbo run build",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "type-check": "turbo run type-check",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\""
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "convex": "^1.18.0",
+    "pdf-parse": "^1.1.1",
+    "svix": "^1.84.1"
   },
   "devDependencies": {
+    "@repo/config-eslint": "workspace:*",
+    "@repo/config-typescript": "workspace:*",
+    "@types/pdf-parse": "^1.1.4",
     "prettier": "^3.7.4",
     "turbo": "^2.7.6",
-    "typescript": "5.9.2"
+    "typescript": "^5.9.2"
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=18",
+    "pnpm": ">=9"
   }
 }

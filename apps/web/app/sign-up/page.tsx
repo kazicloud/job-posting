@@ -1,0 +1,781 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSignUp } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Briefcase, Building2, Users, Eye, EyeOff, ArrowLeft, Code, TrendingUp, DollarSign, Wrench, Heart, GraduationCap, Coffee, Sprout, HardHat, Truck, Palette, Headphones, Rocket, Building, Landmark, Castle, HandHeart, UserCheck } from "lucide-react";
+import { useSignUpStore } from "@/store/signup-store";
+
+const testimonials = [
+  {
+    quote: "Kazicloud made my job search so much easier. I found my dream role in just 2 weeks!",
+    author: "Sarah Mwangi",
+    role: "Software Engineer",
+  },
+  {
+    quote: "The transparency in job postings is refreshing. No more guessing about salary ranges.",
+    author: "James Ochieng",
+    role: "Marketing Manager",
+  },
+  {
+    quote: "As an employer, I found qualified candidates faster than any other platform.",
+    author: "Linda Kamau",
+    role: "HR Director",
+  },
+];
+
+const roles = [
+  { value: "job_seeker", label: "Get a job", icon: Briefcase },
+  { value: "employer", label: "Hire talent", icon: Building2 },
+  { value: "recruiter", label: "Get career help", icon: Users },
+];
+
+const jobSeekerFields = [
+  { value: "technology", label: "Technology & IT", icon: Code },
+  { value: "marketing", label: "Marketing & Sales", icon: TrendingUp },
+  { value: "finance", label: "Finance & Accounting", icon: DollarSign },
+  { value: "engineering", label: "Engineering", icon: Wrench },
+  { value: "healthcare", label: "Healthcare", icon: Heart },
+  { value: "education", label: "Education & Training", icon: GraduationCap },
+  { value: "hospitality", label: "Hospitality & Tourism", icon: Coffee },
+  { value: "agriculture", label: "Agriculture", icon: Sprout },
+  { value: "construction", label: "Construction", icon: HardHat },
+  { value: "logistics", label: "Logistics & Transport", icon: Truck },
+  { value: "creative", label: "Creative & Design", icon: Palette },
+  { value: "customer_service", label: "Customer Service", icon: Headphones },
+  { value: "other", label: "Other", icon: Building2 },
+];
+
+const employerTypes = [
+  { value: "startup", label: "Startup (1-10 employees)", icon: Rocket },
+  { value: "small", label: "Small Business (11-50)", icon: Building },
+  { value: "medium", label: "Medium Company (51-200)", icon: Landmark },
+  { value: "large", label: "Large Enterprise (200+)", icon: Castle },
+  { value: "ngo", label: "NGO/Non-Profit", icon: HandHeart },
+  { value: "agency", label: "Recruitment Agency", icon: UserCheck },
+];
+
+export default function SignUpPage() {
+  const { isLoaded, signUp, setActive } = useSignUp();
+  const router = useRouter();
+  const { username, selectedRoles, setUsername, toggleRole, reset } = useSignUpStore();
+  
+  const [step, setStep] = useState(0);
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [otherFieldDescription, setOtherFieldDescription] = useState("");
+  const [companyInfo, setCompanyInfo] = useState({
+    companyName: "",
+    companyType: "",
+    companyIndustry: [] as string[],
+  });
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+  });
+  const [hasPrefilledName, setHasPrefilledName] = useState(false);
+
+  // Pre-fill first name when moving to step 2 (only once)
+  useEffect(() => {
+    if (step === 2 && username && !hasPrefilledName) {
+      const nameParts = username.trim().split(" ");
+      setFormData(prev => ({
+        ...prev,
+        firstName: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" ") || "",
+      }));
+      setHasPrefilledName(true);
+    }
+  }, [step, username, hasPrefilledName]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(30);
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
+
+  // Countdown timer for resend
+  useEffect(() => {
+    if (step === 3 && resendCountdown > 0) {
+      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, resendCountdown]);
+
+  const handleUsernameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username.trim() && selectedRoles.length > 0) {
+      setStep(1);
+    }
+  };
+
+  const handleFieldToggle = (field: string) => {
+    setSelectedFields(prev => 
+      prev.includes(field) ? prev.filter(f => f !== field) : [...prev, field]
+    );
+  };
+
+  const handleStep1Continue = () => {
+    const isJobSeeker = selectedRoles.includes("job_seeker");
+    const isEmployer = selectedRoles.includes("employer");
+    
+    if (isJobSeeker && selectedFields.length === 0) return;
+    if (isEmployer && !companyInfo.companyType) return;
+    
+    // Employers go to industry selection (step 1.5), job seekers go to account details (step 2)
+    if (isEmployer) {
+      setStep(1.5);
+    } else {
+      setStep(2);
+    }
+  };
+
+  const handleEmployerIndustryContinue = () => {
+    if (companyInfo.companyIndustry.length === 0) return;
+    setStep(2);
+  };
+
+  const handleIndustryToggle = (industry: string) => {
+    setCompanyInfo(prev => ({
+      ...prev,
+      companyIndustry: prev.companyIndustry.includes(industry)
+        ? prev.companyIndustry.filter(i => i !== industry)
+        : [...prev.companyIndustry, industry]
+    }));
+  };
+
+  const handleOAuthSignUp = async (provider: "oauth_google" | "oauth_linkedin" | "oauth_facebook") => {
+    if (!isLoaded || !signUp) return;
+
+    try {
+      // Store selected roles before OAuth redirect
+      if (selectedRoles.length > 0) {
+        sessionStorage.setItem('pendingRoles', JSON.stringify(selectedRoles));
+      }
+
+      await signUp.authenticateWithRedirect({
+        strategy: provider,
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/dashboard",
+      });
+    } catch (err: any) {
+      console.error("OAuth error:", err);
+      
+      // Handle "already signed in" error
+      if (err.errors?.[0]?.code === "form_identifier_exists" || err.message?.includes("already signed in")) {
+        setError("You're already signed in. Please sign out first or go to dashboard.");
+      } else {
+        setError(err.errors?.[0]?.message || "OAuth sign up failed");
+      }
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await signUp.create({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        emailAddress: formData.email,
+        password: formData.password,
+      });
+
+      // Save signup data to sessionStorage for later
+      const signupDataToSave = {
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        roles: selectedRoles,
+        fields: selectedFields,
+        otherFieldDescription,
+        companyInfo: selectedRoles.includes("employer") ? companyInfo : undefined,
+      };
+      
+      console.log("Saving signup data:", signupDataToSave);
+      sessionStorage.setItem("signupData", JSON.stringify(signupDataToSave));
+
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      router.push(`/sign-up/verify?email=${encodeURIComponent(formData.email)}`);
+    } catch (err: any) {
+      console.error("Sign up error:", err);
+      setError(err.errors?.[0]?.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex">
+      {/* Left Side - Form */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+        <div className="w-full max-w-md">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-6">
+              <img 
+                src="/images/kazicloud-logo.jpg" 
+                alt="Kazicloud" 
+                className="h-10 w-auto"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2 mb-6">
+              <div className="flex -space-x-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="w-8 h-8 rounded-full bg-neutral-bg-secondary border-2 border-white" />
+                ))}
+              </div>
+              <span className="text-sm font-medium text-teal-600 bg-teal-50 px-3 py-1 rounded-full">
+                50,000+ members
+              </span>
+            </div>
+          </div>
+
+          {/* Step 0: Username + Role Selection */}
+          {step === 0 && (
+            <div>
+              <h1 className="text-2xl font-semibold text-neutral-text mb-2">
+                Hi{" "}
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="______"
+                  className="border-b-2 border-brand-orange bg-transparent outline-none text-center min-w-[100px] max-w-[200px] font-semibold"
+                  style={{ width: `${Math.max(100, username.length * 16)}px` }}
+                />
+                ! Great to see you!
+              </h1>
+              <p className="text-neutral-text-secondary mb-8">
+                👋 Let's get you started
+              </p>
+
+              <form onSubmit={handleUsernameSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-1.5">
+                    What should we call you?
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your name"
+                    className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-3">
+                    Tell us why you're here
+                  </label>
+                  <div className="space-y-3">
+                    {roles.map((role) => {
+                      const Icon = role.icon;
+                      const isSelected = selectedRoles.includes(role.value);
+                      
+                      return (
+                        <button
+                          key={role.value}
+                          type="button"
+                          onClick={() => toggleRole(role.value)}
+                          className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
+                            isSelected
+                              ? "border-brand-orange bg-brand-orange/5"
+                              : "border-neutral-border hover:border-brand-orange/50 hover:bg-brand-orange/5"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                              isSelected ? "bg-brand-orange/10" : "bg-neutral-bg-secondary"
+                            }`}>
+                              <Icon className={`w-5 h-5 transition-colors ${
+                                isSelected ? "text-brand-orange" : "text-neutral-text"
+                              }`} />
+                            </div>
+                            <span className="font-medium text-neutral-text">{role.label}</span>
+                            {isSelected && (
+                              <div className="ml-auto w-5 h-5 bg-brand-orange rounded-full flex items-center justify-center">
+                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!username.trim() || selectedRoles.length === 0}
+                  className="w-full py-3 bg-neutral-text text-white font-medium rounded-lg hover:bg-neutral-text/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Continue
+                </button>
+              </form>
+
+              <p className="text-center text-sm text-neutral-text-secondary mt-4">
+                Have an account?{" "}
+                <Link href="/sign-in" className="text-brand-orange hover:underline font-medium">
+                  Log in
+                </Link>
+              </p>
+            </div>
+          )}
+
+          {/* Step 1: Fields/Interests or Company Info */}
+          {step === 1 && (
+            <div>
+              <button
+                onClick={() => setStep(0)}
+                className="flex items-center gap-2 text-neutral-text-secondary hover:text-neutral-text mb-6"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+
+              {selectedRoles.includes("job_seeker") && (
+                <>
+                  <h1 className="text-2xl font-semibold text-neutral-text mb-2">
+                    Great to meet you, {username}!
+                  </h1>
+                  <p className="text-neutral-text-secondary mb-6">
+                    What fields are you interested in?
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    {jobSeekerFields.map((field) => {
+                      const Icon = field.icon;
+                      const isSelected = selectedFields.includes(field.value);
+                      
+                      return (
+                        <button
+                          key={field.value}
+                          type="button"
+                          onClick={() => handleFieldToggle(field.value)}
+                          className={`p-3 border-2 rounded-lg transition-all text-left ${
+                            isSelected
+                              ? "border-brand-orange bg-brand-orange/5"
+                              : "border-neutral-border hover:border-brand-orange/50"
+                          }`}
+                        >
+                          <div className="flex flex-col gap-2">
+                            <Icon className={`w-5 h-5 ${isSelected ? "text-brand-orange" : "text-neutral-text-secondary"}`} />
+                            <span className="text-sm font-medium text-neutral-text">{field.label}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedFields.includes("other") && (
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-neutral-text mb-1.5">
+                        Tell us about your field
+                      </label>
+                      <textarea
+                        value={otherFieldDescription}
+                        onChange={(e) => setOtherFieldDescription(e.target.value.slice(0, 200))}
+                        placeholder="Briefly describe your field or area of interest..."
+                        maxLength={200}
+                        rows={3}
+                        className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange resize-none"
+                      />
+                      <p className="text-xs text-neutral-text-muted mt-1">
+                        {otherFieldDescription.length}/200 characters
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {selectedRoles.includes("employer") && (
+                <>
+                  <h1 className="text-2xl font-semibold text-neutral-text mb-2">
+                    Tell us about your company
+                  </h1>
+                  <p className="text-neutral-text-secondary mb-6">
+                    This helps us tailor your experience
+                  </p>
+
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-text mb-1.5">
+                        Company Name*
+                      </label>
+                      <input
+                        type="text"
+                        value={companyInfo.companyName}
+                        onChange={(e) => setCompanyInfo({ ...companyInfo, companyName: e.target.value })}
+                        placeholder="Enter company name"
+                        className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-text mb-3">
+                        Company Size
+                      </label>
+                      <div className="space-y-2">
+                        {employerTypes.map((type) => {
+                          const Icon = type.icon;
+                          const isSelected = companyInfo.companyType === type.value;
+                          
+                          return (
+                            <button
+                              key={type.value}
+                              type="button"
+                              onClick={() => setCompanyInfo({ ...companyInfo, companyType: type.value })}
+                              className={`w-full p-3 border-2 rounded-lg transition-all text-left ${
+                                isSelected
+                                  ? "border-brand-orange bg-brand-orange/5"
+                                  : "border-neutral-border hover:border-brand-orange/50"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <Icon className={`w-5 h-5 ${isSelected ? "text-brand-orange" : "text-neutral-text-secondary"}`} />
+                                <span className="text-sm font-medium text-neutral-text">{type.label}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <button
+                onClick={handleStep1Continue}
+                disabled={
+                  (selectedRoles.includes("job_seeker") && selectedFields.length === 0) ||
+                  (selectedRoles.includes("employer") && (!companyInfo.companyName.trim() || !companyInfo.companyType))
+                }
+                className="w-full py-3 bg-neutral-text text-white font-medium rounded-lg hover:bg-neutral-text/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Continue
+              </button>
+
+              <p className="text-center text-sm text-neutral-text-secondary mt-4">
+                Have an account?{" "}
+                <Link href="/sign-in" className="text-brand-orange hover:underline font-medium">
+                  Log in
+                </Link>
+              </p>
+            </div>
+          )}
+
+          {/* Step 1.5: Employer Industry Selection */}
+          {step === 1.5 && (
+            <div>
+              <button
+                onClick={() => setStep(1)}
+                className="flex items-center gap-2 text-neutral-text-secondary hover:text-neutral-text mb-6"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+
+              <h1 className="text-2xl font-semibold text-neutral-text mb-2">
+                What industry is your company in?
+              </h1>
+              <p className="text-neutral-text-secondary mb-6">
+                Select all that apply
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {jobSeekerFields.map((field) => {
+                  const Icon = field.icon;
+                  const isSelected = companyInfo.companyIndustry.includes(field.value);
+                  
+                  return (
+                    <button
+                      key={field.value}
+                      type="button"
+                      onClick={() => handleIndustryToggle(field.value)}
+                      className={`p-3 border-2 rounded-lg transition-all text-left ${
+                        isSelected
+                          ? "border-brand-orange bg-brand-orange/5"
+                          : "border-neutral-border hover:border-brand-orange/50"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-2">
+                        <Icon className={`w-5 h-5 ${isSelected ? "text-brand-orange" : "text-neutral-text-secondary"}`} />
+                        <span className="text-sm font-medium text-neutral-text">{field.label}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {companyInfo.companyIndustry.includes("other") && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-neutral-text mb-1.5">
+                    Describe your industry
+                  </label>
+                  <textarea
+                    value={otherFieldDescription}
+                    onChange={(e) => setOtherFieldDescription(e.target.value.slice(0, 200))}
+                    placeholder="Briefly describe your company's industry..."
+                    maxLength={200}
+                    rows={3}
+                    className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange resize-none"
+                  />
+                  <p className="text-xs text-neutral-text-muted mt-1">
+                    {otherFieldDescription.length}/200 characters
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={handleEmployerIndustryContinue}
+                disabled={companyInfo.companyIndustry.length === 0}
+                className="w-full py-3 bg-neutral-text text-white font-medium rounded-lg hover:bg-neutral-text/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Continue
+              </button>
+
+              <p className="text-center text-sm text-neutral-text-secondary mt-4">
+                Have an account?{" "}
+                <Link href="/sign-in" className="text-brand-orange hover:underline font-medium">
+                  Log in
+                </Link>
+              </p>
+            </div>
+          )}
+
+          {/* Step 2: Account Details */}
+          {step === 2 && (
+            <div>
+              <button
+                onClick={() => setStep(1)}
+                className="flex items-center gap-2 text-neutral-text-secondary hover:text-neutral-text mb-6"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+
+              <h1 className="text-2xl font-semibold text-neutral-text mb-2">
+                You're almost there!
+              </h1>
+              <p className="text-neutral-text-secondary mb-8">
+                Just one more step to set up your account.
+              </p>
+
+              <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-text mb-1.5">
+                      First name*
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      placeholder="Enter your first name"
+                      className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-text mb-1.5">
+                      Last name*
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      placeholder="Enter your last name"
+                      className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-1.5">
+                    Email*
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="Enter your email address"
+                    className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-1.5">
+                    Create password*
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Use at least 8 characters"
+                      className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange pr-12"
+                      required
+                      minLength={8}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-text-secondary hover:text-neutral-text"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    className="mt-1 w-4 h-4 text-brand-orange border-neutral-border rounded focus:ring-brand-orange"
+                    required
+                  />
+                  <label htmlFor="terms" className="text-sm text-neutral-text-secondary">
+                    * I agree to the{" "}
+                    <Link href="/terms" className="text-neutral-text underline">
+                      Terms of Service
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/privacy" className="text-neutral-text underline">
+                      Privacy Policy
+                    </Link>
+                  </label>
+                </div>
+
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 bg-neutral-text text-white font-medium rounded-lg hover:bg-neutral-text/90 disabled:opacity-50 transition-colors"
+                >
+                  {loading ? "Creating account..." : "Join Kazicloud"}
+                </button>
+
+                {/* Divider */}
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-neutral-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-neutral-text-secondary">Or continue with</span>
+                  </div>
+                </div>
+
+                {/* OAuth Buttons */}
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleOAuthSignUp("oauth_google")}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOAuthSignUp("oauth_linkedin")}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="#0A66C2" viewBox="0 0 24 24">
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOAuthSignUp("oauth_facebook")}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <p className="text-center text-sm text-neutral-text-secondary">
+                  Have an account?{" "}
+                  <Link href="/sign-in" className="text-neutral-text hover:underline font-medium">
+                    Log in
+                  </Link>
+                </p>
+              </form>
+            </div>
+          )}
+
+          {/* Progress Indicator */}
+          <div className="flex gap-2 mt-8">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className={`h-1 flex-1 rounded-full transition-colors ${
+                  i <= step ? "bg-teal-500" : "bg-neutral-border"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side - Testimonials */}
+      <div className="hidden lg:flex flex-1 bg-neutral-bg-secondary items-center justify-center p-12">
+        <div className="max-w-lg">
+          <div className="bg-white rounded-2xl p-8 shadow-sm">
+            <p className="text-xl text-neutral-text leading-relaxed mb-6">
+              "{testimonials[currentTestimonial].quote}"
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-neutral-bg-secondary rounded-full" />
+              <div>
+                <p className="font-semibold text-neutral-text">
+                  {testimonials[currentTestimonial].author}
+                </p>
+                <p className="text-sm text-neutral-text-secondary">
+                  {testimonials[currentTestimonial].role}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Testimonial Dots */}
+          <div className="flex justify-center gap-2 mt-6">
+            {testimonials.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentTestimonial(i)}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  i === currentTestimonial ? "bg-brand-orange" : "bg-neutral-border"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
