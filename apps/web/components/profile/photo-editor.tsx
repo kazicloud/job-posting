@@ -25,7 +25,7 @@ export function PhotoEditor({ imageUrl, onSave, onCancel }: PhotoEditorProps) {
   const [contrast, setContrast] = useState(100);
   const [saturation, setSaturation] = useState(100);
   const [selectedFilter, setSelectedFilter] = useState(0);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [saving, setSaving] = useState(false);
 
   const onCropComplete = useCallback((croppedArea: any, croppedAreaPixels: any) => {
@@ -50,7 +50,7 @@ export function PhotoEditor({ imageUrl, onSave, onCancel }: PhotoEditorProps) {
     canvas.height = maxSize;
 
     // Apply filters
-    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) ${filters[selectedFilter].css}`;
+    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) ${filters[selectedFilter]?.css || ''}`;
 
     // Draw rotated and cropped image
     ctx.save();
@@ -139,7 +139,7 @@ export function PhotoEditor({ imageUrl, onSave, onCancel }: PhotoEditorProps) {
             onCropComplete={onCropComplete}
             style={{
               containerStyle: {
-                filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) ${filters[selectedFilter].css}`,
+                filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) ${filters[selectedFilter]?.css || ''}`,
               },
             }}
           />

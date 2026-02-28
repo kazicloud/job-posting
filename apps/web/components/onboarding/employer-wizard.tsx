@@ -84,7 +84,7 @@ export function EmployerOnboardingWizard({ userId, signupData, onComplete }: Emp
           {currentStep === 1 && (
             <CompanyInfoStep
               data={formData.company}
-              onNext={(data) => {
+              onNext={(data: any) => {
                 updateFormData({ company: data });
                 nextStep();
               }}
@@ -93,7 +93,7 @@ export function EmployerOnboardingWizard({ userId, signupData, onComplete }: Emp
           {currentStep === 2 && (
             <ContactPersonStep
               data={formData.contact}
-              onNext={(data) => {
+              onNext={(data: any) => {
                 updateFormData({ contact: data });
                 nextStep();
               }}
@@ -104,7 +104,7 @@ export function EmployerOnboardingWizard({ userId, signupData, onComplete }: Emp
             <VerificationStep
               isKenyaBased={formData.company?.isKenyaBased}
               data={formData.verification}
-              onNext={(data) => {
+              onNext={(data: any) => {
                 updateFormData({ verification: data });
                 nextStep();
               }}

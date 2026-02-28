@@ -3,10 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSignUp } from "@clerk/nextjs";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { CheckCircle2, Mail, Clock } from "lucide-react";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
   const { signUp } = useSignUp();
@@ -29,7 +29,10 @@ export default function VerifyEmailPage() {
     setResendStatus("sending");
     try {
       if (signUp) {
-        await signUp.prepareEmailAddressVerification({ strategy: "email_link" });
+        await signUp.prepareEmailAddressVerification({ 
+          strategy: "email_link",
+          redirectUrl: `${window.location.origin}/verify-email`
+        });
         setResendStatus("sent");
         setCountdown(60);
         setCanResend(false);
@@ -50,7 +53,7 @@ export default function VerifyEmailPage() {
       "hotmail.com": "https://outlook.live.com",
     };
     
-    const url = emailProviders[emailDomain] || `mailto:${email}`;
+    const url = emailDomain ? (emailProviders[emailDomain] || `mailto:${email}`) : `mailto:${email}`;
     window.open(url, "_blank");
   };
 
@@ -146,5 +149,13 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

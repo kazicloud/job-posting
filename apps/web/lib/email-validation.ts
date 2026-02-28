@@ -26,7 +26,7 @@ export function validateWebsiteDomain(email: string, website: string): boolean {
     .replace(/^https?:\/\//, "")
     .replace(/^www\./, "")
     .split("/")[0]
-    .toLowerCase();
+    ?.toLowerCase() || "";
   
   return emailDomain === websiteDomain || emailDomain.endsWith(`.${websiteDomain}`);
 }

@@ -617,12 +617,15 @@ export default function ProfilePage() {
     canvas.height = maxSize;
 
     // Apply filters
-    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) ${filters[selectedFilter].css}`;
+    if (ctx) {
+      const filterCss = filters[selectedFilter]?.css || "";
+      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) ${filterCss}`;
 
-    // Draw rotated and cropped image
-    ctx.save();
-    ctx.translate(maxSize / 2, maxSize / 2);
-    ctx.rotate((rotation * Math.PI) / 180);
+      // Draw rotated and cropped image
+      ctx.save();
+      ctx.translate(maxSize / 2, maxSize / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+    }
     ctx.translate(-maxSize / 2, -maxSize / 2);
 
     if (croppedAreaPixels) {
@@ -1321,7 +1324,7 @@ export default function ProfilePage() {
                   onCropComplete={onCropComplete}
                   style={{
                     containerStyle: {
-                      filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) ${filters[selectedFilter].css}`,
+                      filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) ${filters[selectedFilter]?.css || ""}`,
                     },
                   }}
                 />
@@ -1482,7 +1485,7 @@ export default function ProfilePage() {
         <EditExperienceModal
           experience={editingExperience}
           onClose={() => setEditingExperience(null)}
-          onSave={async (data) => {
+          onSave={async (data: any) => {
             await updateWorkExperience({ id: editingExperience._id, ...data });
             setEditingExperience(null);
           }}
@@ -1500,7 +1503,7 @@ export default function ProfilePage() {
         <EditExperienceModal
           experience={{}}
           onClose={() => setAddingExperience(false)}
-          onSave={async (data) => {
+          onSave={async (data: any) => {
             await addWorkExperience({ userId: profile._id, ...data, industry: "", employmentType: "permanent" });
             setAddingExperience(false);
           }}
@@ -1513,7 +1516,7 @@ export default function ProfilePage() {
         <EditEducationModal
           education={editingEducation}
           onClose={() => setEditingEducation(null)}
-          onSave={async (data) => {
+          onSave={async (data: any) => {
             await updateEducation({ id: editingEducation._id, ...data });
             setEditingEducation(null);
           }}
@@ -1531,7 +1534,7 @@ export default function ProfilePage() {
         <EditEducationModal
           education={{}}
           onClose={() => setAddingEducation(false)}
-          onSave={async (data) => {
+          onSave={async (data: any) => {
             await addEducation({ userId: profile._id, ...data });
             setAddingEducation(false);
           }}

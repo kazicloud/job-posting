@@ -48,8 +48,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     if (!profile) return { complete: false, missing: ["Profile not loaded"] };
     
     const missing = [];
-    if (!profile.jobSeekerProfile?.bio) missing.push("Bio");
-    if (!profile.jobSeekerProfile?.phone) missing.push("Phone number");
+    if (!profile.jobSeekerProfile?.about) missing.push("About/Bio");
+    if (!profile.phone) missing.push("Phone number");
     
     return { complete: missing.length === 0, missing };
   };

@@ -35,7 +35,7 @@ export const create = mutation({
       requireSalaryExpectations: v.boolean(),
       requireWorkAuthorization: v.boolean(),
       requireWillingToRelocate: v.boolean(),
-      customQuestions: v.optional(v.array(v.object({
+      customQuestions: v.array(v.object({
         question: v.string(),
         type: v.union(
           v.literal("text"),
@@ -47,11 +47,9 @@ export const create = mutation({
         ),
         required: v.boolean(),
         options: v.optional(v.array(v.string())),
-        maxLength: v.optional(v.number()),
-      }))),
-      allowMultipleResumes: v.boolean(),
-      maxFileSize: v.number(),
-      acceptedFileTypes: v.array(v.string()),
+        maxFileSize: v.number(),
+        acceptedFileTypes: v.array(v.string()),
+      })),
     })),
   },
   handler: async (ctx, args) => {
@@ -115,7 +113,7 @@ export const update = mutation({
       requireSalaryExpectations: v.boolean(),
       requireWorkAuthorization: v.boolean(),
       requireWillingToRelocate: v.boolean(),
-      customQuestions: v.optional(v.array(v.object({
+      customQuestions: v.array(v.object({
         question: v.string(),
         type: v.union(
           v.literal("text"),
@@ -127,11 +125,9 @@ export const update = mutation({
         ),
         required: v.boolean(),
         options: v.optional(v.array(v.string())),
-        maxLength: v.optional(v.number()),
-      }))),
-      allowMultipleResumes: v.boolean(),
-      maxFileSize: v.number(),
-      acceptedFileTypes: v.array(v.string()),
+        maxFileSize: v.number(),
+        acceptedFileTypes: v.array(v.string()),
+      })),
     })),
   },
   handler: async (ctx, args) => {

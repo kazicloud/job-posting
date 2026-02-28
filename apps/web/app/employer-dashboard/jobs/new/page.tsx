@@ -25,8 +25,6 @@ export default function NewJobPage() {
     // Location
     location: "",
     multipleLocations: false,
-    locations: [] as string[],
-    multipleLocations: false,
     locations: [] as Array<{ county: string; specificLocation?: string }>,
     isRemote: false,
     
@@ -66,11 +64,9 @@ export default function NewJobPage() {
         type: "text" | "textarea" | "select" | "radio" | "checkbox" | "file";
         required: boolean;
         options?: string[];
-        maxLength?: number;
+        maxFileSize: number;
+        acceptedFileTypes: string[];
       }>,
-      allowMultipleResumes: false,
-      maxFileSize: 5,
-      acceptedFileTypes: ["pdf", "docx"],
     },
   });
 
@@ -102,7 +98,6 @@ export default function NewJobPage() {
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
         location: formData.location,
-        county: formData.county,
         description: formData.description,
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
@@ -118,7 +113,17 @@ export default function NewJobPage() {
         positions: parseInt(formData.positions),
         experienceLevel: formData.experienceLevel,
         status: "draft",
-        applicationSettings: formData.applicationSettings,
+        applicationSettings: {
+          requireResume: formData.applicationSettings.requireResume,
+          requireCoverLetter: formData.applicationSettings.requireCoverLetter,
+          requirePortfolio: formData.applicationSettings.requirePortfolio,
+          requireLinkedIn: formData.applicationSettings.requireLinkedIn,
+          requireAvailability: formData.applicationSettings.requireAvailability,
+          requireSalaryExpectations: formData.applicationSettings.requireSalaryExpectations,
+          requireWorkAuthorization: formData.applicationSettings.requireWorkAuthorization,
+          requireWillingToRelocate: formData.applicationSettings.requireWillingToRelocate,
+          customQuestions: formData.applicationSettings.customQuestions || [],
+        },
       });
       router.push("/employer-dashboard/jobs");
     } catch (error) {
@@ -141,7 +146,6 @@ export default function NewJobPage() {
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
         location: formData.location,
-        county: formData.county,
         description: formData.description,
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
@@ -157,7 +161,17 @@ export default function NewJobPage() {
         positions: parseInt(formData.positions),
         experienceLevel: formData.experienceLevel,
         status: "published",
-        applicationSettings: formData.applicationSettings,
+        applicationSettings: {
+          requireResume: formData.applicationSettings.requireResume,
+          requireCoverLetter: formData.applicationSettings.requireCoverLetter,
+          requirePortfolio: formData.applicationSettings.requirePortfolio,
+          requireLinkedIn: formData.applicationSettings.requireLinkedIn,
+          requireAvailability: formData.applicationSettings.requireAvailability,
+          requireSalaryExpectations: formData.applicationSettings.requireSalaryExpectations,
+          requireWorkAuthorization: formData.applicationSettings.requireWorkAuthorization,
+          requireWillingToRelocate: formData.applicationSettings.requireWillingToRelocate,
+          customQuestions: formData.applicationSettings.customQuestions || [],
+        },
       });
       router.push("/employer-dashboard/jobs");
     } catch (error) {
@@ -479,7 +493,7 @@ function DescriptionStep({ formData, updateFormData, onNext, onBack }: any) {
       const lines = textBefore.split('\n');
       const currentLine = lines[lines.length - 1];
       
-      if (currentLine.trim().startsWith('•') || currentLine.trim().startsWith('-')) {
+      if (currentLine?.trim().startsWith('•') || currentLine?.trim().startsWith('-')) {
         e.preventDefault();
         const newValue = textBefore + '\n• ' + textAfter;
         updateFormData(field, newValue);
@@ -576,7 +590,7 @@ function RequirementsStep({ formData, updateFormData, onNext, onBack }: any) {
       const lines = textBefore.split('\n');
       const currentLine = lines[lines.length - 1];
       
-      if (currentLine.trim().startsWith('•') || currentLine.trim().startsWith('-')) {
+      if (currentLine?.trim().startsWith('•') || currentLine?.trim().startsWith('-')) {
         e.preventDefault();
         const newValue = textBefore + '\n• ' + textAfter;
         updateFormData(field, newValue);
@@ -799,7 +813,7 @@ function CompensationStep({ formData, updateFormData, onNext, onBack }: any) {
       const lines = textBefore.split('\n');
       const currentLine = lines[lines.length - 1];
       
-      if (currentLine.trim().startsWith('•') || currentLine.trim().startsWith('-')) {
+      if (currentLine?.trim().startsWith('•') || currentLine?.trim().startsWith('-')) {
         e.preventDefault();
         const newValue = textBefore + '\n• ' + textAfter;
         updateFormData(field, newValue);
@@ -1211,77 +1225,6 @@ function ApplicationSettingsStep({ formData, updateFormData, onNext, onBack }: a
             ))}
           </div>
         )}
-      </div>
-
-      {/* File Upload Settings */}
-      <div className="bg-white border border-neutral-border rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-neutral-text mb-4">File Upload Settings</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              Maximum File Size
-            </label>
-            <select
-              value={settings.maxFileSize}
-              onChange={(e) => updateSettings("maxFileSize", parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
-            >
-              <option value="2">2 MB</option>
-              <option value="5">5 MB</option>
-              <option value="10">10 MB</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              Accepted File Types
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={settings.acceptedFileTypes.includes("pdf")}
-                  onChange={(e) => {
-                    const types = e.target.checked
-                      ? [...settings.acceptedFileTypes, "pdf"]
-                      : settings.acceptedFileTypes.filter((t: string) => t !== "pdf");
-                    updateSettings("acceptedFileTypes", types);
-                  }}
-                  className="w-4 h-4 text-brand-orange rounded"
-                />
-                <span className="text-sm text-neutral-text">PDF</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={settings.acceptedFileTypes.includes("docx")}
-                  onChange={(e) => {
-                    const types = e.target.checked
-                      ? [...settings.acceptedFileTypes, "docx"]
-                      : settings.acceptedFileTypes.filter((t: string) => t !== "docx");
-                    updateSettings("acceptedFileTypes", types);
-                  }}
-                  className="w-4 h-4 text-brand-orange rounded"
-                />
-                <span className="text-sm text-neutral-text">DOCX</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={settings.acceptedFileTypes.includes("doc")}
-                  onChange={(e) => {
-                    const types = e.target.checked
-                      ? [...settings.acceptedFileTypes, "doc"]
-                      : settings.acceptedFileTypes.filter((t: string) => t !== "doc");
-                    updateSettings("acceptedFileTypes", types);
-                  }}
-                  className="w-4 h-4 text-brand-orange rounded"
-                />
-                <span className="text-sm text-neutral-text">DOC</span>
-              </label>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Navigation */}

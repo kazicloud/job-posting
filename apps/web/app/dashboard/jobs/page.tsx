@@ -308,7 +308,7 @@ export default function JobsPage() {
                         "Lead": "lead",
                         "Executive": "executive"
                       };
-                      const value = levelMap[level];
+                      const value = levelMap[level] || "";
                       setSelectedExperienceLevel(selectedExperienceLevel === value ? "" : value);
                     }}
                     onClear={() => setSelectedExperienceLevel("")}

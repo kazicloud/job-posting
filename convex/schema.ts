@@ -272,6 +272,9 @@ export default defineSchema({
       requireSalaryExpectations: v.boolean(),
       requireWorkAuthorization: v.boolean(),
       requireWillingToRelocate: v.boolean(),
+      maxFileSize: v.optional(v.number()),
+      acceptedFileTypes: v.optional(v.array(v.string())),
+      allowMultipleResumes: v.optional(v.boolean()),
       customQuestions: v.optional(v.array(v.object({
         question: v.string(),
         type: v.union(
@@ -284,11 +287,9 @@ export default defineSchema({
         ),
         required: v.boolean(),
         options: v.optional(v.array(v.string())),
-        maxLength: v.optional(v.number()),
+        maxFileSize: v.number(),
+        acceptedFileTypes: v.array(v.string()),
       }))),
-      allowMultipleResumes: v.boolean(),
-      maxFileSize: v.number(),
-      acceptedFileTypes: v.array(v.string()),
     })),
   })
     .index("by_employer", ["employerId"])

@@ -106,10 +106,7 @@ export default function PublicJobPage({ params }: { params: Promise<{ id: string
                   jobId={jobId} 
                   jobTitle={job.title} 
                   className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span>Share</span>
-                </ShareButton>
+                />
               </div>
             </div>
 

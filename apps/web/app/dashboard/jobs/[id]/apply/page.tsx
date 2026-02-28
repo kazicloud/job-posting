@@ -52,10 +52,10 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
     if (profile && !formData.fullName) {
       setFormData(prev => ({
         ...prev,
-        fullName: profile.user?.fullName || "",
-        email: profile.user?.email || "",
-        phone: profile.user?.phone || "",
-        location: profile.jobSeekerProfile?.location || "",
+        fullName: profile.fullName || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
+        location: profile.location || "",
       }));
     }
   }, [profile]);
@@ -104,9 +104,6 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
     requireWorkAuthorization: false,
     requireWillingToRelocate: false,
     customQuestions: [],
-    allowMultipleResumes: false,
-    maxFileSize: 5,
-    acceptedFileTypes: ["pdf", "docx"],
   };
 
   // Build dynamic steps
@@ -452,7 +449,7 @@ function ResumeStep({ formData, setFormData, settings }: any) {
                 <div className="flex-1">
                   <p className="font-medium text-neutral-text">Upload new resume</p>
                   <p className="text-sm text-neutral-text-secondary">
-                    PDF or DOCX, max {settings.maxFileSize}MB
+                    PDF or DOCX, max 5MB
                   </p>
                 </div>
               </label>
@@ -466,13 +463,13 @@ function ResumeStep({ formData, setFormData, settings }: any) {
                     </span>
                     <input
                       type="file"
-                      accept={settings.acceptedFileTypes.map((t: string) => `.${t}`).join(',')}
+                      accept=".pdf,.docx"
                       onChange={(e) => setFormData({ ...formData, resumeFile: e.target.files?.[0] || null })}
                       className="hidden"
                     />
                   </label>
                   <p className="text-xs text-neutral-text-muted mt-2">
-                    Accepted formats: {settings.acceptedFileTypes.map((t: string) => t.toUpperCase()).join(', ')} • Max size: {settings.maxFileSize}MB
+                    Accepted formats: PDF, DOCX • Max size: 5MB
                   </p>
                   {formData.resumeFile && (
                     <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded flex items-center gap-2">

@@ -35,8 +35,10 @@ export default function EmployerApplicationsPage() {
   const [hasSetDefault, setHasSetDefault] = useState(false);
   if (employerJobs && employerJobs.length > 0 && !hasSetDefault && selectedJobId === "all" && !jobIdFromUrl) {
     const newestJob = employerJobs.sort((a, b) => b._creationTime - a._creationTime)[0];
-    setSelectedJobId(newestJob._id);
-    setHasSetDefault(true);
+    if (newestJob) {
+      setSelectedJobId(newestJob._id);
+      setHasSetDefault(true);
+    }
   }
 
   // Fetch applications only for selected job (optimized)

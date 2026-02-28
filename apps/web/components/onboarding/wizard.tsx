@@ -22,7 +22,7 @@ export function OnboardingWizard({ steps, onComplete }: OnboardingWizardProps) {
   const handleNext = () => {
     // Validate current step if validation function exists
     const currentStepData = steps[currentStep];
-    if (currentStepData.validate) {
+    if (currentStepData?.validate) {
       const validation = currentStepData.validate();
       if (!validation.isValid) {
         setError(validation.error || "Please complete all required fields");
@@ -73,13 +73,13 @@ export function OnboardingWizard({ steps, onComplete }: OnboardingWizardProps) {
         {/* Step Content */}
         <div className="bg-white rounded-lg shadow-sm border border-neutral-border p-8">
           <h2 className="text-2xl font-semibold text-neutral-text mb-2">
-            {steps[currentStep].title}
+            {steps[currentStep]?.title}
           </h2>
           <p className="text-neutral-text-secondary mb-6">
-            {steps[currentStep].description}
+            {steps[currentStep]?.description}
           </p>
 
-          <div className="mb-8">{steps[currentStep].component}</div>
+          <div className="mb-8">{steps[currentStep]?.component}</div>
 
           {/* Error Message */}
           {error && (

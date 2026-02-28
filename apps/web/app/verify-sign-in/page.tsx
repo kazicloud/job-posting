@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSignIn } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function VerifySignInPage() {
+function VerifySignInContent() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -23,14 +23,18 @@ export default function VerifySignInPage() {
     setError("");
 
     try {
-      const attemptMethod = factor === "first" 
-        ? signIn.attemptFirstFactor 
-        : signIn.attemptSecondFactor;
-        
-      const result = await attemptMethod.call(signIn, {
-        strategy: "email_code",
-        code,
-      });
+      let result;
+      if (factor === "first") {
+        result = await signIn.attemptFirstFactor({
+          strategy: "email_code",
+          code,
+        });
+      } else {
+        result = await signIn.attemptSecondFactor({
+          strategy: "email_code",
+          code,
+        });
+      }
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
@@ -50,14 +54,28 @@ export default function VerifySignInPage() {
     if (!isLoaded || !signIn) return;
 
     try {
-      const prepareMethod = factor === "first" 
-        ? signIn.prepareFirstFactor 
-        : signIn.prepareSecondFactor;
-        
-      await prepareMethod.call(signIn, {
-        strategy: "email_code",
-      });
-      alert("Code resent! Check your email.");
+      const emailCodeFactor = signIn.supportedFirstFactors?.find(
+        (f: any) => f.strategy === "email_code"
+      ) || signIn.supportedSecondFactors?.find(
+        (f: any) => f.strategy === "email_code"
+      );
+
+      if (emailCodeFactor && 'emailAddressId' in emailCodeFactor) {
+        if (factor === "first") {
+          await signIn.prepareFirstFactor({
+            strategy: "email_code",
+            emailAddressId: emailCodeFactor.emailAddressId,
+          });
+        } else {
+          await signIn.prepareSecondFactor({
+            strategy: "email_code",
+            emailAddressId: emailCodeFactor.emailAddressId,
+          });
+        }
+        alert("Code resent! Check your email.");
+      } else {
+        setError("Unable to resend code");
+      }
     } catch (err: any) {
       setError("Failed to resend code");
     }
@@ -122,5 +140,13 @@ export default function VerifySignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerifySignInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <VerifySignInContent />
+    </Suspense>
   );
 }

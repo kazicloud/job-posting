@@ -51,11 +51,9 @@ export default function EditJobPage() {
         type: "text" | "textarea" | "select" | "radio" | "checkbox" | "file";
         required: boolean;
         options?: string[];
-        maxLength?: number;
+        maxFileSize: number;
+        acceptedFileTypes: string[];
       }>,
-      allowMultipleResumes: false,
-      maxFileSize: 5,
-      acceptedFileTypes: ["pdf", "docx"],
     },
   });
 
@@ -82,19 +80,20 @@ export default function EditJobPage() {
         applicationDeadline: job.applicationDeadline || "",
         positions: job.positions.toString(),
         experienceLevel: job.experienceLevel,
-        applicationSettings: job.applicationSettings || {
-          requireResume: true,
-          requireCoverLetter: false,
-          requirePortfolio: false,
-          requireLinkedIn: false,
-          requireAvailability: false,
-          requireSalaryExpectations: false,
-          requireWorkAuthorization: false,
-          requireWillingToRelocate: false,
-          customQuestions: [],
-          allowMultipleResumes: false,
-          maxFileSize: 5,
-          acceptedFileTypes: ["pdf", "docx"],
+        applicationSettings: {
+          requireResume: job.applicationSettings?.requireResume ?? true,
+          requireCoverLetter: job.applicationSettings?.requireCoverLetter ?? false,
+          requirePortfolio: job.applicationSettings?.requirePortfolio ?? false,
+          requireLinkedIn: job.applicationSettings?.requireLinkedIn ?? false,
+          requireAvailability: job.applicationSettings?.requireAvailability ?? false,
+          requireSalaryExpectations: job.applicationSettings?.requireSalaryExpectations ?? false,
+          requireWorkAuthorization: job.applicationSettings?.requireWorkAuthorization ?? false,
+          requireWillingToRelocate: job.applicationSettings?.requireWillingToRelocate ?? false,
+          customQuestions: (job.applicationSettings?.customQuestions || []).map(q => ({
+            ...q,
+            maxFileSize: (q as any).maxFileSize ?? 5242880,
+            acceptedFileTypes: (q as any).acceptedFileTypes ?? ['.pdf', '.doc', '.docx']
+          })),
         },
       });
     }
@@ -178,7 +177,7 @@ export default function EditJobPage() {
       const textAfter = textarea.value.substring(cursorPos);
       
       const lines = textBefore.split('\n');
-      const currentLine = lines[lines.length - 1];
+      const currentLine = lines[lines.length - 1] || "";
       
       if (currentLine.trim().startsWith('•') || currentLine.trim().startsWith('-')) {
         e.preventDefault();

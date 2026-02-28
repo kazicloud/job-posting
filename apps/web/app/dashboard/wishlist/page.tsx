@@ -51,7 +51,7 @@ export default function WishlistPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {savedJobs.map((job) => (
+              {savedJobs.filter(job => job !== null).map((job) => (
                 <WishlistJobCard key={job._id} job={job} />
               ))}
             </div>

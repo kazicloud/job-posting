@@ -10,7 +10,7 @@ import { User, LogOut, Settings, HelpCircle } from "lucide-react";
 export function ProfileDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { user } = useUser();
   const { signOut } = useClerk();
   const profile = useQuery(api.profile.getCurrentUserProfile);

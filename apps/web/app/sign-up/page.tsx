@@ -747,16 +747,16 @@ export default function SignUpPage() {
         <div className="max-w-lg">
           <div className="bg-white rounded-2xl p-8 shadow-sm">
             <p className="text-xl text-neutral-text leading-relaxed mb-6">
-              "{testimonials[currentTestimonial].quote}"
+              "{testimonials[currentTestimonial]?.quote}"
             </p>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-neutral-bg-secondary rounded-full" />
               <div>
                 <p className="font-semibold text-neutral-text">
-                  {testimonials[currentTestimonial].author}
+                  {testimonials[currentTestimonial]?.author}
                 </p>
                 <p className="text-sm text-neutral-text-secondary">
-                  {testimonials[currentTestimonial].role}
+                  {testimonials[currentTestimonial]?.role}
                 </p>
               </div>
             </div>

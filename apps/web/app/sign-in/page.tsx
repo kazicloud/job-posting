@@ -144,16 +144,19 @@ export default function SignInPage() {
           (f: any) => f.strategy === "email_code"
         );
 
-        if (emailCodeFactor) {
+        if (emailCodeFactor && 'emailAddressId' in emailCodeFactor) {
           // Prepare email code verification
-          const prepareMethod = result.status === "needs_first_factor" 
-            ? signIn.prepareFirstFactor 
-            : signIn.prepareSecondFactor;
-            
-          await prepareMethod.call(signIn, {
-            strategy: "email_code",
-            emailAddressId: emailCodeFactor.emailAddressId,
-          });
+          if (result.status === "needs_first_factor") {
+            await signIn.prepareFirstFactor({
+              strategy: "email_code",
+              emailAddressId: emailCodeFactor.emailAddressId,
+            });
+          } else {
+            await signIn.prepareSecondFactor({
+              strategy: "email_code",
+              emailAddressId: emailCodeFactor.emailAddressId,
+            });
+          }
           
           // Redirect to verification page
           router.push(`/verify-sign-in?email=${encodeURIComponent(formData.email)}&factor=${result.status === "needs_first_factor" ? "first" : "second"}`);
@@ -328,16 +331,16 @@ export default function SignInPage() {
         <div className="max-w-lg">
           <div className="bg-white rounded-2xl p-8 shadow-sm">
             <p className="text-xl text-neutral-text leading-relaxed mb-6">
-              "{testimonials[currentTestimonial].quote}"
+              "{testimonials[currentTestimonial]?.quote}"
             </p>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-neutral-bg-secondary rounded-full" />
               <div>
                 <p className="font-semibold text-neutral-text">
-                  {testimonials[currentTestimonial].author}
+                  {testimonials[currentTestimonial]?.author}
                 </p>
                 <p className="text-sm text-neutral-text-secondary">
-                  {testimonials[currentTestimonial].role}
+                  {testimonials[currentTestimonial]?.role}
                 </p>
               </div>
             </div>
