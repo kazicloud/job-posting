@@ -222,11 +222,16 @@ function CompanyInfoStep({ data, onNext }: any) {
         <textarea
           required
           rows={4}
+          minLength={100}
+          maxLength={500}
           value={formData.description || ""}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           placeholder="Tell us about your company..."
           className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
         />
+        <p className="text-xs text-neutral-text-muted mt-1">
+          {formData.description?.length || 0}/500 characters (minimum 100)
+        </p>
       </div>
 
       <div>
@@ -246,7 +251,9 @@ function CompanyInfoStep({ data, onNext }: any) {
 
       <button
         type="submit"
-        className="w-full py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90"
+        disabled={(formData.description?.length || 0) < 100}
+        title={(formData.description?.length || 0) < 100 ? "Please enter at least 100 characters in the company description" : ""}
+        className="w-full py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Continue
       </button>
@@ -257,6 +264,8 @@ function CompanyInfoStep({ data, onNext }: any) {
 function ContactPersonStep({ data, onNext, onBack }: any) {
   const [formData, setFormData] = useState(data || {});
   const [emailError, setEmailError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [linkedInError, setLinkedInError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -274,6 +283,29 @@ function ContactPersonStep({ data, onNext, onBack }: any) {
       setEmailError("Please use your company email address, not a personal email.");
     } else {
       setEmailError("");
+    }
+  };
+
+  const handlePhoneChange = (phone: string) => {
+    setFormData({ ...formData, phone });
+    
+    // Validate Kenyan phone number
+    const phoneRegex = /^(\+254[71]\d{8}|0[71]\d{8})$/;
+    
+    if (phone && !phoneRegex.test(phone)) {
+      setPhoneError("Phone must start with +2547, +2541, 07, or 01 followed by 8 digits.");
+    } else {
+      setPhoneError("");
+    }
+  };
+
+  const handleLinkedInChange = (url: string) => {
+    setFormData({ ...formData, linkedIn: url });
+    
+    if (url && !url.includes("linkedin.com/")) {
+      setLinkedInError("Please enter a valid LinkedIn URL (must contain linkedin.com/)");
+    } else {
+      setLinkedInError("");
     }
   };
 
@@ -340,9 +372,15 @@ function ContactPersonStep({ data, onNext, onBack }: any) {
           type="tel"
           required
           value={formData.phone || ""}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+          onChange={(e) => handlePhoneChange(e.target.value)}
+          placeholder="+254712345678 or 0712345678"
+          className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+            phoneError ? "border-red-500" : "border-neutral-border"
+          }`}
         />
+        {phoneError && (
+          <p className="text-xs text-red-600 mt-1">{phoneError}</p>
+        )}
       </div>
 
       <div>
@@ -352,10 +390,15 @@ function ContactPersonStep({ data, onNext, onBack }: any) {
         <input
           type="url"
           value={formData.linkedIn || ""}
-          onChange={(e) => setFormData({ ...formData, linkedIn: e.target.value })}
+          onChange={(e) => handleLinkedInChange(e.target.value)}
           placeholder="https://linkedin.com/in/yourprofile"
-          className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+          className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+            linkedInError ? "border-red-500" : "border-neutral-border"
+          }`}
         />
+        {linkedInError && (
+          <p className="text-xs text-red-600 mt-1">{linkedInError}</p>
+        )}
       </div>
 
       <div className="flex gap-4">
@@ -368,7 +411,7 @@ function ContactPersonStep({ data, onNext, onBack }: any) {
         </button>
         <button
           type="submit"
-          disabled={!!emailError}
+          disabled={!!emailError || !!phoneError || !!linkedInError}
           className="flex-1 py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 disabled:opacity-50"
         >
           Continue
@@ -381,6 +424,8 @@ function ContactPersonStep({ data, onNext, onBack }: any) {
 function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
   const [formData, setFormData] = useState(data || {});
   const [uploading, setUploading] = useState(false);
+  const [regNumberError, setRegNumberError] = useState("");
+  const [kraPinError, setKraPinError] = useState("");
   const generateUploadUrl = useMutation(api.employerDocuments.generateUploadUrl);
 
   const handleFileUpload = async (file: File, fieldName: string) => {
@@ -399,6 +444,33 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
       alert("File upload failed. Please try again.");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleRegNumberChange = (value: string) => {
+    const upperValue = value.toUpperCase();
+    setFormData({ ...formData, registrationNumber: upperValue });
+    
+    // Validate Kenyan business registration format
+    const regNumberRegex = /^(CPR|PVT|BN)\/\d{4}\/\d{6}$|^C\.\d{6}$/;
+    
+    if (upperValue && !regNumberRegex.test(upperValue)) {
+      setRegNumberError("Invalid format. Use CPR/YYYY/NNNNNN, PVT/YYYY/NNNNNN, BN/YYYY/NNNNNN, or C.NNNNNN");
+    } else {
+      setRegNumberError("");
+    }
+  };
+
+  const handleKraPinChange = (value: string) => {
+    setFormData({ ...formData, kraPin: value });
+    
+    // Validate KRA PIN format if provided
+    const kraPinRegex = /^[A-Z]\d{9}[A-Z]$/;
+    
+    if (value && !kraPinRegex.test(value)) {
+      setKraPinError("Invalid format. KRA PIN should be like A000000000X (letter + 9 digits + letter)");
+    } else {
+      setKraPinError("");
     }
   };
 
@@ -428,13 +500,20 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
               type="text"
               required
               value={formData.registrationNumber || ""}
-              onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
+              onChange={(e) => handleRegNumberChange(e.target.value)}
               placeholder="e.g., CPR/2010/000000 or PVT/2010/000000"
-              className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+              className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+                regNumberError ? "border-red-500" : "border-neutral-border"
+              }`}
             />
-            <p className="text-xs text-neutral-text-muted mt-1">
-              We'll verify this with Kenya Business Registration Service
-            </p>
+            {regNumberError && (
+              <p className="text-xs text-red-600 mt-1">{regNumberError}</p>
+            )}
+            {!regNumberError && (
+              <p className="text-xs text-neutral-text-muted mt-1">
+                We'll verify this with Kenya Business Registration Service
+              </p>
+            )}
           </div>
 
           <div>
@@ -444,9 +523,15 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
             <input
               type="text"
               value={formData.kraPin || ""}
-              onChange={(e) => setFormData({ ...formData, kraPin: e.target.value })}
-              className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+              onChange={(e) => handleKraPinChange(e.target.value.toUpperCase())}
+              placeholder="e.g., A000000000X"
+              className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+                kraPinError ? "border-red-500" : "border-neutral-border"
+              }`}
             />
+            {kraPinError && (
+              <p className="text-xs text-red-600 mt-1">{kraPinError}</p>
+            )}
           </div>
 
           <div>
@@ -522,7 +607,7 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
         </button>
         <button
           type="submit"
-          disabled={uploading}
+          disabled={uploading || !!regNumberError || !!kraPinError}
           className="flex-1 py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 disabled:opacity-50"
         >
           Continue
@@ -541,10 +626,7 @@ function ReviewStep({ formData, signupData, userId, onBack, onComplete }: any) {
     try {
       await completeOnboarding({
         userId,
-        data: {
-          ...formData,
-          _signupData: signupData?.companyInfo, // Pass company info from sign-up
-        },
+        data: formData,
       });
       onComplete();
     } catch (error) {
@@ -566,18 +648,6 @@ function ReviewStep({ formData, signupData, userId, onBack, onComplete }: any) {
           <h3 className="font-semibold text-neutral-text mb-2">Company Information</h3>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-neutral-text-secondary">Company Name:</dt>
-              <dd className="text-neutral-text font-medium">{signupData?.companyInfo?.companyName || "N/A"}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-neutral-text-secondary">Size:</dt>
-              <dd className="text-neutral-text font-medium">{signupData?.companyInfo?.companyType || "N/A"}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-neutral-text-secondary">Industry:</dt>
-              <dd className="text-neutral-text font-medium">{signupData?.companyInfo?.companyIndustry?.[0] || "N/A"}</dd>
-            </div>
-            <div className="flex justify-between">
               <dt className="text-neutral-text-secondary">Location:</dt>
               <dd className="text-neutral-text font-medium">
                 {formData.company?.isKenyaBased
@@ -589,6 +659,18 @@ function ReviewStep({ formData, signupData, userId, onBack, onComplete }: any) {
               <dt className="text-neutral-text-secondary">Website:</dt>
               <dd className="text-neutral-text font-medium">{formData.company?.website}</dd>
             </div>
+            {formData.company?.description && (
+              <div className="flex flex-col gap-1">
+                <dt className="text-neutral-text-secondary">Description:</dt>
+                <dd className="text-neutral-text">{formData.company?.description}</dd>
+              </div>
+            )}
+            {formData.company?.foundedYear && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-text-secondary">Founded:</dt>
+                <dd className="text-neutral-text font-medium">{formData.company?.foundedYear}</dd>
+              </div>
+            )}
           </dl>
         </div>
 
@@ -603,16 +685,49 @@ function ReviewStep({ formData, signupData, userId, onBack, onComplete }: any) {
               <dt className="text-neutral-text-secondary">Title:</dt>
               <dd className="text-neutral-text font-medium">{formData.contact?.jobTitle}</dd>
             </div>
+            <div className="flex justify-between">
+              <dt className="text-neutral-text-secondary">Email:</dt>
+              <dd className="text-neutral-text font-medium">{formData.contact?.email}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-neutral-text-secondary">Phone:</dt>
+              <dd className="text-neutral-text font-medium">{formData.contact?.phone}</dd>
+            </div>
+            {formData.contact?.linkedIn && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-text-secondary">LinkedIn:</dt>
+                <dd className="text-neutral-text font-medium truncate max-w-xs">{formData.contact?.linkedIn}</dd>
+              </div>
+            )}
           </dl>
         </div>
 
         <div>
           <h3 className="font-semibold text-neutral-text mb-2">Verification</h3>
-          <p className="text-sm text-neutral-text-secondary">
-            {formData.company?.isKenyaBased
-              ? `Registration Number: ${formData.verification?.registrationNumber}`
-              : "International company - Manual verification required"}
-          </p>
+          {formData.company?.isKenyaBased ? (
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-neutral-text-secondary">Registration Number:</dt>
+                <dd className="text-neutral-text font-medium">{formData.verification?.registrationNumber}</dd>
+              </div>
+              {formData.verification?.kraPin && (
+                <div className="flex justify-between">
+                  <dt className="text-neutral-text-secondary">KRA PIN:</dt>
+                  <dd className="text-neutral-text font-medium">{formData.verification?.kraPin}</dd>
+                </div>
+              )}
+            </dl>
+          ) : (
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-neutral-text-secondary">LinkedIn Company:</dt>
+                <dd className="text-neutral-text font-medium truncate max-w-xs">{formData.verification?.linkedInCompany}</dd>
+              </div>
+              <p className="text-sm text-neutral-text-secondary mt-2">
+                International company - Manual verification required
+              </p>
+            </dl>
+          )}
         </div>
       </div>
 

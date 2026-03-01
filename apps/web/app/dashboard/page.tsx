@@ -2,7 +2,7 @@
 
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import Link from "next/link";
-import { Briefcase, TrendingUp, Users, MapPin, Clock, Bookmark, ArrowRight, Sparkles, Target, Bell } from "lucide-react";
+import { Briefcase, TrendingUp, Users, MapPin, Clock, Bookmark, ArrowRight, Sparkles, Target, Bell, Eye, CheckCircle } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 
@@ -10,7 +10,9 @@ export default function DashboardPage() {
   const profile = useQuery(api.profile.getCurrentUserProfile);
   const stats = useQuery(api.dashboard.getJobSeekerStats);
   const recommendedJobs = useQuery(api.dashboard.getRecommendedJobs, { limit: 3 });
+  const recentActivity = useQuery(api.dashboard.getRecentActivity, { limit: 3 });
   
+  const isLoading = profile === undefined || stats === undefined;
   const userFirstName = profile?.fullName?.split(" ")[0] || "there";
   const userField = profile?.jobSeekerProfile?.interestedFields?.[0] || "Technology";
   const completeness = profile?.jobSeekerProfile?.profileCompleteness || 0;
@@ -44,28 +46,37 @@ export default function DashboardPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-4 gap-4 mt-6">
-              <StatCard 
-                icon={<Briefcase className="w-5 h-5" />} 
-                label="Jobs for you" 
-                value={stats?.jobsForYou?.toString() || "0"} 
-              />
-              <StatCard 
-                icon={<TrendingUp className="w-5 h-5" />} 
-                label="Response rate" 
-                value={`${stats?.responseRate || 0}%`}
-              />
-              <StatCard 
-                icon={<Users className="w-5 h-5" />} 
-                label="Applications" 
-                value={stats?.applications?.toString() || "0"} 
-              />
-              <StatCard 
-                icon={<Bookmark className="w-5 h-5" />} 
-                label="Saved jobs" 
-                value={stats?.savedJobs?.toString() || "0"} 
-              />
-            </div>
+            {isLoading ? (
+              <div className="grid grid-cols-4 gap-4 mt-6">
+                {[1, 2, 3, 4].map((i) => (
+                  <StatCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-4 mt-6">
+                <StatCard 
+                  icon={<Briefcase className="w-5 h-5" />} 
+                  label="Jobs for you" 
+                  value={stats?.jobsForYou?.toString() || "0"}
+                  iconBg="bg-blue-50"
+                  iconColor="text-blue-600"
+                />
+                <StatCard 
+                  icon={<CheckCircle className="w-5 h-5" />} 
+                  label="Applications" 
+                  value={stats?.applications?.toString() || "0"}
+                  iconBg="bg-green-50"
+                  iconColor="text-green-600"
+                />
+                <StatCard 
+                  icon={<Bookmark className="w-5 h-5" />} 
+                  label="Saved jobs" 
+                  value={stats?.savedJobs?.toString() || "0"}
+                  iconBg="bg-orange-50"
+                  iconColor="text-brand-orange"
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -177,23 +188,35 @@ export default function DashboardPage() {
               {/* Recent Activity */}
               <div className="bg-white rounded-lg border border-neutral-border p-6">
                 <h3 className="font-semibold text-neutral-text mb-4">Recent activity</h3>
-                <div className="space-y-4">
-                  <ActivityItem
-                    action="Applied to"
-                    target="Backend Developer at Andela"
-                    time="2 hours ago"
-                  />
-                  <ActivityItem
-                    action="Saved"
-                    target="Product Manager at Jumia"
-                    time="1 day ago"
-                  />
-                  <ActivityItem
-                    action="Viewed"
-                    target="Data Analyst at Cellulant"
-                    time="3 days ago"
-                  />
-                </div>
+                {recentActivity === undefined ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-start gap-3 animate-pulse">
+                        <div className="w-2 h-2 bg-gray-200 rounded-full mt-1.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-20"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : recentActivity.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-neutral-text-secondary">No recent activity</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentActivity.map((activity, index) => (
+                      <ActivityItem
+                        key={index}
+                        action={activity.action}
+                        target={activity.target}
+                        time={formatTimeAgo(activity.timestamp)}
+                        jobId={activity.jobId}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Profile Strength */}
@@ -226,17 +249,48 @@ function formatPostedTime(timestamp: number): string {
   return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? 's' : ''} ago`;
 }
 
-function StatCard({ icon, label, value, trend }: { icon: React.ReactNode; label: string; value: string; trend?: string }) {
+function formatTimeAgo(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
+  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+  if (days < 7) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+  if (days < 30) return `${Math.floor(days / 7)} ${Math.floor(days / 7) === 1 ? 'week' : 'weeks'} ago`;
+  return `${Math.floor(days / 30)} ${Math.floor(days / 30) === 1 ? 'month' : 'months'} ago`;
+}
+
+function StatCard({ icon, label, value, iconBg, iconColor }: { 
+  icon: React.ReactNode; 
+  label: string; 
+  value: string;
+  iconBg: string;
+  iconColor: string;
+}) {
   return (
-    <div className="bg-neutral-bg-secondary rounded-lg p-4">
-      <div className="flex items-center gap-2 text-neutral-text-secondary mb-2">
-        {icon}
-        <span className="text-xs font-medium">{label}</span>
+    <div className="bg-white rounded-lg border border-neutral-border p-4 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between mb-3">
+        <div className={`w-10 h-10 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}`}>
+          {icon}
+        </div>
       </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-semibold text-neutral-text">{value}</span>
-        {trend && <span className="text-xs font-medium text-green-600">{trend}</span>}
+      <p className="text-2xl font-semibold text-neutral-text mb-1">{value}</p>
+      <p className="text-xs text-neutral-text-secondary font-medium">{label}</p>
+    </div>
+  );
+}
+
+function StatCardSkeleton() {
+  return (
+    <div className="bg-white rounded-lg border border-neutral-border p-4 animate-pulse">
+      <div className="flex items-start justify-between mb-3">
+        <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
       </div>
+      <div className="h-7 bg-gray-200 rounded w-16 mb-1"></div>
+      <div className="h-4 bg-gray-200 rounded w-24"></div>
     </div>
   );
 }
@@ -244,33 +298,31 @@ function StatCard({ icon, label, value, trend }: { icon: React.ReactNode; label:
 function JobCard({ jobId, company, logo, title, location, type, salary, postedTime, matchScore }: any) {
   return (
     <Link href={`/dashboard/jobs/${jobId}`}>
-      <div className="flex gap-4 p-4 border border-neutral-border rounded-lg hover:border-brand-orange/30 hover:shadow-sm transition-all cursor-pointer">
-        <div className="w-12 h-12 bg-neutral-bg-secondary rounded-lg flex items-center justify-center flex-shrink-0">
-          <span className="text-lg font-bold text-neutral-text">{logo}</span>
+      <div className="flex gap-3 p-3 border border-neutral-border rounded-lg hover:border-brand-orange/30 hover:bg-neutral-bg-secondary/50 transition-all cursor-pointer group">
+        <div className="w-10 h-10 bg-neutral-bg-secondary rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-white transition-colors">
+          <span className="text-base font-bold text-neutral-text">{logo}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="font-semibold text-neutral-text hover:text-brand-orange transition-colors">
-              {title}
-            </h3>
-            {matchScore >= 80 && (
-              <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded-full flex-shrink-0">
-                {matchScore}% match
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-neutral-text-secondary mb-2">{company}</p>
-          <div className="flex items-center gap-3 text-xs text-neutral-text-muted">
+          <h3 className="font-semibold text-neutral-text group-hover:text-brand-orange transition-colors text-sm mb-0.5 truncate">
+            {title}
+          </h3>
+          <p className="text-xs text-neutral-text-secondary mb-1.5 truncate">{company}</p>
+          <div className="flex items-center gap-2 text-xs text-neutral-text-muted">
             <span className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
               {location}
             </span>
             <span>•</span>
             <span>{type}</span>
-            <span>•</span>
-            <span className="font-medium text-neutral-text">{salary}</span>
           </div>
-          <p className="text-xs text-neutral-text-muted mt-2">{postedTime}</p>
+        </div>
+        <div className="flex flex-col items-end justify-between flex-shrink-0">
+          {matchScore >= 70 && (
+            <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded-full">
+              {matchScore}%
+            </span>
+          )}
+          <span className="text-xs text-neutral-text-muted">{postedTime}</span>
         </div>
       </div>
     </Link>
@@ -289,17 +341,19 @@ function ResourceCard({ icon, title, description }: any) {
   );
 }
 
-function ActivityItem({ action, target, time }: any) {
+function ActivityItem({ action, target, time, jobId }: { action: string; target: string; time: string; jobId?: any }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="w-2 h-2 bg-brand-orange rounded-full mt-1.5 flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-neutral-text">
-          <span className="text-neutral-text-secondary">{action}</span> {target}
-        </p>
-        <p className="text-xs text-neutral-text-muted mt-0.5">{time}</p>
+    <Link href={jobId ? `/dashboard/jobs/${jobId}` : "#"} className="block">
+      <div className="flex items-start gap-3 hover:bg-neutral-bg-secondary p-2 -m-2 rounded-md transition-colors">
+        <div className="w-2 h-2 bg-brand-orange rounded-full mt-1.5 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-neutral-text">
+            <span className="text-neutral-text-secondary">{action}</span> {target}
+          </p>
+          <p className="text-xs text-neutral-text-muted mt-0.5">{time}</p>
+        </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

@@ -177,8 +177,12 @@ export const getJobAnalytics = query({
  * Get analytics for all employer's jobs
  */
 export const getEmployerAnalytics = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    timePeriod: v.optional(v.string()),
+    fromDate: v.optional(v.number()),
+    toDate: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
@@ -188,6 +192,21 @@ export const getEmployerAnalytics = query({
       .first();
 
     if (!user || user.primaryRole !== "employer") return null;
+
+    // Calculate date range based on timePeriod
+    let startDate = 0;
+    const endDate = Date.now();
+    
+    if (args.timePeriod === "custom" && args.fromDate && args.toDate) {
+      startDate = args.fromDate;
+    } else if (args.timePeriod === "7d") {
+      startDate = endDate - (7 * 24 * 60 * 60 * 1000);
+    } else if (args.timePeriod === "30d") {
+      startDate = endDate - (30 * 24 * 60 * 60 * 1000);
+    } else if (args.timePeriod === "90d") {
+      startDate = endDate - (90 * 24 * 60 * 60 * 1000);
+    }
+    // "all" or undefined means no date filter (startDate = 0)
 
     // Get all employer's jobs
     const jobs = await ctx.db
@@ -202,19 +221,25 @@ export const getEmployerAnalytics = query({
           .query("jobViews")
           .withIndex("by_job", (q) => q.eq("jobId", job._id))
           .collect();
+        
+        // Filter views by date range
+        const filteredViews = views.filter(v => v.viewedAt >= startDate && v.viewedAt <= endDate);
 
         const applications = await ctx.db
           .query("applications")
           .withIndex("by_job", (q) => q.eq("jobId", job._id))
           .collect();
+        
+        // Filter applications by date range using _creationTime
+        const filteredApplications = applications.filter(a => a._creationTime >= startDate && a._creationTime <= endDate);
 
         return {
           jobId: job._id,
           jobTitle: job.title,
-          viewCount: views.length,
-          applicationCount: applications.length,
-          conversionRate: views.length > 0 
-            ? Math.round((applications.length / views.length) * 100) 
+          viewCount: filteredViews.length,
+          applicationCount: filteredApplications.length,
+          conversionRate: filteredViews.length > 0 
+            ? Math.round((filteredApplications.length / filteredViews.length) * 100) 
             : 0,
         };
       })

@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../../convex/_generated/dataModel";
+import { KENYA_COUNTIES } from "@/lib/counties";
 
 export default function EditJobPage() {
   const router = useRouter();
@@ -13,16 +14,23 @@ export default function EditJobPage() {
   const jobId = params.id as Id<"jobs">;
   
   const job = useQuery(api.jobs.getWithApplicationCount, { id: jobId });
+  const profile = useQuery(api.profile.getCurrentUserProfile);
   const updateJob = useMutation(api.jobMutations.update);
+  const publishJob = useMutation(api.jobMutations.publish);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const verificationStatus = profile?.employerProfile?.verificationStatus;
+  const isVerified = verificationStatus === "verified";
+  const isDraft = job?.status === "draft";
   const [formData, setFormData] = useState({
     title: "",
     department: "",
+    customDepartment: "",
     employmentType: "full-time",
     workplaceType: "on-site",
     location: "",
-    county: "",
+    multipleLocations: false,
+    locations: [] as string[],
     description: "",
     responsibilities: "",
     requirements: "",
@@ -59,13 +67,22 @@ export default function EditJobPage() {
 
   useEffect(() => {
     if (job) {
+      // Parse location to check if it has multiple locations
+      const locationStr = job.location;
+      const hasMultiple = locationStr.includes(",");
+      const locationsList = hasMultiple 
+        ? locationStr.replace(/\s*\+\d+\s*more$/, "").split(",").map((l: string) => l.trim())
+        : [];
+      
       setFormData({
         title: job.title,
         department: job.department || "",
+        customDepartment: "",
         employmentType: job.employmentType,
         workplaceType: job.workplaceType,
-        location: job.location,
-        county: job.county || "",
+        location: hasMultiple ? "" : locationStr,
+        multipleLocations: hasMultiple,
+        locations: locationsList,
         description: job.description,
         responsibilities: job.responsibilities,
         requirements: job.requirements,
@@ -139,11 +156,12 @@ export default function EditJobPage() {
       await updateJob({
         id: jobId,
         title: formData.title,
-        department: formData.department,
+        department: formData.department === "other" ? formData.customDepartment : formData.department,
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
-        location: formData.location,
-        county: formData.county,
+        location: formData.multipleLocations 
+          ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
+          : formData.location,
         description: formData.description,
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
@@ -164,6 +182,47 @@ export default function EditJobPage() {
     } catch (error) {
       console.error("Error updating job:", error);
       alert("Failed to update job. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    setIsSubmitting(true);
+    try {
+      // First update the job with latest changes
+      await updateJob({
+        id: jobId,
+        title: formData.title,
+        department: formData.department === "other" ? formData.customDepartment : formData.department,
+        employmentType: formData.employmentType,
+        workplaceType: formData.workplaceType,
+        location: formData.multipleLocations 
+          ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
+          : formData.location,
+        description: formData.description,
+        responsibilities: formData.responsibilities,
+        requirements: formData.requirements,
+        requiredSkills: formData.requiredSkills,
+        preferredSkills: formData.preferredSkills,
+        niceToHave: formData.niceToHave,
+        salaryDisclosure: formData.salaryDisclosure,
+        salaryMin: formData.salaryMin ? parseInt(formData.salaryMin) : undefined,
+        salaryMax: formData.salaryMax ? parseInt(formData.salaryMax) : undefined,
+        currency: formData.currency,
+        benefits: formData.benefits,
+        applicationDeadline: formData.applicationDeadline,
+        positions: parseInt(formData.positions),
+        experienceLevel: formData.experienceLevel,
+        applicationSettings: formData.applicationSettings,
+      });
+      
+      // Then publish it
+      await publishJob({ id: jobId });
+      router.push("/employer-dashboard/jobs");
+    } catch (error) {
+      console.error("Error publishing job:", error);
+      alert("Failed to publish job. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -223,14 +282,42 @@ export default function EditJobPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-text mb-2">Department</label>
-                    <input
-                      type="text"
+                    <label className="block text-sm font-medium text-neutral-text mb-2">Department *</label>
+                    <select
+                      required
                       value={formData.department}
                       onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                       className="w-full px-4 py-2 border border-neutral-border rounded-md"
-                    />
+                    >
+                      <option value="">Select department</option>
+                      <option value="technology">Technology & IT</option>
+                      <option value="marketing">Marketing & Sales</option>
+                      <option value="finance">Finance & Accounting</option>
+                      <option value="engineering">Engineering</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="education">Education & Training</option>
+                      <option value="hospitality">Hospitality & Tourism</option>
+                      <option value="agriculture">Agriculture</option>
+                      <option value="construction">Construction</option>
+                      <option value="logistics">Logistics & Transport</option>
+                      <option value="creative">Creative & Design</option>
+                      <option value="customer_service">Customer Service</option>
+                      <option value="other">Other</option>
+                    </select>
                   </div>
+                  {formData.department === "other" && (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-text mb-2">Specify Department *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.customDepartment}
+                        onChange={(e) => setFormData({ ...formData, customDepartment: e.target.value })}
+                        placeholder="Enter department name"
+                        className="w-full px-4 py-2 border border-neutral-border rounded-md"
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-neutral-text mb-2">Positions *</label>
                     <input
@@ -275,26 +362,85 @@ export default function EditJobPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-text mb-2">Location *</label>
-                    <input
-                      type="text"
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-2">
+                    Location *
+                  </label>
+                  {!formData.multipleLocations ? (
+                    <select
+                      required
                       value={formData.location}
                       onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                       className="w-full px-4 py-2 border border-neutral-border rounded-md"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-text mb-2">County</label>
+                    >
+                      <option value="">Select county</option>
+                      {KENYA_COUNTIES.map((county) => (
+                        <option key={county} value={county}>{county}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="px-4 py-2 border border-neutral-border rounded-md bg-neutral-bg-secondary text-sm text-neutral-text-secondary">
+                      Multiple locations selected below
+                    </p>
+                  )}
+                </div>
+
+                {/* Multiple Locations Option */}
+                <div className="border border-neutral-border rounded-lg p-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
                     <input
-                      type="text"
-                      value={formData.county}
-                      onChange={(e) => setFormData({ ...formData, county: e.target.value })}
-                      className="w-full px-4 py-2 border border-neutral-border rounded-md"
+                      type="checkbox"
+                      checked={formData.multipleLocations}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          multipleLocations: e.target.checked,
+                          locations: e.target.checked ? formData.locations : [],
+                        });
+                      }}
+                      className="w-4 h-4 text-brand-orange rounded"
                     />
-                  </div>
+                    <div>
+                      <p className="font-medium text-neutral-text">This job is available in multiple locations</p>
+                      <p className="text-sm text-neutral-text-secondary">Select multiple counties where this role is available</p>
+                    </div>
+                  </label>
+
+                  {formData.multipleLocations && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-neutral-text mb-2">
+                        Select Counties *
+                      </label>
+                      <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto border border-neutral-border rounded-md p-3 bg-white">
+                        {KENYA_COUNTIES.map((county) => (
+                          <label key={county} className="flex items-center gap-2 text-sm hover:bg-neutral-bg-secondary p-1 rounded">
+                            <input
+                              type="checkbox"
+                              checked={formData.locations.includes(county)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData({
+                                    ...formData,
+                                    locations: [...formData.locations, county]
+                                  });
+                                } else {
+                                  setFormData({
+                                    ...formData,
+                                    locations: formData.locations.filter(l => l !== county)
+                                  });
+                                }
+                              }}
+                              className="w-4 h-4 text-brand-orange rounded"
+                            />
+                            <span>{county}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-neutral-text-muted mt-2">
+                        {formData.locations.length} location{formData.locations.length !== 1 ? 's' : ''} selected
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -305,6 +451,8 @@ export default function EditJobPage() {
                     className="w-full px-4 py-2 border border-neutral-border rounded-md"
                     required
                   >
+                    <option value="intern">Intern</option>
+                    <option value="attachee">Attachee</option>
                     <option value="entry">Entry Level (0-2 years)</option>
                     <option value="mid">Mid Level (3-5 years)</option>
                     <option value="senior">Senior Level (6-10 years)</option>
@@ -540,10 +688,27 @@ export default function EditJobPage() {
               <p className="text-sm text-neutral-text-secondary mb-4">Customize what information you collect from applicants</p>
               
               <div className="space-y-4">
-                <div className="border border-neutral-border rounded-lg p-4">
-                  <h4 className="font-medium text-neutral-text mb-3">Required Information</h4>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2">
+                {/* Required Information */}
+                <div className="bg-white border border-neutral-border rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-neutral-text mb-4">Required Information</h4>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg cursor-pointer hover:bg-neutral-bg-secondary">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicationSettings.requireResume}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          applicationSettings: { ...formData.applicationSettings, requireResume: e.target.checked }
+                        })}
+                        className="w-4 h-4 text-brand-orange rounded"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-text">Resume/CV</p>
+                        <p className="text-sm text-neutral-text-secondary">Always required for applications</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg cursor-pointer hover:bg-neutral-bg-secondary">
                       <input
                         type="checkbox"
                         checked={formData.applicationSettings.requireCoverLetter}
@@ -553,9 +718,13 @@ export default function EditJobPage() {
                         })}
                         className="w-4 h-4 text-brand-orange rounded"
                       />
-                      <span className="text-sm">Cover Letter</span>
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-text">Cover Letter</p>
+                        <p className="text-sm text-neutral-text-secondary">Ask candidates to write a cover letter</p>
+                      </div>
                     </label>
-                    <label className="flex items-center gap-2">
+
+                    <label className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg cursor-pointer hover:bg-neutral-bg-secondary">
                       <input
                         type="checkbox"
                         checked={formData.applicationSettings.requirePortfolio}
@@ -565,9 +734,13 @@ export default function EditJobPage() {
                         })}
                         className="w-4 h-4 text-brand-orange rounded"
                       />
-                      <span className="text-sm">Portfolio/Work Samples</span>
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-text">Portfolio/Work Samples</p>
+                        <p className="text-sm text-neutral-text-secondary">Request portfolio URL or work samples</p>
+                      </div>
                     </label>
-                    <label className="flex items-center gap-2">
+
+                    <label className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg cursor-pointer hover:bg-neutral-bg-secondary">
                       <input
                         type="checkbox"
                         checked={formData.applicationSettings.requireLinkedIn}
@@ -577,9 +750,19 @@ export default function EditJobPage() {
                         })}
                         className="w-4 h-4 text-brand-orange rounded"
                       />
-                      <span className="text-sm">LinkedIn Profile</span>
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-text">LinkedIn Profile</p>
+                        <p className="text-sm text-neutral-text-secondary">Request LinkedIn profile URL</p>
+                      </div>
                     </label>
-                    <label className="flex items-center gap-2">
+                  </div>
+                </div>
+
+                {/* Additional Questions */}
+                <div className="bg-white border border-neutral-border rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-neutral-text mb-4">Additional Questions</h4>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg cursor-pointer hover:bg-neutral-bg-secondary">
                       <input
                         type="checkbox"
                         checked={formData.applicationSettings.requireAvailability}
@@ -589,9 +772,13 @@ export default function EditJobPage() {
                         })}
                         className="w-4 h-4 text-brand-orange rounded"
                       />
-                      <span className="text-sm">Availability to Start</span>
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-text">Availability to Start</p>
+                        <p className="text-sm text-neutral-text-secondary">When can they start working?</p>
+                      </div>
                     </label>
-                    <label className="flex items-center gap-2">
+
+                    <label className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg cursor-pointer hover:bg-neutral-bg-secondary">
                       <input
                         type="checkbox"
                         checked={formData.applicationSettings.requireSalaryExpectations}
@@ -601,9 +788,13 @@ export default function EditJobPage() {
                         })}
                         className="w-4 h-4 text-brand-orange rounded"
                       />
-                      <span className="text-sm">Salary Expectations</span>
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-text">Salary Expectations</p>
+                        <p className="text-sm text-neutral-text-secondary">Ask for their expected salary range</p>
+                      </div>
                     </label>
-                    <label className="flex items-center gap-2">
+
+                    <label className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg cursor-pointer hover:bg-neutral-bg-secondary">
                       <input
                         type="checkbox"
                         checked={formData.applicationSettings.requireWorkAuthorization}
@@ -613,9 +804,218 @@ export default function EditJobPage() {
                         })}
                         className="w-4 h-4 text-brand-orange rounded"
                       />
-                      <span className="text-sm">Work Authorization</span>
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-text">Work Authorization</p>
+                        <p className="text-sm text-neutral-text-secondary">Are they authorized to work in Kenya?</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg cursor-pointer hover:bg-neutral-bg-secondary">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicationSettings.requireWillingToRelocate}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          applicationSettings: { ...formData.applicationSettings, requireWillingToRelocate: e.target.checked }
+                        })}
+                        className="w-4 h-4 text-brand-orange rounded"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-neutral-text">Willing to Relocate</p>
+                        <p className="text-sm text-neutral-text-secondary">Are they open to relocation?</p>
+                      </div>
                     </label>
                   </div>
+                </div>
+
+                {/* Custom Questions */}
+                <div className="bg-white border border-neutral-border rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="text-lg font-semibold text-neutral-text">Custom Questions</h4>
+                      <p className="text-sm text-neutral-text-secondary">Add up to 5 custom questions</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (formData.applicationSettings.customQuestions.length < 5) {
+                          setFormData({
+                            ...formData,
+                            applicationSettings: {
+                              ...formData.applicationSettings,
+                              customQuestions: [
+                                ...formData.applicationSettings.customQuestions,
+                                {
+                                  question: "",
+                                  type: "text" as const,
+                                  required: false,
+                                  options: [],
+                                  acceptedFileTypes: [],
+                                  maxFileSize: 5,
+                                }
+                              ]
+                            }
+                          });
+                        }
+                      }}
+                      disabled={formData.applicationSettings.customQuestions.length >= 5}
+                      className="px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      + Add Question
+                    </button>
+                  </div>
+
+                  {formData.applicationSettings.customQuestions.length === 0 ? (
+                    <p className="text-sm text-neutral-text-muted text-center py-8">
+                      No custom questions yet. Click "Add Question" to create one.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {formData.applicationSettings.customQuestions.map((q: any, index: number) => (
+                        <div key={index} className="p-4 border border-neutral-border rounded-lg">
+                          <div className="flex items-start justify-between mb-3">
+                            <span className="text-sm font-medium text-neutral-text-secondary">Question {index + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = formData.applicationSettings.customQuestions.filter((_: any, i: number) => i !== index);
+                                setFormData({
+                                  ...formData,
+                                  applicationSettings: { ...formData.applicationSettings, customQuestions: updated }
+                                });
+                              }}
+                              className="text-red-600 hover:text-red-700 text-sm font-medium"
+                            >
+                              Remove
+                            </button>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium text-neutral-text mb-1">Question *</label>
+                              <input
+                                type="text"
+                                required
+                                value={q.question}
+                                onChange={(e) => {
+                                  const updated = [...formData.applicationSettings.customQuestions];
+                                  const current = updated[index];
+                                  if (current) {
+                                    updated[index] = { 
+                                      ...current, 
+                                      question: e.target.value,
+                                      type: current.type || "text",
+                                      required: current.required ?? false,
+                                      maxFileSize: current.maxFileSize || 5,
+                                      acceptedFileTypes: current.acceptedFileTypes || []
+                                    };
+                                    setFormData({
+                                      ...formData,
+                                      applicationSettings: { ...formData.applicationSettings, customQuestions: updated }
+                                    });
+                                  }
+                                }}
+                                placeholder="Enter your question"
+                                className="w-full px-3 py-2 border border-neutral-border rounded-md text-sm"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-sm font-medium text-neutral-text mb-1">Answer Type</label>
+                                <select
+                                  value={q.type}
+                                  onChange={(e) => {
+                                    const updated = [...formData.applicationSettings.customQuestions];
+                                    const current = updated[index];
+                                    if (current) {
+                                      updated[index] = { 
+                                        ...current, 
+                                        type: e.target.value as "text" | "textarea" | "select" | "radio" | "checkbox" | "file",
+                                        required: current.required ?? false,
+                                        maxFileSize: current.maxFileSize || 5,
+                                        acceptedFileTypes: current.acceptedFileTypes || []
+                                      };
+                                      setFormData({
+                                        ...formData,
+                                        applicationSettings: { ...formData.applicationSettings, customQuestions: updated }
+                                      });
+                                    }
+                                  }}
+                                  className="w-full px-3 py-2 border border-neutral-border rounded-md text-sm"
+                                >
+                                  <option value="text">Short Text</option>
+                                  <option value="textarea">Long Text</option>
+                                  <option value="select">Dropdown</option>
+                                  <option value="radio">Multiple Choice</option>
+                                  <option value="checkbox">Checkboxes</option>
+                                  <option value="file">File Upload</option>
+                                </select>
+                              </div>
+
+                              <div className="flex items-center">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={q.required}
+                                    onChange={(e) => {
+                                      const updated = [...formData.applicationSettings.customQuestions];
+                                      const current = updated[index];
+                                      if (current) {
+                                        updated[index] = { 
+                                          ...current, 
+                                          required: e.target.checked,
+                                          type: current.type || "text",
+                                          maxFileSize: current.maxFileSize || 5,
+                                          acceptedFileTypes: current.acceptedFileTypes || []
+                                        };
+                                        setFormData({
+                                          ...formData,
+                                          applicationSettings: { ...formData.applicationSettings, customQuestions: updated }
+                                        });
+                                      }
+                                    }}
+                                    className="w-4 h-4 text-brand-orange rounded"
+                                  />
+                                  <span className="text-sm text-neutral-text">Required</span>
+                                </label>
+                              </div>
+                            </div>
+
+                            {(q.type === "select" || q.type === "radio" || q.type === "checkbox") && (
+                              <div>
+                                <label className="block text-sm font-medium text-neutral-text mb-1">Options (comma-separated)</label>
+                                <input
+                                  type="text"
+                                  value={q.options?.join(", ") || ""}
+                                  onChange={(e) => {
+                                    const updated = [...formData.applicationSettings.customQuestions];
+                                    const current = updated[index];
+                                    if (current) {
+                                      updated[index] = { 
+                                        ...current, 
+                                        options: e.target.value.split(",").map((opt: string) => opt.trim()).filter(Boolean),
+                                        type: current.type || "text",
+                                        required: current.required ?? false,
+                                        maxFileSize: current.maxFileSize || 5,
+                                        acceptedFileTypes: current.acceptedFileTypes || []
+                                      };
+                                      setFormData({
+                                        ...formData,
+                                        applicationSettings: { ...formData.applicationSettings, customQuestions: updated }
+                                      });
+                                    }
+                                  }}
+                                  placeholder="Option 1, Option 2, Option 3"
+                                  className="w-full px-3 py-2 border border-neutral-border rounded-md text-sm"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -635,6 +1035,16 @@ export default function EditJobPage() {
               >
                 {isSubmitting ? "Saving..." : "Save Changes"}
               </button>
+              {isDraft && isVerified && (
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={isSubmitting}
+                  className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? "Publishing..." : "Publish Job"}
+                </button>
+              )}
             </div>
           </div>
         </form>

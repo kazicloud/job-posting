@@ -2,7 +2,7 @@
 
 import { Menu, Bell } from "lucide-react";
 import { useSidebar } from "./employer-dashboard-layout";
-import { UserButton } from "@clerk/nextjs";
+import { EmployerProfileDropdown } from "./employer-profile-dropdown";
 
 export function EmployerTopNav() {
   const { setMobileOpen } = useSidebar();
@@ -30,8 +30,8 @@ export function EmployerTopNav() {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
           </button>
 
-          {/* User Menu */}
-          <UserButton afterSignOutUrl="/" />
+          {/* Profile Dropdown */}
+          <EmployerProfileDropdown />
         </div>
       </div>
     </div>

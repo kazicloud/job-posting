@@ -36,15 +36,8 @@ export const syncUser = mutation({
       return existing._id;
     }
 
-    // Create new user with default role
-    return await ctx.db.insert("users", {
-      clerkId: args.clerkId,
-      email: args.email,
-      fullName: args.fullName,
-      profilePhoto: args.profilePhoto,
-      roles: ["job_seeker"],
-      primaryRole: "job_seeker",
-    });
+    // Don't create user here - let Clerk webhook handle creation
+    return null;
   },
 });
 

@@ -2,7 +2,7 @@
 
 import { EmployerDashboardLayout } from "@/components/employer-dashboard/employer-dashboard-layout";
 import { useState } from "react";
-import { ArrowLeft, Save, Eye, Briefcase, MapPin, DollarSign, Clock, Users, FileText, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, Eye, Briefcase, MapPin, DollarSign, Clock, Users, FileText, CheckCircle, CheckCircle2, Building2, GraduationCap, Globe, Calendar } from "lucide-react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
@@ -19,6 +19,7 @@ export default function NewJobPage() {
     // Basic Info
     title: "",
     department: "",
+    customDepartment: "",
     employmentType: "",
     workplaceType: "",
     
@@ -94,10 +95,12 @@ export default function NewJobPage() {
         employerId: profile._id,
         title: formData.title,
         companyName: profile.employerProfile?.companyName || "Company",
-        department: formData.department,
+        department: formData.department === "other" ? formData.customDepartment : formData.department,
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
-        location: formData.location,
+        location: formData.multipleLocations 
+          ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
+          : formData.location,
         description: formData.description,
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
@@ -122,7 +125,11 @@ export default function NewJobPage() {
           requireSalaryExpectations: formData.applicationSettings.requireSalaryExpectations,
           requireWorkAuthorization: formData.applicationSettings.requireWorkAuthorization,
           requireWillingToRelocate: formData.applicationSettings.requireWillingToRelocate,
-          customQuestions: formData.applicationSettings.customQuestions || [],
+          customQuestions: (formData.applicationSettings.customQuestions || []).map((q: any) => ({
+            ...q,
+            acceptedFileTypes: q.acceptedFileTypes || [],
+            maxFileSize: q.maxFileSize || 5,
+          })),
         },
       });
       router.push("/employer-dashboard/jobs");
@@ -142,10 +149,12 @@ export default function NewJobPage() {
         employerId: profile._id,
         title: formData.title,
         companyName: profile.employerProfile?.companyName || "Company",
-        department: formData.department,
+        department: formData.department === "other" ? formData.customDepartment : formData.department,
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
-        location: formData.location,
+        location: formData.multipleLocations 
+          ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
+          : formData.location,
         description: formData.description,
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
@@ -170,7 +179,11 @@ export default function NewJobPage() {
           requireSalaryExpectations: formData.applicationSettings.requireSalaryExpectations,
           requireWorkAuthorization: formData.applicationSettings.requireWorkAuthorization,
           requireWillingToRelocate: formData.applicationSettings.requireWillingToRelocate,
-          customQuestions: formData.applicationSettings.customQuestions || [],
+          customQuestions: (formData.applicationSettings.customQuestions || []).map((q: any) => ({
+            ...q,
+            acceptedFileTypes: q.acceptedFileTypes || [],
+            maxFileSize: q.maxFileSize || 5,
+          })),
         },
       });
       router.push("/employer-dashboard/jobs");
@@ -281,6 +294,22 @@ export default function NewJobPage() {
 }
 
 function BasicInfoStep({ formData, updateFormData, onNext }: any) {
+  const departments = [
+    { value: "technology", label: "Technology & IT" },
+    { value: "marketing", label: "Marketing & Sales" },
+    { value: "finance", label: "Finance & Accounting" },
+    { value: "engineering", label: "Engineering" },
+    { value: "healthcare", label: "Healthcare" },
+    { value: "education", label: "Education & Training" },
+    { value: "hospitality", label: "Hospitality & Tourism" },
+    { value: "agriculture", label: "Agriculture" },
+    { value: "construction", label: "Construction" },
+    { value: "logistics", label: "Logistics & Transport" },
+    { value: "creative", label: "Creative & Design" },
+    { value: "customer_service", label: "Customer Service" },
+    { value: "other", label: "Other" },
+  ];
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onNext();
@@ -310,16 +339,37 @@ function BasicInfoStep({ formData, updateFormData, onNext }: any) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-neutral-text mb-2">
-            Department
+            Department *
           </label>
-          <input
-            type="text"
+          <select
+            required
             value={formData.department}
             onChange={(e) => updateFormData("department", e.target.value)}
-            placeholder="e.g., Engineering"
             className="w-full px-4 py-3 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
-          />
+          >
+            <option value="">Select department</option>
+            {departments.map((dept) => (
+              <option key={dept.value} value={dept.value}>
+                {dept.label}
+              </option>
+            ))}
+          </select>
         </div>
+        {formData.department === "other" && (
+          <div>
+            <label className="block text-sm font-medium text-neutral-text mb-2">
+              Specify Department *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.customDepartment}
+              onChange={(e) => updateFormData("customDepartment", e.target.value)}
+              placeholder="Enter department name"
+              className="w-full px-4 py-3 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+            />
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-neutral-text mb-2">
             Number of Positions *
@@ -458,6 +508,8 @@ function BasicInfoStep({ formData, updateFormData, onNext }: any) {
           className="w-full px-4 py-3 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
         >
           <option value="">Select level</option>
+          <option value="intern">Intern</option>
+          <option value="attachee">Attachee</option>
           <option value="entry">Entry Level (0-2 years)</option>
           <option value="mid">Mid Level (3-5 years)</option>
           <option value="senior">Senior Level (6-10 years)</option>
@@ -570,14 +622,44 @@ function DescriptionStep({ formData, updateFormData, onNext, onBack }: any) {
 function RequirementsStep({ formData, updateFormData, onNext, onBack }: any) {
   const [requiredSkillInput, setRequiredSkillInput] = useState("");
   const [preferredSkillInput, setPreferredSkillInput] = useState("");
+  const [deadlineError, setDeadlineError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (formData.requiredSkills.length < 3) {
       alert("Please add at least 3 required skills");
       return;
     }
+    
+    // Validate application deadline
+    if (!formData.applicationDeadline) {
+      setDeadlineError("Application deadline is required");
+      return;
+    }
+    
+    const selectedDate = new Date(formData.applicationDeadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    if (selectedDate < today) {
+      setDeadlineError("Deadline cannot be in the past");
+      return;
+    }
+    
+    if (selectedDate > maxDate) {
+      setDeadlineError("Deadline cannot be more than 30 days from today");
+      return;
+    }
+    
+    setDeadlineError("");
     onNext();
+  };
+
+  const handleDeadlineChange = (value: string) => {
+    updateFormData("applicationDeadline", value);
+    setDeadlineError("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, field: string) => {
@@ -764,18 +846,26 @@ function RequirementsStep({ formData, updateFormData, onNext, onBack }: any) {
 
       <div>
         <label className="block text-sm font-medium text-neutral-text mb-2">
-          Application Deadline
+          Application Deadline *
         </label>
         <input
           type="date"
+          required
           value={formData.applicationDeadline}
-          onChange={(e) => updateFormData("applicationDeadline", e.target.value)}
+          onChange={(e) => handleDeadlineChange(e.target.value)}
           min={new Date().toISOString().split("T")[0]}
-          className="w-full px-4 py-3 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+          max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+          className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+            deadlineError ? "border-red-500" : "border-neutral-border"
+          }`}
         />
-        <p className="text-xs text-neutral-text-muted mt-1">
-          Leave empty for ongoing recruitment
-        </p>
+        {deadlineError ? (
+          <p className="text-xs text-red-600 mt-1">{deadlineError}</p>
+        ) : (
+          <p className="text-xs text-neutral-text-muted mt-1">
+            Maximum 30 days from today
+          </p>
+        )}
       </div>
 
       <div className="flex gap-4">
@@ -962,7 +1052,7 @@ function CompensationStep({ formData, updateFormData, onNext, onBack }: any) {
           type="submit"
           className="flex-1 py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90"
         >
-          Preview Job
+          Application Settings
         </button>
       </div>
     </form>
@@ -985,6 +1075,8 @@ function ApplicationSettingsStep({ formData, updateFormData, onNext, onBack }: a
       type: "text" as const,
       required: false,
       options: [],
+      acceptedFileTypes: [],
+      maxFileSize: 5,
     };
     updateSettings("customQuestions", [...settings.customQuestions, newQuestion]);
   };
@@ -1249,13 +1341,35 @@ function ApplicationSettingsStep({ formData, updateFormData, onNext, onBack }: a
 }
 
 function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }: any) {
+  const profile = useQuery(api.profile.getCurrentUserProfile);
+  
+  const verificationStatus = profile?.employerProfile?.verificationStatus;
+  const isVerified = verificationStatus === "verified";
+  
   const getSalaryDisplay = () => {
     if (formData.salaryDisclosure === "range") {
-      const periodMap = { year: "/yr", month: "/mo", hour: "/hr" };
-      return `${formData.currency} ${parseInt(formData.salaryMin).toLocaleString()} - ${parseInt(formData.salaryMax).toLocaleString()}${periodMap[formData.salaryPeriod as keyof typeof periodMap]}`;
-    } else {
-      return "To be discussed";
+      return `${formData.currency} ${parseInt(formData.salaryMin).toLocaleString()} - ${parseInt(formData.salaryMax).toLocaleString()}`;
     }
+    return "Salary undisclosed";
+  };
+
+  const getDepartmentLabel = () => {
+    if (formData.department === "other") return formData.customDepartment;
+    const departments: Record<string, string> = {
+      technology: "Technology & IT",
+      marketing: "Marketing & Sales",
+      finance: "Finance & Accounting",
+      engineering: "Engineering",
+      healthcare: "Healthcare",
+      education: "Education & Training",
+      hospitality: "Hospitality & Tourism",
+      agriculture: "Agriculture",
+      construction: "Construction",
+      logistics: "Logistics & Transport",
+      creative: "Creative & Design",
+      customer_service: "Customer Service",
+    };
+    return departments[formData.department] || formData.department;
   };
 
   return (
@@ -1265,62 +1379,236 @@ function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }:
         <p className="text-neutral-text-secondary">Review how your job will appear to candidates</p>
       </div>
 
-      {/* Job Preview Card */}
-      <div className="border-2 border-neutral-border rounded-lg p-6 bg-neutral-bg-secondary">
-        <div className="bg-white rounded-lg p-6">
-          <h3 className="text-2xl font-semibold text-neutral-text mb-4">{formData.title}</h3>
-          
-          <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-text-secondary mb-6">
-            <span className="flex items-center gap-1">
-              <MapPin className="w-4 h-4" />
-              {formData.location}
-            </span>
-            <span className="flex items-center gap-1">
-              <Briefcase className="w-4 h-4" />
-              {formData.employmentType}
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              {formData.workplaceType}
-            </span>
-            <span className="flex items-center gap-1">
-              <DollarSign className="w-4 h-4" />
-              {getSalaryDisplay()}
-            </span>
+      {/* Job Preview - Matching actual job detail page */}
+      <div className="border-2 border-neutral-border rounded-lg overflow-hidden">
+        <div className="bg-white p-8">
+          {/* Job Header */}
+          <div className="flex items-start gap-4 mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-brand-orange to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-orange-200">
+              <span className="text-2xl font-bold text-white">
+                {profile?.employerProfile?.companyName?.charAt(0) || "C"}
+              </span>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-sm font-semibold text-gray-600">
+                  {profile?.employerProfile?.companyName || "Your Company"}
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Verified
+                </span>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4 leading-tight">
+                {formData.title}
+              </h1>
+              
+              {/* Meta Info */}
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-4">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  <span>
+                    {formData.multipleLocations 
+                      ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
+                      : formData.location}
+                  </span>
+                </div>
+                <span className="text-gray-300">•</span>
+                <div className="flex items-center gap-1.5">
+                  <Briefcase className="w-4 h-4 text-gray-400" />
+                  <span className="capitalize">{formData.employmentType.replace('-', ' ')}</span>
+                </div>
+                <span className="text-gray-300">•</span>
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-gray-400" />
+                  <span className="capitalize">{formData.workplaceType}</span>
+                </div>
+                <span className="text-gray-300">•</span>
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  <span>Just now</span>
+                </div>
+              </div>
+
+              {/* Deadline Badge */}
+              {formData.applicationDeadline && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 border border-orange-200 rounded-lg">
+                  <Calendar className="w-4 h-4 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-700">
+                    Deadline: {new Date(formData.applicationDeadline).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold text-neutral-text mb-2">About the Role</h4>
-              <p className="text-neutral-text-secondary whitespace-pre-line">{formData.description}</p>
+          {/* Job Details Grid */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Job Details</h3>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                  <MapPin className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Location</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {formData.multipleLocations 
+                      ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
+                      : formData.location}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Briefcase className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Contract Type</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{formData.employmentType.replace('-', ' ')}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Workplace</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{formData.workplaceType.replace('-', ' ')}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                  <GraduationCap className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Experience</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{formData.experienceLevel}</p>
+                </div>
+              </div>
+
+              {formData.department && (
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Globe className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Department</p>
+                    <p className="text-sm font-medium text-gray-900">{getDepartmentLabel()}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Salary</p>
+                  <p className="text-sm font-medium text-gray-900">{getSalaryDisplay()}</p>
+                </div>
+              </div>
+
+              {formData.positions && (
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Users className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Positions</p>
+                    <p className="text-sm font-medium text-gray-900">{formData.positions} opening{formData.positions > 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div>
-              <h4 className="font-semibold text-neutral-text mb-2">Key Responsibilities</h4>
-              <p className="text-neutral-text-secondary whitespace-pre-line">{formData.responsibilities}</p>
-            </div>
+            {/* Required Skills */}
+            {formData.requiredSkills && formData.requiredSkills.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="text-sm font-bold text-gray-900 mb-3">Required Skills</h4>
+                <div className="flex flex-wrap gap-2">
+                  {formData.requiredSkills.map((skill: string, idx: number) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1.5 bg-white border border-orange-200 text-orange-700 text-sm rounded-lg font-medium"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            <div>
-              <h4 className="font-semibold text-neutral-text mb-2">Requirements</h4>
-              <p className="text-neutral-text-secondary whitespace-pre-line">{formData.requirements}</p>
-            </div>
+            {/* Preferred Skills */}
+            {formData.preferredSkills && formData.preferredSkills.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-bold text-gray-900 mb-3">Preferred Skills</h4>
+                <div className="flex flex-wrap gap-2">
+                  {formData.preferredSkills.map((skill: string, idx: number) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-sm rounded-lg"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Job Content */}
+          <div className="space-y-6">
+            {formData.description && (
+              <div>
+                <h4 className="text-lg font-bold text-gray-900 mb-3">About the Role</h4>
+                <p className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.description}</p>
+              </div>
+            )}
+
+            {formData.responsibilities && (
+              <div>
+                <h4 className="text-lg font-bold text-gray-900 mb-3">Key Responsibilities</h4>
+                <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.responsibilities}</div>
+              </div>
+            )}
+
+            {formData.requirements && (
+              <div>
+                <h4 className="text-lg font-bold text-gray-900 mb-3">Requirements</h4>
+                <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.requirements}</div>
+              </div>
+            )}
 
             {formData.niceToHave && (
               <div>
-                <h4 className="font-semibold text-neutral-text mb-2">Nice to Have</h4>
-                <p className="text-neutral-text-secondary whitespace-pre-line">{formData.niceToHave}</p>
+                <h4 className="text-lg font-bold text-gray-900 mb-3">Nice to Have</h4>
+                <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.niceToHave}</div>
               </div>
             )}
 
             {formData.benefits && (
               <div>
-                <h4 className="font-semibold text-neutral-text mb-2">Benefits & Perks</h4>
-                <p className="text-neutral-text-secondary whitespace-pre-line">{formData.benefits}</p>
+                <h4 className="text-lg font-bold text-gray-900 mb-3">Benefits & Perks</h4>
+                <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.benefits}</div>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Verification Warning */}
+      {!isVerified && (
+        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <p className="text-sm text-orange-800">
+            <strong>Company verification required:</strong> Your company must be verified before you can publish jobs. 
+            You can save this job as a draft and publish it once your company is verified.
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-4">
         <button
@@ -1343,8 +1631,9 @@ function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }:
         <button
           type="button"
           onClick={onPublish}
-          disabled={isSubmitting}
-          className="flex-1 py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 disabled:opacity-50"
+          disabled={isSubmitting || !isVerified}
+          title={!isVerified ? "Company must be verified to publish jobs" : ""}
+          className="flex-1 py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? "Publishing..." : "Publish Job"}
         </button>

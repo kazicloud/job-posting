@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Briefcase, Users, BarChart3, Settings, ChevronLeft, ChevronRight, X, Building2 } from "lucide-react";
 import { useSidebar } from "./employer-dashboard-layout";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 
 const navItems = [
   { href: "/employer-dashboard", label: "Overview", icon: Home },
@@ -16,6 +18,31 @@ const navItems = [
 export function EmployerSidebar() {
   const pathname = usePathname();
   const { collapsed, setCollapsed, mobileOpen, setMobileOpen } = useSidebar();
+  const profile = useQuery(api.profile.getCurrentUserProfile);
+
+  // Calculate employer profile completeness
+  const calculateCompleteness = () => {
+    if (!profile?.employerProfile) return 0;
+    
+    const fields = [
+      profile.employerProfile.companyName,
+      profile.employerProfile.companySize,
+      profile.employerProfile.companyIndustries?.length,
+      profile.employerProfile.companyDescription,
+      profile.employerProfile.website,
+      profile.employerProfile.headquarters,
+      profile.employerProfile.contactPersonName,
+      profile.employerProfile.contactPersonPhone,
+      profile.employerProfile.companyLogo || profile.employerProfile.companyLogoStorageId,
+      profile.email,
+    ];
+    
+    const filledFields = fields.filter(field => field).length;
+    return Math.round((filledFields / fields.length) * 100);
+  };
+
+  const completeness = calculateCompleteness();
+  const showProfileCard = profile !== undefined && completeness < 100;
 
   return (
     <>
@@ -92,6 +119,37 @@ export function EmployerSidebar() {
                 );
               })}
             </ul>
+
+            {/* Profile Completion Card */}
+            {!collapsed && showProfileCard && (
+              <div className="px-3 mt-6">
+                <div className="bg-[#0F172A] rounded-lg p-4 text-white">
+                  <h3 className="font-semibold text-base mb-3">
+                    Your profile is {completeness}% complete
+                  </h3>
+                  
+                  {/* Progress Bar */}
+                  <div className="bg-white/20 rounded-full h-2 mb-4">
+                    <div 
+                      className="bg-brand-orange h-2 rounded-full transition-all"
+                      style={{ width: `${completeness}%` }}
+                    />
+                  </div>
+
+                  <p className="text-sm text-white/80 mb-4 leading-relaxed">
+                    A complete profile helps attract quality candidates and builds trust with job seekers.
+                  </p>
+
+                  {/* Complete Profile Button */}
+                  <Link
+                    href="/employer-dashboard/settings"
+                    className="block w-full py-2.5 bg-brand-orange text-white text-sm font-medium text-center rounded-md hover:bg-brand-orange/90 transition-colors"
+                  >
+                    Complete Profile
+                  </Link>
+                </div>
+              </div>
+            )}
           </nav>
         </div>
       </aside>

@@ -41,8 +41,11 @@ function VerifyContent() {
         
         // Get signup data from sessionStorage
         const signupData = sessionStorage.getItem("signupData");
+        let primaryRole = "job_seeker";
+        
         if (signupData) {
           const data = JSON.parse(signupData);
+          primaryRole = data.roles[0] || "job_seeker";
           
           // Call HTTP endpoint to save additional signup data
           const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL!.replace('/.well-known/openid-configuration', '');
@@ -62,7 +65,6 @@ function VerifyContent() {
         }
         
         reset();
-        const primaryRole = selectedRoles[0] || "job_seeker";
         if (primaryRole === "job_seeker") {
           router.push("/onboarding");
         } else if (primaryRole === "employer") {

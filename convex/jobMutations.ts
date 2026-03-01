@@ -152,3 +152,15 @@ export const update = mutation({
     return id;
   },
 });
+
+
+export const publish = mutation({
+  args: {
+    id: v.id("jobs"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      status: "published",
+    });
+  },
+});
