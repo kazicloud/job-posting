@@ -50,36 +50,46 @@ export const getRecommendedJobs = query({
     const allJobs = await ctx.db
       .query("jobs")
       .withIndex("by_status", (q) => q.eq("status", "published"))
+      .order("desc")
       .collect();
 
     const now = Date.now();
     
-    // Filter and score jobs
-    const jobsWithMatch = allJobs
-      .filter(job => {
-        // Not applied
-        if (appliedJobIds.has(job._id)) return false;
-        
-        // Not closed (deadline not passed)
-        if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < now) {
-          return false;
-        }
-        
-        // Match by interested fields OR skills
-        const matchesDepartment = job.department && interestedFields.some(field => {
+    // Filter jobs
+    const availableJobs = allJobs.filter(job => {
+      // Not applied
+      if (appliedJobIds.has(job._id)) return false;
+      
+      // Not closed (deadline not passed)
+      if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < now) {
+        return false;
+      }
+      
+      return true;
+    });
+
+    // Separate jobs by whether they match interested fields
+    const matchingJobs = [];
+    const otherJobs = [];
+
+    for (const job of availableJobs) {
+      let matchPercentage = 0;
+      let matchesDepartment = false;
+
+      // Check department match
+      if (job.department && interestedFields.length > 0) {
+        const jobDept = job.department.toLowerCase().trim();
+        matchesDepartment = interestedFields.some(field => {
           const f = field.toLowerCase().trim();
-          const jobDept = job.department!.toLowerCase().trim();
           return jobDept.includes(f) || f.includes(jobDept);
         });
+      }
 
-        const hasSkillMatch = job.requiredSkills && job.requiredSkills.length > 0;
+      // Calculate match percentage
+      if (matchesDepartment) {
+        matchPercentage = 50; // Base score for department match
 
-        return matchesDepartment || hasSkillMatch;
-      })
-      .map(job => {
-        let matchPercentage = 0;
-
-        // Calculate skill match if job has required skills
+        // Add skill match bonus
         if (job.requiredSkills && job.requiredSkills.length > 0 && userSkillNames.length > 0) {
           const requiredSkills = job.requiredSkills.map(s => s.toLowerCase().trim());
           
@@ -91,27 +101,31 @@ export const getRecommendedJobs = query({
             )
           ).length;
 
-          matchPercentage = Math.round((matchedCount / requiredSkills.length) * 100);
-        } else if (job.department && interestedFields.length > 0) {
-          // If no skills, but matches department, give it a base score
-          const jobDept = job.department.toLowerCase().trim();
-          const hasExactMatch = interestedFields.some(field => {
-            const f = field.toLowerCase().trim();
-            return jobDept === f || jobDept.includes(f) || f.includes(jobDept);
-          });
-          matchPercentage = hasExactMatch ? 75 : 50;
+          const skillMatchPercentage = Math.round((matchedCount / requiredSkills.length) * 100);
+          matchPercentage = Math.round((50 + skillMatchPercentage) / 2);
         }
 
-        return {
+        matchingJobs.push({
           ...job,
           matchPercentage,
-          createdAt: job._creationTime, // Use creation time for sorting
-        };
-      })
-      .sort((a, b) => b.createdAt - a.createdAt) // Sort by most recent first
-      .slice(0, limit);
+          createdAt: job._creationTime,
+        });
+      } else {
+        otherJobs.push({
+          ...job,
+          matchPercentage: 0,
+          createdAt: job._creationTime,
+        });
+      }
+    }
 
-    return jobsWithMatch;
+    // Prioritize matching jobs, then fill with other recent jobs if needed
+    const result = [
+      ...matchingJobs.sort((a, b) => b.createdAt - a.createdAt),
+      ...otherJobs.sort((a, b) => b.createdAt - a.createdAt),
+    ].slice(0, limit);
+
+    return result;
   },
 });
 

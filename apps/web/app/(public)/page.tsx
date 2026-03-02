@@ -27,57 +27,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-neutral-bg-secondary">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-neutral-text">Recent Opportunities</h2>
-            <Link
-              href="/jobs"
-              className="text-neutral-text-secondary hover:text-neutral-text"
-            >
-              View all →
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                title: "Senior Software Engineer",
-                company: "TechCorp",
-                location: "Nairobi",
-                type: "Full-time",
-              },
-              {
-                title: "Product Designer",
-                company: "DesignHub",
-                location: "Lagos",
-                type: "Full-time",
-              },
-              {
-                title: "Data Analyst",
-                company: "DataCo",
-                location: "Remote",
-                type: "Contract",
-              },
-            ].map((job, i) => (
-              <Link
-                key={i}
-                href="/jobs"
-                className="bg-white border border-neutral-border rounded-lg p-6 hover:border-neutral-text-muted transition-colors"
-              >
-                <h3 className="font-semibold text-neutral-text mb-2">{job.title}</h3>
-                <p className="text-neutral-text-secondary mb-3">{job.company}</p>
-                <div className="flex gap-2 text-sm text-neutral-text-muted">
-                  <span>{job.location}</span>
-                  <span>•</span>
-                  <span>{job.type}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section className="bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">

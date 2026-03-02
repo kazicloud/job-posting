@@ -18,6 +18,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const skillMatch = useQuery(api.matching.calculateSkillMatch, { jobId });
   const profile = useQuery(api.profile.getCurrentUserProfile);
   const jobAnalytics = useQuery(api.analytics.getJobAnalytics, { jobId });
+  const employerProfile = useQuery(api.profile.getEmployerProfile, 
+    job ? { userId: job.employerId as any } : "skip"
+  );
   const apply = useMutation(api.applications.apply);
   const trackView = useMutation(api.analytics.trackView);
   
@@ -83,160 +86,229 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
       <div className="min-h-screen bg-white">
         {/* Back Navigation */}
         <div className="border-b border-gray-100">
-          <div className="max-w-6xl mx-auto px-8 py-4">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
             <Link
               href="/dashboard/jobs"
               className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
-              <span className="font-medium">Back to jobs</span>
+              <span className="text-sm sm:text-base font-medium">Back to jobs</span>
             </Link>
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               {/* Job Header */}
               <div className="bg-white">
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="w-16 h-16 bg-gradient-to-br from-brand-orange to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-orange-200">
-                    <span className="text-2xl font-bold text-white">
-                      {job.companyName.charAt(0)}
-                    </span>
+                <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-brand-orange to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-orange-200 overflow-hidden">
+                    {employerProfile?.companyLogo ? (
+                      <img 
+                        src={employerProfile.companyLogo} 
+                        alt={`${job.companyName} logo`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xl sm:text-2xl font-bold text-white">
+                        {job.companyName.charAt(0)}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-sm font-semibold text-gray-600">
+                      <h3 className="text-xs sm:text-sm font-semibold text-gray-600 truncate">
                         {job.companyName}
                       </h3>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full flex-shrink-0">
                         <CheckCircle2 className="w-3 h-3" />
-                        Verified
+                        <span className="hidden sm:inline">Verified</span>
                       </span>
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-4 leading-tight">
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-3 sm:mb-4 leading-tight break-words">
                       {job.title}
                     </h1>
                     
                     {/* Meta Info */}
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-4">
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <span>{job.location}</span>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
+                      <div className="flex items-center gap-1 sm:gap-1.5">
+                        <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                        <span className="truncate max-w-[120px] sm:max-w-none">{job.location}</span>
                       </div>
-                      <span className="text-gray-300">•</span>
-                      <div className="flex items-center gap-1.5">
-                        <Briefcase className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-300 hidden sm:inline">•</span>
+                      <div className="flex items-center gap-1 sm:gap-1.5">
+                        <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
                         <span className="capitalize">{job.employmentType.replace('-', ' ')}</span>
                       </div>
-                      <span className="text-gray-300">•</span>
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-300 hidden sm:inline">•</span>
+                      <div className="flex items-center gap-1 sm:gap-1.5">
+                        <Building2 className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
                         <span className="capitalize">{job.workplaceType}</span>
                       </div>
-                      <span className="text-gray-300">•</span>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-gray-400" />
-                        <span>{getDaysAgo()}</span>
+                      <span className="text-gray-300 hidden sm:inline">•</span>
+                      <div className="flex items-center gap-1 sm:gap-1.5">
+                        <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                        <span>Posted {getDaysAgo()}</span>
                       </div>
                     </div>
 
                     {/* Deadline Badge */}
                     {getDeadline() && (
-                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 border border-orange-200 rounded-lg">
-                        <Calendar className="w-4 h-4 text-orange-600" />
-                        <span className="text-sm font-medium text-orange-700">{getDeadline()}</span>
+                      <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-orange-50 border border-orange-200 rounded-lg">
+                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-orange-600" />
+                        <span className="text-xs sm:text-sm font-medium text-orange-700">{getDeadline()}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-3 pt-6 border-t border-gray-100">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-4 sm:pt-6 border-t border-gray-100">
                   {hasApplied ? (
-                    <div className="flex items-center gap-2 px-6 py-3 bg-green-50 text-green-700 rounded-lg font-semibold">
-                      <CheckCircle2 className="w-5 h-5" />
+                    <div className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-green-50 text-green-700 rounded-lg font-semibold">
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       <span>Applied</span>
                     </div>
                   ) : (
                     <Link
                       href={`/dashboard/jobs/${jobId}/apply`}
-                      className="px-6 py-3 bg-brand-orange text-white font-semibold rounded-lg hover:bg-brand-orange/90 transition-all hover:shadow-lg hover:shadow-orange-200"
+                      className="flex items-center justify-center px-4 sm:px-6 py-2.5 sm:py-3 bg-brand-orange text-white font-semibold rounded-lg hover:bg-brand-orange/90 transition-all hover:shadow-lg hover:shadow-orange-200"
                     >
                       Apply Now
                     </Link>
                   )}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <ShareButton 
                       jobId={jobId} 
                       jobTitle={job.title} 
-                      className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="p-2 sm:p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     />
-                    <WishlistButton jobId={jobId} className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" />
+                    <WishlistButton jobId={jobId} className="p-2 sm:p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" />
                   </div>
                 </div>
               </div>
 
-              {/* Job Details Grid */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Job Details</h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-5 h-5 text-gray-600" />
+              {/* Mobile: Show Stats & Match Cards Here */}
+              <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Application Stats */}
+                <div className="bg-white border border-neutral-border rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-neutral-text mb-3">Application Stats</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-neutral-text-secondary">Applicants</span>
+                      <span className="text-sm font-medium text-neutral-text">
+                        {jobAnalytics?.applicationCount || 0}
+                      </span>
                     </div>
-                    <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-neutral-text-secondary">Your position</span>
+                      <span className="text-sm font-medium text-green-600">
+                        Top 20%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Match Score Card */}
+                {skillMatch && skillMatch.totalRequired > 0 && (
+                  <div className="bg-white border border-neutral-border rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-neutral-text mb-3">Your Match</h3>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex gap-0.5">
+                        {[...Array(5)].map((_, i) => (
+                          <CheckCircle2
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < skillMatch.matchScore
+                                ? 'text-green-500 fill-green-500'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-lg font-bold text-neutral-text">{skillMatch.matchScore}/5</span>
+                    </div>
+                    <p className="text-xs text-neutral-text-secondary mb-3">
+                      {skillMatch.matchedCount} of {skillMatch.totalRequired} skills ({skillMatch.matchPercentage}%)
+                    </p>
+                    {skillMatch.matchedSkills.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {skillMatch.matchedSkills.slice(0, 3).map((skill, idx) => (
+                          <span key={idx} className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded">
+                            {skill}
+                          </span>
+                        ))}
+                        {skillMatch.matchedSkills.length > 3 && (
+                          <span className="px-2 py-0.5 text-xs text-neutral-text-muted">
+                            +{skillMatch.matchedSkills.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Job Details Grid */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Job Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                    </div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Location</p>
-                      <p className="text-sm font-medium text-gray-900">{job.location}{job.county && `, ${job.county}`}</p>
+                      <p className="text-sm font-medium text-gray-900 break-words">{job.location}{job.county && `, ${job.county}`}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Briefcase className="w-5 h-5 text-gray-600" />
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Contract Type</p>
                       <p className="text-sm font-medium text-gray-900 capitalize">{job.employmentType.replace('-', ' ')}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-5 h-5 text-gray-600" />
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Workplace</p>
                       <p className="text-sm font-medium text-gray-900 capitalize">{job.workplaceType.replace('-', ' ')}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                      <GraduationCap className="w-5 h-5 text-gray-600" />
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                      <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Experience</p>
                       <p className="text-sm font-medium text-gray-900 capitalize">{job.experienceLevel}</p>
                     </div>
                   </div>
 
                   {job.department && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Globe className="w-5 h-5 text-gray-600" />
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Department</p>
                         <p className="text-sm font-medium text-gray-900">{job.department}</p>
                       </div>
                     </div>
                   )}
 
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
                       <Briefcase className="w-5 h-5 text-gray-600" />
                     </div>
                     <div>
@@ -394,7 +466,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6 hidden lg:block">
               {/* Application Stats */}
               <div className="bg-white border border-neutral-border rounded-lg p-6">
                 <h3 className="text-sm font-semibold text-neutral-text mb-3">Application Stats</h3>

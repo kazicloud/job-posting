@@ -5,12 +5,19 @@ import Link from "next/link";
 import { Briefcase, TrendingUp, Users, MapPin, Clock, Bookmark, ArrowRight, Sparkles, Target, Bell, Eye, CheckCircle } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { useState } from "react";
 
 export default function DashboardPage() {
   const profile = useQuery(api.profile.getCurrentUserProfile);
   const stats = useQuery(api.dashboard.getJobSeekerStats);
-  const recommendedJobs = useQuery(api.dashboard.getRecommendedJobs, { limit: 3 });
   const recentActivity = useQuery(api.dashboard.getRecentActivity, { limit: 3 });
+  
+  // Use smart recommendations with seed for variety on refresh
+  const [seed] = useState(() => Date.now());
+  const recommendedJobs = useQuery(api.recommendations.getSmartRecommendations, { 
+    limit: 3,
+    seed: seed,
+  });
   
   const isLoading = profile === undefined || stats === undefined;
   const userFirstName = profile?.fullName?.split(" ")[0] || "there";
@@ -23,13 +30,13 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-neutral-bg-secondary">
         {/* Hero Section */}
         <div className="bg-white border-b border-neutral-border">
-          <div className="max-w-7xl mx-auto px-8 py-8">
-            <div className="flex items-start justify-between">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+            <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-semibold text-neutral-text mb-2">
+                <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-text mb-2">
                   Welcome back, {userFirstName}! 👋
                 </h1>
-                <p className="text-neutral-text-secondary">
+                <p className="text-sm sm:text-base text-neutral-text-secondary">
                   {profile?.jobSeekerProfile?.openToWork 
                     ? "You're open to work. Here are opportunities matched to your profile."
                     : "Explore opportunities that match your skills and interests."}
@@ -38,7 +45,7 @@ export default function DashboardPage() {
               {profile !== undefined && (
                 <Link
                   href="/dashboard/profile"
-                  className="px-4 py-2 text-sm font-medium text-brand-orange border border-brand-orange rounded-md hover:bg-brand-orange/5 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-brand-orange border border-brand-orange rounded-md hover:bg-brand-orange/5 transition-colors text-center"
                 >
                   {isProfileComplete ? "View Profile" : "Complete Profile"}
                 </Link>
@@ -47,13 +54,13 @@ export default function DashboardPage() {
 
             {/* Quick Stats */}
             {isLoading ? (
-              <div className="grid grid-cols-4 gap-4 mt-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-6">
                 {[1, 2, 3, 4].map((i) => (
                   <StatCardSkeleton key={i} />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-4 gap-4 mt-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-6">
                 <StatCard 
                   icon={<Briefcase className="w-5 h-5" />} 
                   label="Jobs for you" 
@@ -81,14 +88,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-8 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Main Feed */}
             <div className="lg:col-span-2 space-y-6">
               {/* Recommended Jobs Section */}
-              <div className="bg-white rounded-lg border border-neutral-border p-6">
+              <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-neutral-text">
+                  <h2 className="text-base sm:text-lg font-semibold text-neutral-text">
                     Recommended for you
                   </h2>
                   <Link
@@ -110,26 +117,28 @@ export default function DashboardPage() {
                       <p className="text-sm">Complete your profile and add skills to get better recommendations</p>
                     </div>
                   ) : (
-                    recommendedJobs.map((job) => (
-                      <JobCard
-                        key={job._id}
-                        jobId={job._id}
-                        company={job.companyName}
-                        logo={job.companyName.charAt(0).toUpperCase()}
-                        title={job.title}
-                        location={job.location}
-                        type={job.employmentType}
-                        salary={
-                          job.salaryDisclosure === "range" && job.salaryMin && job.salaryMax
-                            ? `${job.currency || "KES"} ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}`
-                            : job.salaryDisclosure === "exact" && job.salaryMin
-                            ? `${job.currency || "KES"} ${job.salaryMin.toLocaleString()}`
-                            : "Competitive"
-                        }
-                        postedTime={formatPostedTime(job.createdAt)}
-                        matchScore={job.matchPercentage}
-                      />
-                    ))
+                    <>
+                      {recommendedJobs.map((job) => (
+                        <JobCard
+                          key={job._id}
+                          jobId={job._id}
+                          company={job.companyName}
+                          logo={job.companyName.charAt(0).toUpperCase()}
+                          title={job.title}
+                          location={job.location}
+                          type={job.employmentType}
+                          salary={
+                            job.salaryDisclosure === "range" && job.salaryMin && job.salaryMax
+                              ? `${job.currency || "KES"} ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}`
+                              : job.salaryDisclosure === "exact" && job.salaryMin
+                              ? `${job.currency || "KES"} ${job.salaryMin.toLocaleString()}`
+                              : "Competitive"
+                          }
+                          postedTime={formatPostedTime(job.createdAt)}
+                          matchScore={job.matchPercentage}
+                        />
+                      ))}
+                    </>
                   )}
                 </div>
 
@@ -141,12 +150,12 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              {/* Career Resources */}
-              <div className="bg-white rounded-lg border border-neutral-border p-6">
-                <h2 className="text-lg font-semibold text-neutral-text mb-4">
+              {/* Career Resources - Shown last on mobile */}
+              <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6 order-last lg:order-none">
+                <h2 className="text-base sm:text-lg font-semibold text-neutral-text mb-4">
                   Career resources
                 </h2>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <ResourceCard
                     icon={<Target className="w-5 h-5" />}
                     title="Resume tips"
@@ -162,7 +171,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Right Sidebar */}
-            <div className="space-y-6">
+            <div className="space-y-6 order-first lg:order-none">
               {/* Job Alerts - Commented out until alert system is implemented
                   Alternative professional features to consider:
                   - Companies in user's field recruiting actively/now
@@ -172,7 +181,7 @@ export default function DashboardPage() {
                   - Application response rate / Success metrics
                   - Upcoming job fairs / Networking events
               */}
-              {/* <div className="bg-white rounded-lg border border-neutral-border p-6">
+              {/* <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Bell className="w-5 h-5 text-brand-orange" />
                   <h3 className="font-semibold text-neutral-text">Job alerts</h3>
@@ -186,8 +195,8 @@ export default function DashboardPage() {
               </div> */}
 
               {/* Recent Activity */}
-              <div className="bg-white rounded-lg border border-neutral-border p-6">
-                <h3 className="font-semibold text-neutral-text mb-4">Recent activity</h3>
+              <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-neutral-text mb-4">Recent activity</h3>
                 {recentActivity === undefined ? (
                   <div className="space-y-4">
                     {[1, 2, 3].map((i) => (
@@ -271,13 +280,13 @@ function StatCard({ icon, label, value, iconBg, iconColor }: {
   iconColor: string;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-neutral-border p-4 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}`}>
+    <div className="bg-white rounded-lg border border-neutral-border p-3 sm:p-4 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between mb-2 sm:mb-3">
+        <div className={`w-8 h-8 sm:w-10 sm:h-10 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}`}>
           {icon}
         </div>
       </div>
-      <p className="text-2xl font-semibold text-neutral-text mb-1">{value}</p>
+      <p className="text-xl sm:text-2xl font-semibold text-neutral-text mb-0.5 sm:mb-1">{value}</p>
       <p className="text-xs text-neutral-text-secondary font-medium">{label}</p>
     </div>
   );
@@ -297,32 +306,32 @@ function StatCardSkeleton() {
 
 function JobCard({ jobId, company, logo, title, location, type, salary, postedTime, matchScore }: any) {
   return (
-    <Link href={`/dashboard/jobs/${jobId}`}>
-      <div className="flex gap-3 p-3 border border-neutral-border rounded-lg hover:border-brand-orange/30 hover:bg-neutral-bg-secondary/50 transition-all cursor-pointer group">
-        <div className="w-10 h-10 bg-neutral-bg-secondary rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-white transition-colors">
-          <span className="text-base font-bold text-neutral-text">{logo}</span>
+    <Link href={`/dashboard/jobs/${jobId}`} className="block">
+      <div className="flex gap-3 p-3 sm:p-4 border border-neutral-border rounded-lg hover:border-brand-orange/30 hover:bg-neutral-bg-secondary/50 transition-all cursor-pointer group">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-neutral-bg-secondary rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-white transition-colors">
+          <span className="text-base sm:text-lg font-bold text-neutral-text">{logo}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-neutral-text group-hover:text-brand-orange transition-colors text-sm mb-0.5 truncate">
+          <h3 className="font-semibold text-neutral-text group-hover:text-brand-orange transition-colors text-sm sm:text-base mb-0.5 truncate">
             {title}
           </h3>
-          <p className="text-xs text-neutral-text-secondary mb-1.5 truncate">{company}</p>
-          <div className="flex items-center gap-2 text-xs text-neutral-text-muted">
+          <p className="text-xs sm:text-sm text-neutral-text-secondary mb-1.5 truncate">{company}</p>
+          <div className="flex items-center gap-2 text-xs text-neutral-text-muted flex-wrap">
             <span className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
-              {location}
+              <span className="truncate max-w-[120px] sm:max-w-none">{location}</span>
             </span>
-            <span>•</span>
-            <span>{type}</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="hidden sm:inline">{type}</span>
           </div>
         </div>
         <div className="flex flex-col items-end justify-between flex-shrink-0">
           {matchScore >= 70 && (
-            <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded-full">
+            <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded-full whitespace-nowrap">
               {matchScore}%
             </span>
           )}
-          <span className="text-xs text-neutral-text-muted">{postedTime}</span>
+          <span className="text-xs text-neutral-text-muted hidden sm:block">{postedTime}</span>
         </div>
       </div>
     </Link>
@@ -331,11 +340,11 @@ function JobCard({ jobId, company, logo, title, location, type, salary, postedTi
 
 function ResourceCard({ icon, title, description }: any) {
   return (
-    <div className="p-4 border border-neutral-border rounded-lg hover:border-brand-orange/30 hover:shadow-sm transition-all cursor-pointer">
-      <div className="w-10 h-10 bg-brand-orange/10 rounded-lg flex items-center justify-center mb-3">
+    <div className="p-3 sm:p-4 border border-neutral-border rounded-lg hover:border-brand-orange/30 hover:shadow-sm transition-all cursor-pointer">
+      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-orange/10 rounded-lg flex items-center justify-center mb-2 sm:mb-3">
         <div className="text-brand-orange">{icon}</div>
       </div>
-      <h4 className="font-medium text-neutral-text mb-1">{title}</h4>
+      <h4 className="text-sm sm:text-base font-medium text-neutral-text mb-1">{title}</h4>
       <p className="text-xs text-neutral-text-secondary">{description}</p>
     </div>
   );

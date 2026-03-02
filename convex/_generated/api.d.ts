@@ -28,6 +28,8 @@ import type * as profile from "../profile.js";
 import type * as profileMutations from "../profileMutations.js";
 import type * as profileQueries from "../profileQueries.js";
 import type * as profiles from "../profiles.js";
+import type * as recommendations from "../recommendations.js";
+import type * as search from "../search.js";
 import type * as seedJobs from "../seedJobs.js";
 import type * as seedJobsForUser from "../seedJobsForUser.js";
 import type * as users from "../users.js";
@@ -61,6 +63,8 @@ declare const fullApi: ApiFromModules<{
   profileMutations: typeof profileMutations;
   profileQueries: typeof profileQueries;
   profiles: typeof profiles;
+  recommendations: typeof recommendations;
+  search: typeof search;
   seedJobs: typeof seedJobs;
   seedJobsForUser: typeof seedJobsForUser;
   users: typeof users;

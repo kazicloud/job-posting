@@ -21,6 +21,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Form state
   const [formData, setFormData] = useState({
@@ -65,6 +66,37 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
       <DashboardLayout>
         <div className="min-h-screen bg-neutral-bg-secondary flex items-center justify-center">
           <div className="animate-pulse">Loading...</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Check profile completeness (minimum 75% required)
+  // This ensures: Basic Info (30%) + Education (20%) + Skills (15%) + Preferences (10%) = 75%
+  // Experience is optional for entry-level, interns, and attachees
+  const profileCompleteness = profile.jobSeekerProfile?.profileCompleteness || 0;
+  if (profileCompleteness < 75) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen bg-neutral-bg-secondary flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-8 max-w-md text-center">
+            <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-brand-orange" />
+            </div>
+            <h2 className="text-xl font-semibold text-neutral-text mb-2">Complete Your Profile</h2>
+            <p className="text-neutral-text-secondary mb-4">
+              Your profile is {profileCompleteness}% complete. You need at least 75% completion to apply for jobs.
+            </p>
+            <p className="text-sm text-neutral-text-muted mb-6">
+              Complete your basic information, education, skills, and preferences to apply.
+            </p>
+            <Link
+              href="/dashboard/profile"
+              className="inline-block px-6 py-2.5 bg-brand-orange text-white font-medium rounded-lg hover:bg-brand-orange/90"
+            >
+              Complete Profile
+            </Link>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -125,9 +157,62 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
 
   steps.push({ title: "Review & Submit", icon: <Check className="w-5 h-5" /> });
 
+  // Validation functions
+  const validateStep = (step: number): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (step === 0) {
+      // Personal Details
+      if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";
+      if (!formData.email.trim()) newErrors.email = "Email is required";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email format";
+      if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
+      if (!formData.location.trim()) newErrors.location = "Location is required";
+    }
+
+    if (step === 1) {
+      // Resume & Documents
+      if (settings.requireResume) {
+        if (formData.resumeOption === "upload" && !formData.resumeFile) {
+          newErrors.resume = "Please upload a resume or use your profile resume";
+        }
+      }
+      if (settings.requirePortfolio && !formData.portfolioUrl.trim()) {
+        newErrors.portfolioUrl = "Portfolio URL is required";
+      } else if (formData.portfolioUrl && !/^https?:\/\/.+/.test(formData.portfolioUrl)) {
+        newErrors.portfolioUrl = "Invalid URL format";
+      }
+    }
+
+    if (step === 2 && steps[2]?.title === "Additional Information") {
+      // Additional Information
+      if (settings.requireCoverLetter && !formData.coverLetter.trim()) {
+        newErrors.coverLetter = "Cover letter is required";
+      }
+      if (settings.requireLinkedIn && !formData.linkedInUrl.trim()) {
+        newErrors.linkedInUrl = "LinkedIn URL is required";
+      } else if (formData.linkedInUrl && !/^https?:\/\/(www\.)?linkedin\.com\/.+/.test(formData.linkedInUrl)) {
+        newErrors.linkedInUrl = "Invalid LinkedIn URL";
+      }
+      if (settings.requireAvailability && !formData.availability) {
+        newErrors.availability = "Availability is required";
+      }
+      if (settings.requireSalaryExpectations && !formData.salaryExpectations.trim()) {
+        newErrors.salaryExpectations = "Salary expectations are required";
+      }
+      if (settings.requireWorkAuthorization && !formData.workAuthorization) {
+        newErrors.workAuthorization = "Work authorization is required";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleNext = () => {
-    if (currentStep < steps.length - 1) {
+    if (validateStep(currentStep) && currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
+      setErrors({});
     }
   };
 
@@ -168,14 +253,15 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
       <div className="min-h-screen bg-neutral-bg-secondary">
         {/* Header */}
         <div className="bg-white border-b border-neutral-border">
-          <div className="max-w-7xl mx-auto px-8 py-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <Link
                 href={`/dashboard/jobs/${jobId}`}
-                className="flex items-center gap-2 text-neutral-text-secondary hover:text-neutral-text"
+                className="flex items-center gap-2 text-neutral-text-secondary hover:text-neutral-text text-sm sm:text-base"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Back to Job
+                <span className="hidden sm:inline">Back to Job</span>
+                <span className="sm:hidden">Back</span>
               </Link>
               <button
                 onClick={() => router.back()}
@@ -189,8 +275,9 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
 
         {/* Progress Bar */}
         <div className="bg-white border-b border-neutral-border">
-          <div className="max-w-7xl mx-auto px-8 py-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+            {/* Desktop Progress */}
+            <div className="hidden sm:flex items-center justify-between mb-4">
               {steps.map((step, index) => (
                 <div key={index} className="flex items-center flex-1">
                   <div className="flex items-center gap-3">
@@ -215,18 +302,40 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
                 </div>
               ))}
             </div>
-            <p className="text-sm text-neutral-text-secondary">
+            
+            {/* Mobile Progress */}
+            <div className="sm:hidden mb-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  currentStep < steps.length - 1 ? "bg-brand-orange text-white" : "bg-green-600 text-white"
+                }`}>
+                  {currentStep < steps.length - 1 ? steps[currentStep].icon : <Check className="w-5 h-5" />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-neutral-text">{steps[currentStep].title}</p>
+                  <p className="text-xs text-neutral-text-muted">Step {currentStep + 1} of {steps.length}</p>
+                </div>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-brand-orange h-2 rounded-full transition-all"
+                  style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                />
+              </div>
+            </div>
+            
+            <p className="text-sm text-neutral-text-secondary hidden sm:block">
               Step {currentStep + 1} of {steps.length}
             </p>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
           {/* Application Requirements Summary */}
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="mb-4 sm:mb-6 bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
             <h3 className="text-sm font-semibold text-blue-900 mb-2">Application Requirements</h3>
-            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-blue-800">
+            <div className="flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-1 text-xs sm:text-sm text-blue-800">
               <span>✓ Personal details</span>
               {settings.requireResume && <span>✓ Resume/CV</span>}
               {settings.requireCoverLetter && <span>✓ Cover letter</span>}
@@ -245,10 +354,10 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
             {/* Left: Form */}
             <div className="lg:col-span-2">
               <div className="bg-white border border-neutral-border rounded-lg p-8">
-                {currentStep === 0 && <PersonalDetailsStep formData={formData} setFormData={setFormData} />}
-                {currentStep === 1 && <ResumeStep formData={formData} setFormData={setFormData} settings={settings} />}
+                {currentStep === 0 && <PersonalDetailsStep formData={formData} setFormData={setFormData} errors={errors} />}
+                {currentStep === 1 && <ResumeStep formData={formData} setFormData={setFormData} settings={settings} errors={errors} />}
                 {currentStep === 2 && steps[2]?.title === "Additional Information" && (
-                  <AdditionalInfoStep formData={formData} setFormData={setFormData} settings={settings} />
+                  <AdditionalInfoStep formData={formData} setFormData={setFormData} settings={settings} errors={errors} />
                 )}
                 {currentStep === 3 && steps[3]?.title === "Additional Questions" && (
                   <CustomQuestionsStep formData={formData} setFormData={setFormData} settings={settings} />
@@ -341,10 +450,10 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
 }
 
 // Step Components
-function PersonalDetailsStep({ formData, setFormData }: any) {
+function PersonalDetailsStep({ formData, setFormData, errors }: any) {
   return (
     <div>
-      <h2 className="text-2xl font-bold text-neutral-text mb-2">Personal Details</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-neutral-text mb-2">Personal Details</h2>
       <p className="text-neutral-text-secondary mb-6">
         Review and confirm your contact information
       </p>
@@ -358,9 +467,14 @@ function PersonalDetailsStep({ formData, setFormData }: any) {
             type="text"
             value={formData.fullName}
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-            className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+              errors.fullName ? "border-red-500" : "border-neutral-border"
+            }`}
             required
           />
+          {errors.fullName && (
+            <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
+          )}
         </div>
 
         <div>
@@ -371,9 +485,14 @@ function PersonalDetailsStep({ formData, setFormData }: any) {
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+              errors.email ? "border-red-500" : "border-neutral-border"
+            }`}
             required
           />
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+          )}
         </div>
 
         <div>
@@ -384,9 +503,14 @@ function PersonalDetailsStep({ formData, setFormData }: any) {
             type="tel"
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+              errors.phone ? "border-red-500" : "border-neutral-border"
+            }`}
             required
           />
+          {errors.phone && (
+            <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+          )}
         </div>
 
         <div>
@@ -398,19 +522,24 @@ function PersonalDetailsStep({ formData, setFormData }: any) {
             value={formData.location}
             onChange={(e) => setFormData({ ...formData, location: e.target.value })}
             placeholder="e.g., Nairobi, Kenya"
-            className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+            className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+              errors?.location ? "border-red-500" : "border-neutral-border"
+            }`}
             required
           />
+          {errors?.location && (
+            <p className="mt-1 text-sm text-red-600">{errors.location}</p>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function ResumeStep({ formData, setFormData, settings }: any) {
+function ResumeStep({ formData, setFormData, settings, errors }: any) {
   return (
     <div>
-      <h2 className="text-2xl font-bold text-neutral-text mb-2">Resume & Documents</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-neutral-text mb-2">Resume & Documents</h2>
       <p className="text-neutral-text-secondary mb-6">
         Upload your resume and any additional documents
       </p>
@@ -512,7 +641,7 @@ function ResumeStep({ formData, setFormData, settings }: any) {
 function AdditionalInfoStep({ formData, setFormData, settings }: any) {
   return (
     <div>
-      <h2 className="text-2xl font-bold text-neutral-text mb-2">Additional Information</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-neutral-text mb-2">Additional Information</h2>
       <p className="text-neutral-text-secondary mb-6">
         Provide additional details about your application
       </p>
@@ -637,7 +766,7 @@ function CustomQuestionsStep({ formData, setFormData, settings }: any) {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-neutral-text mb-2">Additional Questions</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-neutral-text mb-2">Additional Questions</h2>
       <p className="text-neutral-text-secondary mb-6">
         Please answer the following questions from the employer
       </p>
@@ -738,7 +867,7 @@ function CustomQuestionsStep({ formData, setFormData, settings }: any) {
 function ReviewStep({ formData, job, settings }: any) {
   return (
     <div>
-      <h2 className="text-2xl font-bold text-neutral-text mb-2">Review Your Application</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-neutral-text mb-2">Review Your Application</h2>
       <p className="text-neutral-text-secondary mb-6">
         Please review all information before submitting
       </p>

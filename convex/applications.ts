@@ -212,34 +212,44 @@ export const getEmployerApplications = query({
   },
 });
 
-// Get user's applications
+// Get user's applications with pagination
 export const myApplications = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    paginationOpts: v.optional(v.object({
+      numItems: v.number(),
+      cursor: v.union(v.string(), v.null()),
+    })),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    if (!identity) return { page: [], continueCursor: null, isDone: true };
 
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!user) return [];
+    if (!user) return { page: [], continueCursor: null, isDone: true };
 
-    const applications = await ctx.db
+    const result = await ctx.db
       .query("applications")
       .withIndex("by_job_seeker", (q) => q.eq("jobSeekerId", user._id))
-      .collect();
+      .order("desc")
+      .paginate(args.paginationOpts || { numItems: 20, cursor: null });
 
     // Get job details for each application
     const applicationsWithJobs = await Promise.all(
-      applications.map(async (app) => {
+      result.page.map(async (app) => {
         const job = await ctx.db.get(app.jobId);
         return { ...app, job };
       })
     );
 
-    return applicationsWithJobs;
+    return {
+      page: applicationsWithJobs,
+      continueCursor: result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });
 

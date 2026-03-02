@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Briefcase, FileText, Clipboard, HelpCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Home, Briefcase, FileText, Clipboard, HelpCircle, ChevronLeft, ChevronRight, X, Settings } from "lucide-react";
 import { useSidebar } from "./dashboard-layout";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -11,8 +11,9 @@ const navItems = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase },
   { href: "/dashboard/applications", label: "My Applications", icon: FileText },
-  { href: "/dashboard/work", label: "My Work", icon: Clipboard },
+  // { href: "/dashboard/work", label: "My Work", icon: Clipboard },
   { href: "/dashboard/help", label: "Career Help", icon: HelpCircle },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {

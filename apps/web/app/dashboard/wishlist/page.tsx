@@ -63,6 +63,9 @@ export default function WishlistPage() {
 }
 
 function WishlistJobCard({ job }: { job: any }) {
+  // Fetch employer profile for logo
+  const employerProfile = useQuery(api.profile.getEmployerProfile, { userId: job.employerId as any });
+
   const getWorkplaceIcon = () => {
     switch (job.workplaceType?.toLowerCase()) {
       case 'remote':
@@ -99,10 +102,18 @@ function WishlistJobCard({ job }: { job: any }) {
     <div className="bg-white border border-neutral-border rounded-lg p-6 hover:shadow-md transition-all">
       <div className="flex gap-6">
         {/* Company Logo */}
-        <div className="w-16 h-16 bg-brand-orange/10 rounded-lg flex items-center justify-center flex-shrink-0">
-          <span className="text-2xl font-bold text-brand-orange">
-            {job.companyName.charAt(0)}
-          </span>
+        <div className="w-16 h-16 bg-brand-orange/10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {employerProfile?.companyLogo ? (
+            <img 
+              src={employerProfile.companyLogo} 
+              alt={`${job.companyName} logo`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-2xl font-bold text-brand-orange">
+              {job.companyName.charAt(0)}
+            </span>
+          )}
         </div>
 
         {/* Job Content */}
