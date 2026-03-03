@@ -33,11 +33,11 @@ export default function JobsPage() {
   // Query based on active tab
   const fieldJobsResult = useQuery(
     api.recommendations.getSmartRecommendationsPaginated, 
-    activeTab === "field" ? { paginationOpts } : "skip"
+    activeTab === "field" ? { paginationOpts, sortBy } : "skip"
   );
   const allJobsResult = useQuery(
     api.jobs.listPublished, 
-    activeTab === "all" ? { paginationOpts } : "skip"
+    activeTab === "all" ? { paginationOpts, sortBy } : "skip"
   );
 
   const result = activeTab === "field" ? fieldJobsResult : allJobsResult;
@@ -54,10 +54,16 @@ export default function JobsPage() {
     }
   };
 
-  // Reset pagination when switching tabs
+  // Reset pagination when switching tabs or changing sort
   const handleTabChange = (tab: "field" | "all") => {
     setActiveTab(tab);
     setPaginationOpts({ numItems: 20, cursor: null });
+  };
+
+  const handleSortChange = (newSort: typeof sortBy) => {
+    setSortBy(newSort);
+    setPaginationOpts({ numItems: 20, cursor: null });
+    setShowSortMenu(false);
   };
 
   // Filter jobs by search query and filters
@@ -103,21 +109,8 @@ export default function JobsPage() {
            matchesWorkType && matchesEmploymentType && matchesExperience && matchesSalary;
   });
 
-  // Sort jobs
-  const sortedJobs = [...filteredJobs].sort((a, b) => {
-    switch (sortBy) {
-      case "newest":
-        return b.createdAt - a.createdAt;
-      case "oldest":
-        return a.createdAt - b.createdAt;
-      case "salary-high":
-        return (b.salaryMax || 0) - (a.salaryMax || 0);
-      case "salary-low":
-        return (a.salaryMin || 0) - (b.salaryMin || 0);
-      default:
-        return 0;
-    }
-  });
+  // Jobs are already sorted by API, just use filtered jobs
+  const sortedJobs = filteredJobs;
 
   // Get unique values for filter dropdowns
   const uniqueLocations = Array.from(new Set(jobs.map(j => j.location))).sort();
@@ -383,7 +376,7 @@ export default function JobsPage() {
                   <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
                   <div className="fixed sm:absolute right-4 sm:right-0 top-[180px] sm:top-full sm:mt-2 w-48 bg-white border border-neutral-border rounded-lg shadow-lg z-50">
                     <button
-                      onClick={() => { setSortBy("newest"); setShowSortMenu(false); }}
+                      onClick={() => handleSortChange("newest")}
                       className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-bg-secondary transition-colors ${
                         sortBy === "newest" ? "text-brand-orange font-medium" : "text-neutral-text"
                       }`}
@@ -391,7 +384,7 @@ export default function JobsPage() {
                       Newest
                     </button>
                     <button
-                      onClick={() => { setSortBy("oldest"); setShowSortMenu(false); }}
+                      onClick={() => handleSortChange("oldest")}
                       className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-bg-secondary transition-colors ${
                         sortBy === "oldest" ? "text-brand-orange font-medium" : "text-neutral-text"
                       }`}
@@ -399,7 +392,7 @@ export default function JobsPage() {
                       Oldest
                     </button>
                     <button
-                      onClick={() => { setSortBy("salary-high"); setShowSortMenu(false); }}
+                      onClick={() => handleSortChange("salary-high")}
                       className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-bg-secondary transition-colors ${
                         sortBy === "salary-high" ? "text-brand-orange font-medium" : "text-neutral-text"
                       }`}
@@ -407,7 +400,7 @@ export default function JobsPage() {
                       Salary: High to Low
                     </button>
                     <button
-                      onClick={() => { setSortBy("salary-low"); setShowSortMenu(false); }}
+                      onClick={() => handleSortChange("salary-low")}
                       className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-bg-secondary transition-colors ${
                         sortBy === "salary-low" ? "text-brand-orange font-medium" : "text-neutral-text"
                       }`}
@@ -645,7 +638,7 @@ function JobCard({
             {workType.toLowerCase() !== 'remote' && (
               <div className="flex items-center gap-1 sm:gap-1.5">
                 {getWorkplaceIcon()}
-                <span className="capitalize hidden sm:inline">{workType}</span>
+                <span className="capitalize">{workType}</span>
               </div>
             )}
             <div className="flex items-center gap-1 sm:gap-1.5">

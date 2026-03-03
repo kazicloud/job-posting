@@ -274,12 +274,19 @@ export const getSmartRecommendationsPaginated = query({
       numItems: v.number(),
       cursor: v.union(v.string(), v.null()),
     })),
+    sortBy: v.optional(v.union(
+      v.literal("newest"),
+      v.literal("oldest"),
+      v.literal("salary-high"),
+      v.literal("salary-low")
+    )),
   },
   handler: async (ctx, args) => {
     const numItems = args.paginationOpts?.numItems || 20;
     const cursorIndex = args.paginationOpts?.cursor 
       ? parseInt(args.paginationOpts.cursor) 
       : 0;
+    const sortBy = args.sortBy || "newest";
     
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return { page: [], continueCursor: null, isDone: true };
@@ -494,8 +501,20 @@ export const getSmartRecommendationsPaginated = query({
       };
     });
 
-    // Sort by score (descending)
-    scoredJobs.sort((a, b) => b.score - a.score);
+    // Sort by score first, then apply user's sort preference
+    scoredJobs.sort((a, b) => {
+      switch (sortBy) {
+        case "oldest":
+          return a._creationTime - b._creationTime;
+        case "salary-high":
+          return (b.salaryMax || 0) - (a.salaryMax || 0);
+        case "salary-low":
+          return (a.salaryMin || 0) - (b.salaryMin || 0);
+        case "newest":
+        default:
+          return b._creationTime - a._creationTime;
+      }
+    });
 
     // Paginate
     const page = scoredJobs.slice(cursorIndex, cursorIndex + numItems);

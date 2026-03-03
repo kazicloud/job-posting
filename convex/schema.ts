@@ -324,6 +324,9 @@ export default defineSchema({
       ),
       fileUrl: v.optional(v.string()),
     }))),
+    
+    // Response tracking
+    firstActionAt: v.optional(v.number()), // Timestamp when employer first changed status
   })
     .index("by_job", ["jobId"])
     .index("by_job_seeker", ["jobSeekerId"])

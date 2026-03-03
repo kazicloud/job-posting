@@ -137,7 +137,7 @@ export function EmployerSidebar() {
                   </div>
 
                   <p className="text-sm text-white/80 mb-4 leading-relaxed">
-                    A complete profile helps attract quality candidates and builds trust with job seekers.
+                    Stand out to candidates and build credibility with a complete company profile.
                   </p>
 
                   {/* Complete Profile Button */}

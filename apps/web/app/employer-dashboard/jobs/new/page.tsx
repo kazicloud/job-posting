@@ -197,24 +197,25 @@ export default function NewJobPage() {
 
   return (
     <EmployerDashboardLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
           <Link
             href="/employer-dashboard/jobs"
-            className="p-2 hover:bg-neutral-bg-secondary rounded-md transition-colors"
+            className="p-1.5 sm:p-2 hover:bg-neutral-bg-secondary rounded-md transition-colors flex-shrink-0"
           >
             <ArrowLeft className="w-5 h-5 text-neutral-text-secondary" />
           </Link>
-          <div>
-            <h1 className="text-2xl font-semibold text-neutral-text">Post a New Job</h1>
-            <p className="text-neutral-text-secondary">Fill in the details to attract the right candidates</p>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-semibold text-neutral-text">Post a New Job</h1>
+            <p className="text-sm sm:text-base text-neutral-text-secondary hidden sm:block">Fill in the details to attract the right candidates</p>
           </div>
         </div>
 
         {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between max-w-4xl mx-auto">
+        <div className="mb-6 sm:mb-8">
+          {/* Desktop Progress */}
+          <div className="hidden lg:flex items-center justify-between max-w-4xl mx-auto">
             {steps.map((step, index) => {
               const Icon = step.icon;
               const isActive = currentStep === step.number;
@@ -257,11 +258,39 @@ export default function NewJobPage() {
               );
             })}
           </div>
+          
+          {/* Mobile Progress */}
+          <div className="lg:hidden">
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                currentStep < 6 ? "bg-brand-orange text-white" : "bg-green-500 text-white"
+              }`}>
+                {currentStep < 6 ? (
+                  (() => {
+                    const Icon = steps[currentStep - 1].icon;
+                    return <Icon className="w-5 h-5" />;
+                  })()
+                ) : (
+                  <CheckCircle className="w-5 h-5" />
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-neutral-text">{steps[currentStep - 1].title}</p>
+                <p className="text-xs text-neutral-text-muted">Step {currentStep} of {steps.length}</p>
+              </div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-brand-orange h-2 rounded-full transition-all"
+                style={{ width: `${(currentStep / steps.length) * 100}%` }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Form Content */}
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white border border-neutral-border rounded-lg p-8">
+          <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6 lg:p-8">
             {currentStep === 1 && (
               <BasicInfoStep formData={formData} updateFormData={updateFormData} onNext={nextStep} />
             )}

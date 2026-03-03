@@ -58,10 +58,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   if (!application) {
     return (
       <EmployerDashboardLayout>
-        <div className="p-8">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="animate-pulse space-y-4 sm:space-y-6">
+            <div className="h-6 sm:h-8 bg-gray-200 rounded w-1/2 sm:w-1/3"></div>
+            <div className="h-48 sm:h-64 bg-gray-200 rounded"></div>
           </div>
         </div>
       </EmployerDashboardLayout>
@@ -73,9 +73,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   if (!jobSeeker || !job) {
     return (
       <EmployerDashboardLayout>
-        <div className="p-8">
+        <div className="p-4 sm:p-6 lg:p-8">
           <div className="text-center">
-            <p className="text-neutral-text-secondary">Application not found</p>
+            <p className="text-sm sm:text-base text-neutral-text-secondary">Application not found</p>
           </div>
         </div>
       </EmployerDashboardLayout>
@@ -143,23 +143,23 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
       <div className="min-h-screen bg-neutral-bg-secondary">
         {/* Top Bar */}
         <div className="bg-white border-b border-neutral-border">
-          <div className="max-w-7xl mx-auto px-8 py-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <Link
                 href="/employer-dashboard/applications"
-                className="inline-flex items-center gap-2 text-neutral-text-secondary hover:text-neutral-text transition-colors"
+                className="inline-flex items-center gap-1.5 sm:gap-2 text-neutral-text-secondary hover:text-neutral-text transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span className="font-medium">Back to Applications</span>
+                <span className="text-sm sm:text-base font-medium">Back</span>
               </Link>
-              <div className="flex items-center gap-2">
-                <button className="p-2 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button className="p-1.5 sm:p-2 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors">
                   <Download className="w-4 h-4 text-neutral-text-secondary" />
                 </button>
-                <button className="p-2 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors">
+                <button className="p-1.5 sm:p-2 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors">
                   <Share2 className="w-4 h-4 text-neutral-text-secondary" />
                 </button>
-                <button className="p-2 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors">
+                <button className="p-1.5 sm:p-2 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors">
                   <MoreVertical className="w-4 h-4 text-neutral-text-secondary" />
                 </button>
               </div>
@@ -168,21 +168,21 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Left Column - Main Content */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               {/* Candidate Header */}
-              <div className="bg-white border border-neutral-border rounded-lg p-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-20 h-20 bg-gradient-to-br from-brand-orange to-orange-600 rounded-full flex items-center justify-center flex-shrink-0 text-2xl font-bold text-white">
+              <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6">
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-brand-orange to-orange-600 rounded-full flex items-center justify-center flex-shrink-0 text-xl sm:text-2xl font-bold text-white">
                     {jobSeeker.name?.split(" ").map(n => n[0]).join("") || "?"}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h1 className="text-2xl font-bold text-neutral-text">{jobSeeker.name}</h1>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                      <h1 className="text-xl sm:text-2xl font-bold text-neutral-text truncate">{jobSeeker.name}</h1>
                       {application.matchScore > 0 && (
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold rounded-full ${
+                        <span className={`inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-semibold rounded-full flex-shrink-0 ${
                           application.matchScore >= 80 ? "bg-green-50 text-green-700" :
                           application.matchScore >= 60 ? "bg-yellow-50 text-yellow-700" :
                           "bg-red-50 text-red-700"
@@ -191,11 +191,11 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-text-secondary mb-4">
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-neutral-text-secondary mb-3 sm:mb-4">
                       {jobSeeker.email && (
-                        <a href={`mailto:${jobSeeker.email}`} className="flex items-center gap-1 hover:text-brand-orange transition-colors">
-                          <Mail className="w-4 h-4" />
-                          {jobSeeker.email}
+                        <a href={`mailto:${jobSeeker.email}`} className="flex items-center gap-1 hover:text-brand-orange transition-colors truncate">
+                          <Mail className="w-3.5 sm:w-4 h-3.5 sm:h-4 flex-shrink-0" />
+                          <span className="truncate">{jobSeeker.email}</span>
                         </a>
                       )}
                       {jobSeeker.phone && (
@@ -205,14 +205,14 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         </a>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button className="px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4" />
-                        Message Candidate
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <button className="px-3 sm:px-4 py-2 bg-brand-orange text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center justify-center gap-2">
+                        <MessageSquare className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+                        <span className="whitespace-nowrap">Message Candidate</span>
                       </button>
-                      <button className="px-4 py-2 border border-neutral-border text-neutral-text text-sm font-medium rounded-lg hover:bg-neutral-bg-secondary transition-colors flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        Schedule Interview
+                      <button className="px-3 sm:px-4 py-2 border border-neutral-border text-neutral-text text-xs sm:text-sm font-medium rounded-lg hover:bg-neutral-bg-secondary transition-colors flex items-center justify-center gap-2">
+                        <Calendar className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+                        <span className="whitespace-nowrap">Schedule Interview</span>
                       </button>
                     </div>
                   </div>
@@ -449,10 +449,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                     <button
                       onClick={() => handleStatusChange("interview")}
                       disabled={isUpdating}
-                      className="w-full px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center justify-center gap-2"
+                      className="w-full px-3 sm:px-4 py-2 bg-brand-orange text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center justify-center gap-2"
                     >
-                      <Calendar className="w-4 h-4" />
-                      Schedule Interview
+                      <Calendar className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+                      <span className="whitespace-nowrap">Schedule Interview</span>
                     </button>
                   )}
                   {application.status !== "rejected" && (

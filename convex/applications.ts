@@ -289,10 +289,17 @@ export const updateStatus = mutation({
       throw new Error("Unauthorized");
     }
 
-    // Update status
-    await ctx.db.patch(args.applicationId, {
+    // Update status and track first action time
+    const updateData: any = {
       status: args.status,
-    });
+    };
+    
+    // Set firstActionAt if this is the first time employer is taking action
+    if (!application.firstActionAt && application.status === "submitted") {
+      updateData.firstActionAt = Date.now();
+    }
+    
+    await ctx.db.patch(args.applicationId, updateData);
 
     return { success: true };
   },

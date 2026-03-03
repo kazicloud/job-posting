@@ -157,6 +157,15 @@ export const getJobSeekerStats = query({
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
+    // Get recommended jobs count (same as recommendations page)
+    // Get user profile
+    const profile = await ctx.db
+      .query("jobSeekerProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .first();
+
+    const interestedFields = profile?.interestedFields || [];
+
     // Get user's skills
     const userSkills = await ctx.db
       .query("skills")
@@ -165,35 +174,23 @@ export const getJobSeekerStats = query({
 
     const userSkillNames = userSkills.map(s => s.skillName.toLowerCase().trim());
 
-    // Get all published, non-expired jobs
+    // Get all published jobs
     const allJobs = await ctx.db
       .query("jobs")
       .withIndex("by_status", (q) => q.eq("status", "published"))
+      .order("desc")
       .collect();
 
     const now = Date.now();
-    const appliedJobIds = new Set(applications.map(app => app.jobId));
     
-    // Count jobs available for user (not applied, not expired, has skills match)
+    // Count all available jobs (matching recommendations logic)
+    // Recommendations show all published, non-expired jobs with scoring
     const availableJobs = allJobs.filter(job => {
-      if (appliedJobIds.has(job._id)) return false;
+      // Only filter out expired jobs
       if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < now) {
         return false;
       }
-      if (!job.requiredSkills || job.requiredSkills.length === 0) return false;
-
-      // At least 40% skill match
-      const requiredSkills = job.requiredSkills.map(s => s.toLowerCase().trim());
-      const matchedCount = requiredSkills.filter(jobSkill =>
-        userSkillNames.some(userSkill => 
-          userSkill === jobSkill || 
-          userSkill.includes(jobSkill) || 
-          jobSkill.includes(userSkill)
-        )
-      ).length;
-      const matchPercentage = (matchedCount / requiredSkills.length) * 100;
-      
-      return matchPercentage >= 40;
+      return true;
     }).length;
 
     // Calculate application response rate
@@ -204,11 +201,34 @@ export const getJobSeekerStats = query({
       ? Math.round((reviewedApplications / applications.length) * 100)
       : 0;
 
+    // Calculate days since last application
+    let daysSinceLastApplication = null;
+    let hoursSinceLastApplication = null;
+    
+    if (applications.length > 0) {
+      const lastApplicationTime = Math.max(...applications.map(app => app._creationTime));
+      const timeDiff = Date.now() - lastApplicationTime;
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      
+      if (days > 0) {
+        daysSinceLastApplication = days;
+      } else {
+        hoursSinceLastApplication = hours;
+      }
+    }
+
+    // Profile completeness (already fetched above)
+    const profileStrength = profile?.profileCompleteness || 0;
+
     return {
       jobsForYou: availableJobs,
       applications: applications.length,
       savedJobs: savedJobs.length,
       responseRate,
+      daysSinceLastApplication,
+      hoursSinceLastApplication,
+      profileStrength,
     };
   },
 });

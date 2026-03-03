@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Building2, User, Shield, CheckCircle } from "lucide-react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 
 interface EmployerOnboardingWizardProps {
@@ -93,6 +93,7 @@ export function EmployerOnboardingWizard({ userId, signupData, onComplete }: Emp
           {currentStep === 2 && (
             <ContactPersonStep
               data={formData.contact}
+              companyWebsite={formData.company?.website}
               onNext={(data: any) => {
                 updateFormData({ contact: data });
                 nextStep();
@@ -128,9 +129,66 @@ export function EmployerOnboardingWizard({ userId, signupData, onComplete }: Emp
 
 function CompanyInfoStep({ data, onNext }: any) {
   const [formData, setFormData] = useState(data || {});
+  const [debouncedCompanyName, setDebouncedCompanyName] = useState(formData.companyName || "");
+  const [debouncedWebsite, setDebouncedWebsite] = useState(formData.website || "");
+  const [debouncedDescription, setDebouncedDescription] = useState(formData.description || "");
+  const [debouncedYear, setDebouncedYear] = useState(formData.foundedYear || "");
+  
+  const companyNameCheck = useQuery(
+    api.signupValidation.checkCompanyNameAvailability,
+    debouncedCompanyName?.trim().length >= 2 ? { companyName: debouncedCompanyName } : "skip"
+  );
+  
+  const websiteCheck = useQuery(
+    api.signupValidation.validateWebsiteUrl,
+    debouncedWebsite?.trim() ? { url: debouncedWebsite } : "skip"
+  );
+  
+  const descriptionCheck = useQuery(
+    api.signupValidation.validateDescription,
+    debouncedDescription?.trim() ? { description: debouncedDescription } : "skip"
+  );
+  
+  const yearCheck = useQuery(
+    api.signupValidation.validateYearFounded,
+    debouncedYear ? { year: parseInt(debouncedYear) } : "skip"
+  );
+
+  // Debounce inputs
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedCompanyName(formData.companyName || ""), 500);
+    return () => clearTimeout(timer);
+  }, [formData.companyName]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedWebsite(formData.website || ""), 500);
+    return () => clearTimeout(timer);
+  }, [formData.website]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedDescription(formData.description || ""), 500);
+    return () => clearTimeout(timer);
+  }, [formData.description]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedYear(formData.foundedYear || ""), 500);
+    return () => clearTimeout(timer);
+  }, [formData.foundedYear]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (companyNameCheck?.available === false) {
+      alert("Please choose an available company name");
+      return;
+    }
+    if (websiteCheck?.valid === false) {
+      alert("Please enter a valid website URL");
+      return;
+    }
+    if (descriptionCheck?.valid === false) {
+      alert("Please improve your company description");
+      return;
+    }
     onNext(formData);
   };
 
@@ -139,6 +197,28 @@ function CompanyInfoStep({ data, onNext }: any) {
       <div>
         <h2 className="text-2xl font-semibold text-neutral-text mb-2">Company Details</h2>
         <p className="text-neutral-text-secondary">Complete your company information</p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-neutral-text mb-2">
+          Company Name *
+        </label>
+        <input
+          type="text"
+          required
+          minLength={2}
+          value={formData.companyName || ""}
+          onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+          placeholder="e.g., Acme Corporation"
+          className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+            companyNameCheck?.available === true ? "border-green-500" : companyNameCheck?.available === false ? "border-red-500" : "border-neutral-border"
+          }`}
+        />
+        {companyNameCheck?.message && (
+          <p className={`text-xs mt-1 ${companyNameCheck.available ? "text-green-600" : "text-red-600"}`}>
+            {companyNameCheck.message}
+          </p>
+        )}
       </div>
 
       <div>
@@ -211,6 +291,63 @@ function CompanyInfoStep({ data, onNext }: any) {
           value={formData.website || ""}
           onChange={(e) => setFormData({ ...formData, website: e.target.value })}
           placeholder="https://example.com"
+          className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+            websiteCheck?.valid === true ? "border-green-500" : websiteCheck?.valid === false ? "border-red-500" : "border-neutral-border"
+          }`}
+        />
+        {websiteCheck?.message && (
+          <p className={`text-xs mt-1 ${websiteCheck.valid ? "text-green-600" : "text-red-600"}`}>
+            {websiteCheck.message}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-neutral-text mb-2">
+          Company Description *
+        </label>
+        <textarea
+          required
+          rows={4}
+          minLength={100}
+          maxLength={500}
+          value={formData.description || ""}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Tell us about your company..."
+          className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+            descriptionCheck?.valid === true ? "border-green-500" : descriptionCheck?.valid === false ? "border-red-500" : "border-neutral-border"
+          }`}
+        />
+        {descriptionCheck?.message && (
+          <p className={`text-xs mt-1 ${descriptionCheck.valid ? "text-green-600" : "text-red-600"}`}>
+            {descriptionCheck.message}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-neutral-text mb-2">
+          Year Founded
+        </label>
+        <input
+          type="number"
+          min="1800"
+          max={new Date().getFullYear()}
+          value={formData.foundedYear || ""}
+          onChange={(e) => setFormData({ ...formData, foundedYear: e.target.value })}
+          placeholder="e.g., 2010"
+          className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+            yearCheck?.valid === true ? "border-green-500" : yearCheck?.valid === false ? "border-red-500" : "border-neutral-border"
+          }`}
+        />
+        {yearCheck?.message && (
+          <p className={`text-xs mt-1 ${yearCheck.warning ? "text-yellow-600" : yearCheck.valid ? "text-green-600" : "text-red-600"}`}>
+            {yearCheck.message}
+          </p>
+        )}
+      </div>
+          onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+          placeholder="https://example.com"
           className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
         />
       </div>
@@ -261,52 +398,54 @@ function CompanyInfoStep({ data, onNext }: any) {
   );
 }
 
-function ContactPersonStep({ data, onNext, onBack }: any) {
+function ContactPersonStep({ data, onNext, onBack, companyWebsite }: any) {
   const [formData, setFormData] = useState(data || {});
-  const [emailError, setEmailError] = useState("");
-  const [phoneError, setPhoneError] = useState("");
-  const [linkedInError, setLinkedInError] = useState("");
+  const [debouncedEmail, setDebouncedEmail] = useState(formData.email || "");
+  const [debouncedPhone, setDebouncedPhone] = useState(formData.phone || "");
+  const [debouncedLinkedIn, setDebouncedLinkedIn] = useState(formData.linkedIn || "");
+  
+  const emailDomainCheck = useQuery(
+    api.signupValidation.validateEmailDomain,
+    debouncedEmail?.trim() && companyWebsite ? { email: debouncedEmail, website: companyWebsite } : "skip"
+  );
+  
+  const phoneCheck = useQuery(
+    api.signupValidation.validatePhoneNumber,
+    debouncedPhone?.trim() ? { phone: debouncedPhone, isKenyaBased: true } : "skip"
+  );
+  
+  const linkedInCheck = useQuery(
+    api.signupValidation.validateLinkedInUrl,
+    debouncedLinkedIn?.trim() ? { url: debouncedLinkedIn } : "skip"
+  );
+
+  // Debounce inputs
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedEmail(formData.email || ""), 500);
+    return () => clearTimeout(timer);
+  }, [formData.email]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedPhone(formData.phone || ""), 500);
+    return () => clearTimeout(timer);
+  }, [formData.phone]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedLinkedIn(formData.linkedIn || ""), 500);
+    return () => clearTimeout(timer);
+  }, [formData.linkedIn]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (phoneCheck?.valid === false) {
+      alert("Please enter a valid phone number");
+      return;
+    }
+    if (linkedInCheck?.valid === false && formData.linkedIn) {
+      alert("Please enter a valid LinkedIn URL");
+      return;
+    }
     onNext(formData);
-  };
-
-  const handleEmailChange = (email: string) => {
-    setFormData({ ...formData, email });
-    
-    // Validate work email
-    const domain = email.split("@")[1]?.toLowerCase();
-    const freeEmailDomains = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com"];
-    
-    if (domain && freeEmailDomains.includes(domain)) {
-      setEmailError("Please use your company email address, not a personal email.");
-    } else {
-      setEmailError("");
-    }
-  };
-
-  const handlePhoneChange = (phone: string) => {
-    setFormData({ ...formData, phone });
-    
-    // Validate Kenyan phone number
-    const phoneRegex = /^(\+254[71]\d{8}|0[71]\d{8})$/;
-    
-    if (phone && !phoneRegex.test(phone)) {
-      setPhoneError("Phone must start with +2547, +2541, 07, or 01 followed by 8 digits.");
-    } else {
-      setPhoneError("");
-    }
-  };
-
-  const handleLinkedInChange = (url: string) => {
-    setFormData({ ...formData, linkedIn: url });
-    
-    if (url && !url.includes("linkedin.com/")) {
-      setLinkedInError("Please enter a valid LinkedIn URL (must contain linkedin.com/)");
-    } else {
-      setLinkedInError("");
-    }
   };
 
   return (
@@ -337,17 +476,16 @@ function ContactPersonStep({ data, onNext, onBack }: any) {
           type="email"
           required
           value={formData.email || ""}
-          onChange={(e) => handleEmailChange(e.target.value)}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
-            emailError ? "border-red-500" : "border-neutral-border"
+            emailDomainCheck?.valid === false && emailDomainCheck?.warning ? "border-yellow-500" : "border-neutral-border"
           }`}
         />
-        {emailError && (
-          <p className="text-xs text-red-600 mt-1">{emailError}</p>
+        {emailDomainCheck?.message && (
+          <p className={`text-xs mt-1 ${emailDomainCheck.warning ? "text-yellow-600" : emailDomainCheck.valid ? "text-green-600" : "text-red-600"}`}>
+            {emailDomainCheck.message}
+          </p>
         )}
-        <p className="text-xs text-neutral-text-muted mt-1">
-          Must be a company email (not Gmail, Yahoo, etc.)
-        </p>
       </div>
 
       <div>
@@ -372,14 +510,36 @@ function ContactPersonStep({ data, onNext, onBack }: any) {
           type="tel"
           required
           value={formData.phone || ""}
-          onChange={(e) => handlePhoneChange(e.target.value)}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
           placeholder="+254712345678 or 0712345678"
           className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
-            phoneError ? "border-red-500" : "border-neutral-border"
+            phoneCheck?.valid === true ? "border-green-500" : phoneCheck?.valid === false ? "border-red-500" : "border-neutral-border"
           }`}
         />
-        {phoneError && (
-          <p className="text-xs text-red-600 mt-1">{phoneError}</p>
+        {phoneCheck?.message && (
+          <p className={`text-xs mt-1 ${phoneCheck.valid ? "text-green-600" : "text-red-600"}`}>
+            {phoneCheck.message}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-neutral-text mb-2">
+          LinkedIn Profile (Optional)
+        </label>
+        <input
+          type="url"
+          value={formData.linkedIn || ""}
+          onChange={(e) => setFormData({ ...formData, linkedIn: e.target.value })}
+          placeholder="https://linkedin.com/in/yourprofile"
+          className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
+            linkedInCheck?.valid === true ? "border-green-500" : linkedInCheck?.valid === false ? "border-red-500" : "border-neutral-border"
+          }`}
+        />
+        {linkedInCheck?.message && (
+          <p className={`text-xs mt-1 ${linkedInCheck.valid ? "text-green-600" : "text-red-600"}`}>
+            {linkedInCheck.message}
+          </p>
         )}
       </div>
 

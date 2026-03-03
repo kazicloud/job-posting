@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Briefcase, Building2, Users, Eye, EyeOff, ArrowLeft, Code, TrendingUp, DollarSign, Wrench, Heart, GraduationCap, Coffee, Sprout, HardHat, Truck, Palette, Headphones, Rocket, Building, Landmark, Castle, HandHeart, UserCheck } from "lucide-react";
+import { Briefcase, Building2, Users, Eye, EyeOff, ArrowLeft, Code, TrendingUp, DollarSign, Wrench, Heart, GraduationCap, Coffee, Sprout, HardHat, Truck, Palette, Headphones, Rocket, Building, Landmark, Castle, HandHeart, UserCheck, CheckCircle, XCircle } from "lucide-react";
 import { useSignUpStore } from "@/store/signup-store";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 
 const testimonials = [
   {
@@ -69,6 +71,7 @@ export default function SignUpPage() {
     companyType: "",
     companyIndustry: [] as string[],
   });
+  const [debouncedCompanyName, setDebouncedCompanyName] = useState("");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -76,6 +79,20 @@ export default function SignUpPage() {
     password: "",
   });
   const [hasPrefilledName, setHasPrefilledName] = useState(false);
+
+  // Check company name availability
+  const companyNameCheck = useQuery(
+    api.signupValidation.checkCompanyNameAvailability,
+    debouncedCompanyName?.trim().length >= 2 ? { companyName: debouncedCompanyName } : "skip"
+  );
+
+  // Debounce company name
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCompanyName(companyInfo.companyName);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [companyInfo.companyName]);
 
   // Pre-fill first name when moving to step 2 (only once)
   useEffect(() => {
@@ -213,8 +230,8 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+      {/* Left Side - Form (2/3 width) */}
+      <div className="w-full lg:w-2/3 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="mb-8">
@@ -222,8 +239,16 @@ export default function SignUpPage() {
               <img 
                 src="/images/kazicloud-logo.jpg" 
                 alt="Kazicloud" 
-                className="h-10 w-auto"
+                className="h-10 w-10 rounded-lg"
               />
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold text-neutral-text">
+                  Kazi<span className="text-brand-orange">Cloud</span>
+                </span>
+                <span className="text-[10px] text-neutral-text-secondary font-medium tracking-wide">
+                  MASTERING RECRUITMENT
+                </span>
+              </div>
             </div>
             
             <div className="flex items-center gap-2 mb-6">
@@ -418,9 +443,27 @@ export default function SignUpPage() {
                         value={companyInfo.companyName}
                         onChange={(e) => setCompanyInfo({ ...companyInfo, companyName: e.target.value })}
                         placeholder="Enter company name"
-                        className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-colors ${
+                          companyNameCheck?.available === true
+                            ? "border-green-500 bg-green-50/30"
+                            : companyNameCheck?.available === false
+                            ? "border-red-500 bg-red-50/30"
+                            : "border-neutral-border"
+                        }`}
                         required
                       />
+                      {companyNameCheck?.message && (
+                        <div className={`flex items-center gap-1.5 mt-1.5 text-xs font-medium ${
+                          companyNameCheck.available ? "text-green-600" : "text-red-600"
+                        }`}>
+                          {companyNameCheck.available ? (
+                            <CheckCircle className="w-4 h-4" />
+                          ) : (
+                            <XCircle className="w-4 h-4" />
+                          )}
+                          <span>{companyNameCheck.message}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -460,7 +503,7 @@ export default function SignUpPage() {
                 onClick={handleStep1Continue}
                 disabled={
                   (selectedRoles.includes("job_seeker") && selectedFields.length === 0) ||
-                  (selectedRoles.includes("employer") && (!companyInfo.companyName.trim() || !companyInfo.companyType))
+                  (selectedRoles.includes("employer") && (!companyInfo.companyName.trim() || !companyInfo.companyType || companyNameCheck?.available === false))
                 }
                 className="w-full py-3 bg-neutral-text text-white font-medium rounded-lg hover:bg-neutral-text/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -490,22 +533,26 @@ export default function SignUpPage() {
                 What industry is your company in?
               </h1>
               <p className="text-neutral-text-secondary mb-6">
-                Select all that apply
+                Select up to 3 most relevant industries
               </p>
 
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {jobSeekerFields.map((field) => {
                   const Icon = field.icon;
                   const isSelected = companyInfo.companyIndustry.includes(field.value);
+                  const isMaxReached = companyInfo.companyIndustry.length >= 3 && !isSelected;
                   
                   return (
                     <button
                       key={field.value}
                       type="button"
                       onClick={() => handleIndustryToggle(field.value)}
+                      disabled={isMaxReached}
                       className={`p-3 border-2 rounded-lg transition-all text-left ${
                         isSelected
                           ? "border-brand-orange bg-brand-orange/5"
+                          : isMaxReached
+                          ? "border-neutral-border opacity-50 cursor-not-allowed"
                           : "border-neutral-border hover:border-brand-orange/50"
                       }`}
                     >
@@ -517,6 +564,13 @@ export default function SignUpPage() {
                   );
                 })}
               </div>
+
+              {companyInfo.companyIndustry.length >= 3 && (
+                <p className="text-xs text-amber-600 mb-4 flex items-center gap-1">
+                  <span>⚠️</span>
+                  <span>Maximum 3 industries selected. Deselect one to choose another.</span>
+                </p>
+              )}
 
               {companyInfo.companyIndustry.includes("other") && (
                 <div className="mb-6">
@@ -742,8 +796,8 @@ export default function SignUpPage() {
         </div>
       </div>
 
-      {/* Right Side - Testimonials */}
-      <div className="hidden lg:flex flex-1 bg-neutral-bg-secondary items-center justify-center p-12">
+      {/* Right Side - Testimonials (1/3 width) */}
+      <div className="hidden lg:flex lg:w-1/3 bg-neutral-bg-secondary items-center justify-center p-12">
         <div className="max-w-lg">
           <div className="bg-white rounded-2xl p-8 shadow-sm">
             <p className="text-xl text-neutral-text leading-relaxed mb-6">

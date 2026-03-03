@@ -15,15 +15,42 @@ export default function EmployerAnalyticsPage() {
     from: "",
     to: "",
   });
+  const [selectedJobId, setSelectedJobId] = useState<string>("all");
   
-  // Prepare query parameters
-  const queryParams = timePeriod === "custom" && customDateRange.from && customDateRange.to
-    ? {
-        timePeriod: "custom",
-        fromDate: new Date(customDateRange.from).getTime(),
-        toDate: new Date(customDateRange.to).setHours(23, 59, 59, 999), // End of day
-      }
-    : { timePeriod };
+  // Get employer's jobs
+  const profile = useQuery(api.profile.getCurrentUserProfile);
+  const employerJobs = useQuery(
+    api.jobs.listByEmployer,
+    profile?.primaryRole === "employer" && profile._id ? { employerId: profile._id } : "skip"
+  );
+
+  // Set default to newest job on load
+  const [hasSetDefault, setHasSetDefault] = useState(false);
+  if (employerJobs && employerJobs.length > 0 && !hasSetDefault && selectedJobId === "all") {
+    const newestJob = employerJobs.sort((a, b) => b._creationTime - a._creationTime)[0];
+    if (newestJob) {
+      setSelectedJobId(newestJob._id);
+      setHasSetDefault(true);
+    }
+  }
+  
+  // Prepare query parameters with job filter
+  const queryParams = selectedJobId === "all"
+    ? (timePeriod === "custom" && customDateRange.from && customDateRange.to
+        ? {
+            timePeriod: "custom",
+            fromDate: new Date(customDateRange.from).getTime(),
+            toDate: new Date(customDateRange.to).setHours(23, 59, 59, 999),
+          }
+        : { timePeriod })
+    : (timePeriod === "custom" && customDateRange.from && customDateRange.to
+        ? {
+            timePeriod: "custom",
+            fromDate: new Date(customDateRange.from).getTime(),
+            toDate: new Date(customDateRange.to).setHours(23, 59, 59, 999),
+            jobId: selectedJobId,
+          }
+        : { timePeriod, jobId: selectedJobId });
   
   const employerAnalytics = useQuery(api.analytics.getEmployerAnalytics, queryParams);
   const isLoading = employerAnalytics === undefined;
@@ -46,29 +73,23 @@ export default function EmployerAnalyticsPage() {
 
   return (
     <EmployerDashboardLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold text-neutral-text mb-2">Analytics</h1>
-            <p className="text-neutral-text-secondary">Track your hiring performance and insights</p>
-          </div>
-          <button className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-neutral-text bg-white border border-neutral-border rounded-md hover:bg-neutral-bg-secondary transition-colors">
-            <Download className="w-4 h-4" />
-            Export Report
-          </button>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-semibold text-neutral-text mb-1 sm:mb-2">Analytics</h1>
+          <p className="text-sm sm:text-base text-neutral-text-secondary">Track your hiring performance and insights</p>
         </div>
 
         {/* Time Period Selector */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6 sm:mb-8">
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-neutral-text-secondary">
             <Calendar className="w-4 h-4" />
             <span className="font-medium">Period:</span>
           </div>
-          <div className="flex items-center gap-2 bg-white border border-neutral-border rounded-lg p-1">
+          <div className="flex items-center gap-2 bg-white border border-neutral-border rounded-lg p-1 overflow-x-auto w-full sm:w-auto">
             <button
               onClick={() => setTimePeriod("7d")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
                 timePeriod === "7d"
                   ? "bg-neutral-text text-white"
                   : "text-neutral-text hover:bg-neutral-bg-secondary"
@@ -78,7 +99,7 @@ export default function EmployerAnalyticsPage() {
             </button>
             <button
               onClick={() => setTimePeriod("30d")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
                 timePeriod === "30d"
                   ? "bg-neutral-text text-white"
                   : "text-neutral-text hover:bg-neutral-bg-secondary"
@@ -88,7 +109,7 @@ export default function EmployerAnalyticsPage() {
             </button>
             <button
               onClick={() => setTimePeriod("90d")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
                 timePeriod === "90d"
                   ? "bg-neutral-text text-white"
                   : "text-neutral-text hover:bg-neutral-bg-secondary"
@@ -98,7 +119,7 @@ export default function EmployerAnalyticsPage() {
             </button>
             <button
               onClick={() => setTimePeriod("all")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
                 timePeriod === "all"
                   ? "bg-neutral-text text-white"
                   : "text-neutral-text hover:bg-neutral-bg-secondary"
@@ -108,13 +129,13 @@ export default function EmployerAnalyticsPage() {
             </button>
             <button
               onClick={() => setShowDatePicker(true)}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center gap-2 whitespace-nowrap ${
                 timePeriod === "custom"
                   ? "bg-neutral-text text-white"
                   : "text-neutral-text hover:bg-neutral-bg-secondary"
               }`}
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
               {timePeriod === "custom" ? formatDateRange() : "Custom"}
             </button>
           </div>
@@ -182,24 +203,40 @@ export default function EmployerAnalyticsPage() {
           </div>
         )}
 
+        {/* Job Filter */}
+        <div className="bg-white border border-neutral-border rounded-lg p-3 sm:p-4 mb-6">
+          <label className="block text-xs sm:text-sm font-semibold text-neutral-text mb-2">
+            Viewing analytics for:
+          </label>
+          <div className="relative">
+            <select
+              value={selectedJobId}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              className="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2 sm:py-2.5 border border-neutral-border rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange bg-white appearance-none cursor-pointer hover:border-brand-orange/50 transition-colors"
+            >
+              {employerJobs?.sort((a, b) => b._creationTime - a._creationTime).map((job) => (
+                <option key={job._id} value={job._id}>
+                  {job.title}
+                </option>
+              ))}
+              <option value="all">All Jobs (Aggregate)</option>
+            </select>
+            <Briefcase className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 sm:w-4 h-3.5 sm:h-4 text-brand-orange pointer-events-none" />
+            <svg className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-3.5 sm:w-4 h-3.5 sm:h-4 text-neutral-text-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+
         {/* Key Metrics */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
             {[1, 2, 3, 4].map((i) => (
               <MetricCardSkeleton key={i} />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <MetricCard
-              icon={<Eye className="w-5 h-5" />}
-              label="Total Views"
-              value={employerAnalytics?.totalViews?.toString() || "0"}
-              change={0}
-              changeLabel="vs last period"
-              iconBg="bg-purple-50"
-              iconColor="text-purple-600"
-            />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
             <MetricCard
               icon={<Users className="w-5 h-5" />}
               label="Applications"
@@ -210,28 +247,53 @@ export default function EmployerAnalyticsPage() {
               iconColor="text-green-600"
             />
             <MetricCard
-              icon={<Target className="w-5 h-5" />}
-              label="Conversion Rate"
-              value={`${employerAnalytics?.overallConversionRate || 0}%`}
+              icon={<Eye className="w-5 h-5" />}
+              label="Total Views"
+              value={employerAnalytics?.totalViews?.toString() || "0"}
+              change={0}
+              changeLabel="vs last period"
+              iconBg="bg-purple-50"
+              iconColor="text-purple-600"
+            />
+            <MetricCard
+              icon={<Award className="w-5 h-5" />}
+              label="Shortlisted"
+              value={employerAnalytics?.totalShortlisted?.toString() || "0"}
               change={0}
               changeLabel="vs last period"
               iconBg="bg-blue-50"
               iconColor="text-blue-600"
             />
-            <MetricCard
-              icon={<Briefcase className="w-5 h-5" />}
-              label="Active Jobs"
-              value={employerAnalytics?.totalJobs?.toString() || "0"}
-              change={0}
-              changeLabel="vs last period"
-              iconBg="bg-orange-50"
-              iconColor="text-brand-orange"
-            />
+            {selectedJobId === "all" ? (
+              <MetricCard
+                icon={<Briefcase className="w-5 h-5" />}
+                label="Active Jobs"
+                value={employerAnalytics?.totalJobs?.toString() || "0"}
+                change={0}
+                changeLabel="vs last period"
+                iconBg="bg-orange-50"
+                iconColor="text-brand-orange"
+              />
+            ) : (
+              <MetricCard
+                icon={<Clock className="w-5 h-5" />}
+                label="Avg Response Time"
+                value={
+                  employerAnalytics?.avgResponseTimeMs
+                    ? `${Math.round(employerAnalytics.avgResponseTimeMs / (1000 * 60 * 60 * 24))}d`
+                    : "N/A"
+                }
+                change={0}
+                changeLabel="vs last period"
+                iconBg="bg-amber-50"
+                iconColor="text-amber-600"
+              />
+            )}
           </div>
         )}
 
         {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Applications Over Time */}
           <div className="bg-white border border-neutral-border rounded-lg overflow-hidden">
             <div className="px-6 py-5 border-b border-neutral-border">
@@ -416,42 +478,26 @@ function MetricCard({
   const isNegative = change < 0;
 
   return (
-    <div className="bg-white border border-neutral-border rounded-lg p-6 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}`}>
+    <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}`}>
           {icon}
         </div>
       </div>
-      <p className="text-3xl font-semibold text-neutral-text mb-1">{value}</p>
-      <p className="text-sm text-neutral-text-secondary font-medium mb-3">{label}</p>
-      <div className="flex items-center gap-1.5 text-xs">
-        {change !== 0 && (
-          <>
-            {isPositive ? (
-              <TrendingUp className="w-3.5 h-3.5 text-green-600" />
-            ) : (
-              <TrendingDown className="w-3.5 h-3.5 text-red-600" />
-            )}
-            <span className={`font-semibold ${isPositive ? "text-green-600" : "text-red-600"}`}>
-              {Math.abs(change)}%
-            </span>
-          </>
-        )}
-        <span className="text-neutral-text-muted">{changeLabel}</span>
-      </div>
+      <p className="text-2xl sm:text-3xl font-semibold text-neutral-text mb-1">{value}</p>
+      <p className="text-xs sm:text-sm text-neutral-text-secondary font-medium">{label}</p>
     </div>
   );
 }
 
 function MetricCardSkeleton() {
   return (
-    <div className="bg-white border border-neutral-border rounded-lg p-6 animate-pulse">
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+    <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6 animate-pulse">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-lg"></div>
       </div>
-      <div className="h-9 bg-gray-200 rounded w-24 mb-1"></div>
-      <div className="h-5 bg-gray-200 rounded w-32 mb-3"></div>
-      <div className="h-4 bg-gray-200 rounded w-28"></div>
+      <div className="h-8 sm:h-9 bg-gray-200 rounded w-20 sm:w-24 mb-1"></div>
+      <div className="h-4 sm:h-5 bg-gray-200 rounded w-24 sm:w-32"></div>
     </div>
   );
 }

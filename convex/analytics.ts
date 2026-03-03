@@ -181,6 +181,7 @@ export const getEmployerAnalytics = query({
     timePeriod: v.optional(v.string()),
     fromDate: v.optional(v.number()),
     toDate: v.optional(v.number()),
+    jobId: v.optional(v.id("jobs")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -208,11 +209,17 @@ export const getEmployerAnalytics = query({
     }
     // "all" or undefined means no date filter (startDate = 0)
 
-    // Get all employer's jobs
-    const jobs = await ctx.db
-      .query("jobs")
-      .withIndex("by_employer", (q) => q.eq("employerId", user._id))
-      .collect();
+    // Get jobs to analyze (single job or all employer's jobs)
+    let jobs;
+    if (args.jobId) {
+      const job = await ctx.db.get(args.jobId);
+      jobs = job ? [job] : [];
+    } else {
+      jobs = await ctx.db
+        .query("jobs")
+        .withIndex("by_employer", (q) => q.eq("employerId", user._id))
+        .collect();
+    }
 
     // Get analytics for each job
     const jobAnalytics = await Promise.all(
@@ -233,11 +240,27 @@ export const getEmployerAnalytics = query({
         // Filter applications by date range using _creationTime
         const filteredApplications = applications.filter(a => a._creationTime >= startDate && a._creationTime <= endDate);
 
+        // Calculate shortlisted candidates (shortlisted + interview statuses)
+        const shortlistedCount = filteredApplications.filter(
+          a => a.status === "shortlisted" || a.status === "interview"
+        ).length;
+
+        // Calculate average response time (time to first action)
+        const applicationsWithAction = filteredApplications.filter(a => a.firstActionAt);
+        const avgResponseTime = applicationsWithAction.length > 0
+          ? applicationsWithAction.reduce((sum, a) => {
+              const responseTime = a.firstActionAt! - a._creationTime;
+              return sum + responseTime;
+            }, 0) / applicationsWithAction.length
+          : null;
+
         return {
           jobId: job._id,
           jobTitle: job.title,
           viewCount: filteredViews.length,
           applicationCount: filteredApplications.length,
+          shortlistedCount,
+          avgResponseTime, // in milliseconds
           conversionRate: filteredViews.length > 0 
             ? Math.round((filteredApplications.length / filteredViews.length) * 100) 
             : 0,
@@ -248,6 +271,16 @@ export const getEmployerAnalytics = query({
     // Overall stats
     const totalViews = jobAnalytics.reduce((sum, j) => sum + j.viewCount, 0);
     const totalApplications = jobAnalytics.reduce((sum, j) => sum + j.applicationCount, 0);
+    const totalShortlisted = jobAnalytics.reduce((sum, j) => sum + j.shortlistedCount, 0);
+    
+    // Calculate overall average response time
+    const allResponseTimes = jobAnalytics
+      .filter(j => j.avgResponseTime !== null)
+      .map(j => j.avgResponseTime!);
+    const overallAvgResponseTime = allResponseTimes.length > 0
+      ? allResponseTimes.reduce((sum, time) => sum + time, 0) / allResponseTimes.length
+      : null;
+    
     const overallConversionRate = totalViews > 0 
       ? Math.round((totalApplications / totalViews) * 100) 
       : 0;
@@ -256,6 +289,8 @@ export const getEmployerAnalytics = query({
       totalJobs: jobs.length,
       totalViews,
       totalApplications,
+      totalShortlisted,
+      avgResponseTimeMs: overallAvgResponseTime,
       overallConversionRate,
       jobAnalytics,
     };

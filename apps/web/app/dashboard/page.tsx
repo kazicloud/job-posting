@@ -54,19 +54,20 @@ export default function DashboardPage() {
 
             {/* Quick Stats */}
             {isLoading ? (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-6">
-                {[1, 2, 3, 4].map((i) => (
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mt-6">
+                {[1, 2, 3, 4, 5].map((i) => (
                   <StatCardSkeleton key={i} />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-6">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mt-6">
                 <StatCard 
                   icon={<Briefcase className="w-5 h-5" />} 
                   label="Jobs for you" 
                   value={stats?.jobsForYou?.toString() || "0"}
                   iconBg="bg-blue-50"
                   iconColor="text-blue-600"
+                  href="/dashboard/jobs"
                 />
                 <StatCard 
                   icon={<CheckCircle className="w-5 h-5" />} 
@@ -74,6 +75,7 @@ export default function DashboardPage() {
                   value={stats?.applications?.toString() || "0"}
                   iconBg="bg-green-50"
                   iconColor="text-green-600"
+                  href="/dashboard/applications"
                 />
                 <StatCard 
                   icon={<Bookmark className="w-5 h-5" />} 
@@ -81,6 +83,31 @@ export default function DashboardPage() {
                   value={stats?.savedJobs?.toString() || "0"}
                   iconBg="bg-orange-50"
                   iconColor="text-brand-orange"
+                  href="/dashboard/wishlist"
+                />
+                <StatCard 
+                  icon={<Clock className="w-5 h-5" />} 
+                  label="Last applied" 
+                  value={
+                    stats?.daysSinceLastApplication !== null && stats?.daysSinceLastApplication !== undefined
+                      ? `${stats.daysSinceLastApplication}d ago`
+                      : stats?.hoursSinceLastApplication !== null && stats?.hoursSinceLastApplication !== undefined
+                      ? stats.hoursSinceLastApplication === 0
+                        ? "Just now"
+                        : `${stats.hoursSinceLastApplication}h ago`
+                      : "Never"
+                  }
+                  iconBg="bg-purple-50"
+                  iconColor="text-purple-600"
+                  href="/dashboard/applications"
+                />
+                <StatCard 
+                  icon={<Target className="w-5 h-5" />} 
+                  label="Profile strength" 
+                  value={`${stats?.profileStrength || 0}%`}
+                  iconBg="bg-amber-50"
+                  iconColor="text-amber-600"
+                  href="/dashboard/profile"
                 />
               </div>
             )}
@@ -108,9 +135,10 @@ export default function DashboardPage() {
 
                 <div className="space-y-4">
                   {recommendedJobs === undefined ? (
-                    <div className="text-center py-8 text-neutral-text-secondary">
-                      Loading recommendations...
-                    </div>
+                    <>
+                      <JobCardSkeleton />
+                      <JobCardSkeleton />
+                    </>
                   ) : recommendedJobs.length === 0 ? (
                     <div className="text-center py-8 text-neutral-text-secondary">
                       <p className="mb-2">No matching jobs found</p>
@@ -272,15 +300,16 @@ function formatTimeAgo(timestamp: number): string {
   return `${Math.floor(days / 30)} ${Math.floor(days / 30) === 1 ? 'month' : 'months'} ago`;
 }
 
-function StatCard({ icon, label, value, iconBg, iconColor }: { 
+function StatCard({ icon, label, value, iconBg, iconColor, href }: { 
   icon: React.ReactNode; 
   label: string; 
   value: string;
   iconBg: string;
   iconColor: string;
+  href?: string;
 }) {
-  return (
-    <div className="bg-white rounded-lg border border-neutral-border p-3 sm:p-4 hover:shadow-sm transition-shadow">
+  const content = (
+    <>
       <div className="flex items-start justify-between mb-2 sm:mb-3">
         <div className={`w-8 h-8 sm:w-10 sm:h-10 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}`}>
           {icon}
@@ -288,6 +317,20 @@ function StatCard({ icon, label, value, iconBg, iconColor }: {
       </div>
       <p className="text-xl sm:text-2xl font-semibold text-neutral-text mb-0.5 sm:mb-1">{value}</p>
       <p className="text-xs text-neutral-text-secondary font-medium">{label}</p>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className="block bg-white rounded-lg border border-neutral-border p-3 sm:p-4 hover:shadow-md hover:border-brand-orange/30 transition-all cursor-pointer">
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-neutral-border p-3 sm:p-4 hover:shadow-sm transition-shadow">
+      {content}
     </div>
   );
 }
@@ -335,6 +378,26 @@ function JobCard({ jobId, company, logo, title, location, type, salary, postedTi
         </div>
       </div>
     </Link>
+  );
+}
+
+function JobCardSkeleton() {
+  return (
+    <div className="flex gap-3 p-3 sm:p-4 border border-neutral-border rounded-lg animate-pulse">
+      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-lg flex-shrink-0"></div>
+      <div className="flex-1 min-w-0">
+        <div className="h-4 sm:h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+        <div className="h-3 sm:h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+        <div className="flex items-center gap-2">
+          <div className="h-3 bg-gray-200 rounded w-20"></div>
+          <div className="h-3 bg-gray-200 rounded w-16 hidden sm:block"></div>
+        </div>
+      </div>
+      <div className="flex flex-col items-end justify-between flex-shrink-0">
+        <div className="h-5 bg-gray-200 rounded-full w-12"></div>
+        <div className="h-3 bg-gray-200 rounded w-16 hidden sm:block"></div>
+      </div>
+    </div>
   );
 }
 
