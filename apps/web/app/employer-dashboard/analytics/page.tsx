@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Eye, Users, Briefcase, Target, Clock, MapPin,
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
+import { Id } from "../../../../../convex/_generated/dataModel";
 
 type TimePeriod = "7d" | "30d" | "90d" | "all" | "custom";
 
@@ -48,9 +49,9 @@ export default function EmployerAnalyticsPage() {
             timePeriod: "custom",
             fromDate: new Date(customDateRange.from).getTime(),
             toDate: new Date(customDateRange.to).setHours(23, 59, 59, 999),
-            jobId: selectedJobId,
+            jobId: selectedJobId as Id<"jobs">,
           }
-        : { timePeriod, jobId: selectedJobId });
+        : { timePeriod, jobId: selectedJobId as Id<"jobs"> });
   
   const employerAnalytics = useQuery(api.analytics.getEmployerAnalytics, queryParams);
   const isLoading = employerAnalytics === undefined;

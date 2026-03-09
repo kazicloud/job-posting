@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Mail, Bookmark, Bell, Menu } from "lucide-react";
+import { Search, Mail, Bookmark, /* Bell, */ Menu } from "lucide-react";
 import { useSidebar } from "./dashboard-layout";
 import { ProfileDropdown } from "./profile-dropdown";
 import { SearchDropdown } from "./search-dropdown";
@@ -66,13 +66,13 @@ export function DashboardTopNav() {
 
         {/* Action Icons */}
         <div className="flex items-center gap-1">
-          <Link
+          {/* <Link
             href="/dashboard/messages"
             className="p-2.5 hover:bg-neutral-hover rounded-lg transition-colors"
             title="Messages"
           >
             <Mail className="w-5 h-5 text-neutral-text" />
-          </Link>
+          </Link> */}
 
           <Link
             href="/dashboard/wishlist"
@@ -82,13 +82,13 @@ export function DashboardTopNav() {
             <Bookmark className="w-5 h-5 text-neutral-text" />
           </Link>
 
-          <Link
+          {/* <Link
             href="/dashboard/notifications"
             className="p-2.5 hover:bg-neutral-hover rounded-lg transition-colors"
             title="Notifications"
           >
             <Bell className="w-5 h-5 text-neutral-text" />
-          </Link>
+          </Link> */}
 
           <div className="ml-2">
             <ProfileDropdown />

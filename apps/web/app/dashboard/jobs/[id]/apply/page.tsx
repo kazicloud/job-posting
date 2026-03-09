@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "../../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../../convex/_generated/dataModel";
 import { use, useState, useEffect } from "react";
@@ -17,7 +17,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   const job = useQuery(api.jobs.get, { id: jobId });
   const profile = useQuery(api.profile.getCurrentUserProfile);
   const hasApplied = useQuery(api.applications.hasApplied, { jobId });
-  const apply = useMutation(api.applications.applyWithDetails);
+  const apply = useAction(api.applications.applyWithDetails);
   
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -309,10 +309,10 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   currentStep < steps.length - 1 ? "bg-brand-orange text-white" : "bg-green-600 text-white"
                 }`}>
-                  {currentStep < steps.length - 1 ? steps[currentStep].icon : <Check className="w-5 h-5" />}
+                  {currentStep < steps.length - 1 ? steps[currentStep]?.icon : <Check className="w-5 h-5" />}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-text">{steps[currentStep].title}</p>
+                  <p className="text-sm font-medium text-neutral-text">{steps[currentStep]?.title}</p>
                   <p className="text-xs text-neutral-text-muted">Step {currentStep + 1} of {steps.length}</p>
                 </div>
               </div>

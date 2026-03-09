@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Building2, User, Shield, CheckCircle } from "lucide-react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 
 interface EmployerOnboardingWizardProps {
@@ -12,8 +12,31 @@ interface EmployerOnboardingWizardProps {
 }
 
 export function EmployerOnboardingWizard({ userId, signupData, onComplete }: EmployerOnboardingWizardProps) {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<any>({});
+  const STORAGE_KEY = `employer-onboarding-${userId}`;
+  
+  // Load from localStorage on mount
+  const [currentStep, setCurrentStep] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved).currentStep : 1;
+    }
+    return 1;
+  });
+  
+  const [formData, setFormData] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved).formData : {};
+    }
+    return {};
+  });
+
+  // Save to localStorage whenever data changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentStep, formData }));
+    }
+  }, [currentStep, formData, STORAGE_KEY]);
 
   const steps = [
     { number: 1, title: "Company Info", icon: Building2 },
@@ -26,8 +49,16 @@ export function EmployerOnboardingWizard({ userId, signupData, onComplete }: Emp
     setFormData({ ...formData, ...stepData });
   };
 
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));
-  const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
+  const nextStep = () => setCurrentStep((prev: number) => Math.min(prev + 1, 4));
+  const prevStep = () => setCurrentStep((prev: number) => Math.max(prev - 1, 1));
+
+  // Clear localStorage on completion
+  const handleComplete = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    onComplete();
+  };
 
   return (
     <div className="min-h-screen bg-neutral-bg-secondary py-12">
@@ -118,7 +149,7 @@ export function EmployerOnboardingWizard({ userId, signupData, onComplete }: Emp
               signupData={signupData}
               userId={userId}
               onBack={prevStep}
-              onComplete={onComplete}
+              onComplete={handleComplete}
             />
           )}
         </div>
@@ -129,15 +160,9 @@ export function EmployerOnboardingWizard({ userId, signupData, onComplete }: Emp
 
 function CompanyInfoStep({ data, onNext }: any) {
   const [formData, setFormData] = useState(data || {});
-  const [debouncedCompanyName, setDebouncedCompanyName] = useState(formData.companyName || "");
   const [debouncedWebsite, setDebouncedWebsite] = useState(formData.website || "");
   const [debouncedDescription, setDebouncedDescription] = useState(formData.description || "");
   const [debouncedYear, setDebouncedYear] = useState(formData.foundedYear || "");
-  
-  const companyNameCheck = useQuery(
-    api.signupValidation.checkCompanyNameAvailability,
-    debouncedCompanyName?.trim().length >= 2 ? { companyName: debouncedCompanyName } : "skip"
-  );
   
   const websiteCheck = useQuery(
     api.signupValidation.validateWebsiteUrl,
@@ -153,13 +178,8 @@ function CompanyInfoStep({ data, onNext }: any) {
     api.signupValidation.validateYearFounded,
     debouncedYear ? { year: parseInt(debouncedYear) } : "skip"
   );
-
+  
   // Debounce inputs
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedCompanyName(formData.companyName || ""), 500);
-    return () => clearTimeout(timer);
-  }, [formData.companyName]);
-
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedWebsite(formData.website || ""), 500);
     return () => clearTimeout(timer);
@@ -177,10 +197,6 @@ function CompanyInfoStep({ data, onNext }: any) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (companyNameCheck?.available === false) {
-      alert("Please choose an available company name");
-      return;
-    }
     if (websiteCheck?.valid === false) {
       alert("Please enter a valid website URL");
       return;
@@ -201,22 +217,28 @@ function CompanyInfoStep({ data, onNext }: any) {
 
       <div>
         <label className="block text-sm font-medium text-neutral-text mb-2">
-          Company Name *
+          Company Website *
         </label>
         <input
-          type="text"
+          type="url"
           required
-          minLength={2}
-          value={formData.companyName || ""}
-          onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-          placeholder="e.g., Acme Corporation"
+          value={formData.website || ""}
+          onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+          onBlur={(e) => {
+            let value = e.target.value.trim();
+            // Auto-add https:// if not present when user leaves the field
+            if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
+              setFormData({ ...formData, website: 'https://' + value });
+            }
+          }}
+          placeholder="example.com"
           className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
-            companyNameCheck?.available === true ? "border-green-500" : companyNameCheck?.available === false ? "border-red-500" : "border-neutral-border"
+            websiteCheck?.valid === true ? "border-green-500" : websiteCheck?.valid === false ? "border-red-500" : "border-neutral-border"
           }`}
         />
-        {companyNameCheck?.message && (
-          <p className={`text-xs mt-1 ${companyNameCheck.available ? "text-green-600" : "text-red-600"}`}>
-            {companyNameCheck.message}
+        {websiteCheck?.message && (
+          <p className={`text-xs mt-1 ${websiteCheck.valid ? "text-green-600" : "text-red-600"}`}>
+            {websiteCheck.message}
           </p>
         )}
       </div>
@@ -283,34 +305,11 @@ function CompanyInfoStep({ data, onNext }: any) {
 
       <div>
         <label className="block text-sm font-medium text-neutral-text mb-2">
-          Company Website *
-        </label>
-        <input
-          type="url"
-          required
-          value={formData.website || ""}
-          onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-          placeholder="https://example.com"
-          className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
-            websiteCheck?.valid === true ? "border-green-500" : websiteCheck?.valid === false ? "border-red-500" : "border-neutral-border"
-          }`}
-        />
-        {websiteCheck?.message && (
-          <p className={`text-xs mt-1 ${websiteCheck.valid ? "text-green-600" : "text-red-600"}`}>
-            {websiteCheck.message}
-          </p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-neutral-text mb-2">
           Company Description *
         </label>
         <textarea
           required
           rows={4}
-          minLength={100}
-          maxLength={500}
           value={formData.description || ""}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           placeholder="Tell us about your company..."
@@ -346,50 +345,9 @@ function CompanyInfoStep({ data, onNext }: any) {
           </p>
         )}
       </div>
-          onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-          placeholder="https://example.com"
-          className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-neutral-text mb-2">
-          Company Description *
-        </label>
-        <textarea
-          required
-          rows={4}
-          minLength={100}
-          maxLength={500}
-          value={formData.description || ""}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="Tell us about your company..."
-          className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
-        />
-        <p className="text-xs text-neutral-text-muted mt-1">
-          {formData.description?.length || 0}/500 characters (minimum 100)
-        </p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-neutral-text mb-2">
-          Year Founded
-        </label>
-        <input
-          type="number"
-          min="1900"
-          max={new Date().getFullYear()}
-          value={formData.foundedYear || ""}
-          onChange={(e) => setFormData({ ...formData, foundedYear: e.target.value })}
-          placeholder="e.g., 2010"
-          className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
-        />
-      </div>
 
       <button
         type="submit"
-        disabled={(formData.description?.length || 0) < 100}
-        title={(formData.description?.length || 0) < 100 ? "Please enter at least 100 characters in the company description" : ""}
         className="w-full py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Continue
@@ -543,23 +501,6 @@ function ContactPersonStep({ data, onNext, onBack, companyWebsite }: any) {
         )}
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-neutral-text mb-2">
-          LinkedIn Profile
-        </label>
-        <input
-          type="url"
-          value={formData.linkedIn || ""}
-          onChange={(e) => handleLinkedInChange(e.target.value)}
-          placeholder="https://linkedin.com/in/yourprofile"
-          className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
-            linkedInError ? "border-red-500" : "border-neutral-border"
-          }`}
-        />
-        {linkedInError && (
-          <p className="text-xs text-red-600 mt-1">{linkedInError}</p>
-        )}
-      </div>
 
       <div className="flex gap-4">
         <button
@@ -571,7 +512,7 @@ function ContactPersonStep({ data, onNext, onBack, companyWebsite }: any) {
         </button>
         <button
           type="submit"
-          disabled={!!emailError || !!phoneError || !!linkedInError}
+          disabled={phoneCheck?.valid === false || (linkedInCheck?.valid === false && formData.linkedIn)}
           className="flex-1 py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 disabled:opacity-50"
         >
           Continue
@@ -779,7 +720,7 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
 
 function ReviewStep({ formData, signupData, userId, onBack, onComplete }: any) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const completeOnboarding = useMutation(api.employerOnboarding.completeEmployerOnboarding);
+  const completeOnboarding = useAction(api.employerOnboarding.completeEmployerOnboardingWithNotification);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);

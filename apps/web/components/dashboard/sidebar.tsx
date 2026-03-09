@@ -46,9 +46,23 @@ export function Sidebar() {
           {/* Logo */}
           <div className="h-16 flex items-center justify-between px-4 border-b border-neutral-border">
             {!collapsed && (
-              <span className="text-lg font-semibold text-neutral-text">
-                Kazicloud
-              </span>
+              <div className="flex items-center gap-3">
+                <img 
+                  src="/images/kazicloud-logo.jpg" 
+                  alt="Kazicloud" 
+                  className="h-10 w-10 rounded-lg object-cover"
+                />
+                <span className="text-lg font-semibold text-neutral-text">
+                  Kazicloud
+                </span>
+              </div>
+            )}
+            {collapsed && (
+              <img 
+                src="/images/kazicloud-logo.jpg" 
+                alt="Kazicloud" 
+                className="h-12 w-12 rounded-lg object-cover mx-auto"
+              />
             )}
             <div className="flex items-center gap-2">
               <button

@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
+import type * as adminHelpers from "../adminHelpers.js";
 import type * as analytics from "../analytics.js";
 import type * as applicationMutations from "../applicationMutations.js";
 import type * as applications from "../applications.js";
@@ -17,6 +19,7 @@ import type * as cvUpload from "../cvUpload.js";
 import type * as dashboard from "../dashboard.js";
 import type * as debugApplications from "../debugApplications.js";
 import type * as educationSkillsMutations from "../educationSkillsMutations.js";
+import type * as emails from "../emails.js";
 import type * as employerDocuments from "../employerDocuments.js";
 import type * as employerOnboarding from "../employerOnboarding.js";
 import type * as http from "../http.js";
@@ -45,6 +48,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
+  adminHelpers: typeof adminHelpers;
   analytics: typeof analytics;
   applicationMutations: typeof applicationMutations;
   applications: typeof applications;
@@ -54,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   dashboard: typeof dashboard;
   debugApplications: typeof debugApplications;
   educationSkillsMutations: typeof educationSkillsMutations;
+  emails: typeof emails;
   employerDocuments: typeof employerDocuments;
   employerOnboarding: typeof employerOnboarding;
   http: typeof http;

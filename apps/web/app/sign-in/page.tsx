@@ -189,7 +189,7 @@ export default function SignInPage() {
               />
               <div className="flex flex-col">
                 <span className="text-2xl font-bold text-neutral-text">
-                  Kazi<span className="text-brand-orange">Cloud</span>
+                  Kazi<span className="text-brand-orange">cloud</span>
                 </span>
                 <span className="text-[10px] text-neutral-text-secondary font-medium tracking-wide">
                   MASTERING RECRUITMENT

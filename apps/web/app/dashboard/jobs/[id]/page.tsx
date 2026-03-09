@@ -5,7 +5,7 @@ import { WishlistButton } from "@/components/wishlist-button";
 import { ShareButton } from "@/components/share-button";
 import Link from "next/link";
 import { ChevronLeft, MapPin, Briefcase, Clock, GraduationCap, Globe, Building2, Calendar, Share2, Bookmark, CheckCircle2, Flag } from "lucide-react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { useState, use } from "react";
@@ -21,7 +21,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const employerProfile = useQuery(api.profile.getEmployerProfile, 
     job ? { userId: job.employerId as any } : "skip"
   );
-  const apply = useMutation(api.applications.apply);
+  const apply = useAction(api.applications.apply);
   const trackView = useMutation(api.analytics.trackView);
   
   const [isApplying, setIsApplying] = useState(false);

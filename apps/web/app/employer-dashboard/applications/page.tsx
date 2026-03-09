@@ -743,7 +743,7 @@ function ApplicationCardSkeleton() {
   );
 }
 
-function ApplicationMobileCard({ application, onStatusUpdate }: { application: any; onStatusUpdate: (id: string, status: string) => void }) {
+function ApplicationMobileCard({ application, onStatusUpdate }: { application: any; onStatusUpdate: (id: Id<"applications">, status: string) => void }) {
   const [showActions, setShowActions] = useState(false);
   
   const statusColors = {

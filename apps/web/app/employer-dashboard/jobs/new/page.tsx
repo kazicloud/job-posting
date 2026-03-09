@@ -267,15 +267,15 @@ export default function NewJobPage() {
               }`}>
                 {currentStep < 6 ? (
                   (() => {
-                    const Icon = steps[currentStep - 1].icon;
-                    return <Icon className="w-5 h-5" />;
+                    const Icon = steps[currentStep - 1]?.icon;
+                    return Icon ? <Icon className="w-5 h-5" /> : null;
                   })()
                 ) : (
                   <CheckCircle className="w-5 h-5" />
                 )}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-neutral-text">{steps[currentStep - 1].title}</p>
+                <p className="text-sm font-medium text-neutral-text">{steps[currentStep - 1]?.title}</p>
                 <p className="text-xs text-neutral-text-muted">Step {currentStep} of {steps.length}</p>
               </div>
             </div>

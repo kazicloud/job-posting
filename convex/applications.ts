@@ -1,8 +1,28 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action, internalMutation, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 // Submit job application
-export const apply = mutation({
+export const apply = action({
+  args: {
+    jobId: v.id("jobs"),
+    coverLetter: v.optional(v.string()),
+  },
+  handler: async (ctx: ActionCtx, args): Promise<Id<"applications">> => {
+    const applicationId = await ctx.runMutation(internal.applications.applyInternal, args);
+    
+    // Send email notification to employer
+    await ctx.runAction(internal.emails.notifyEmployerNewApplication, {
+      applicationId,
+    });
+    
+    return applicationId;
+  },
+});
+
+// Internal mutation for applying
+export const applyInternal = internalMutation({
   args: {
     jobId: v.id("jobs"),
     coverLetter: v.optional(v.string()),
@@ -37,7 +57,35 @@ export const apply = mutation({
 });
 
 // Submit job application with detailed information (NEW)
-export const applyWithDetails = mutation({
+export const applyWithDetails = action({
+  args: {
+    jobId: v.id("jobs"),
+    coverLetter: v.optional(v.string()),
+    portfolioUrl: v.optional(v.string()),
+    linkedInUrl: v.optional(v.string()),
+    availability: v.optional(v.string()),
+    salaryExpectations: v.optional(v.string()),
+    workAuthorization: v.optional(v.string()),
+    willingToRelocate: v.optional(v.boolean()),
+    customAnswers: v.optional(v.array(v.object({
+      questionIndex: v.number(),
+      answer: v.union(v.string(), v.array(v.string())),
+    }))),
+  },
+  handler: async (ctx: ActionCtx, args): Promise<Id<"applications">> => {
+    const applicationId = await ctx.runMutation(internal.applications.applyWithDetailsInternal, args);
+    
+    // Send email notification to employer
+    await ctx.runAction(internal.emails.notifyEmployerNewApplication, {
+      applicationId,
+    });
+    
+    return applicationId;
+  },
+});
+
+// Internal mutation for applying with details
+export const applyWithDetailsInternal = internalMutation({
   args: {
     jobId: v.id("jobs"),
     coverLetter: v.optional(v.string()),

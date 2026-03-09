@@ -30,7 +30,7 @@ const testimonials = [
 const roles = [
   { value: "job_seeker", label: "Get a job", icon: Briefcase },
   { value: "employer", label: "Hire talent", icon: Building2 },
-  { value: "recruiter", label: "Get career help", icon: Users },
+  // { value: "recruiter", label: "Get career help", icon: Users },
 ];
 
 const jobSeekerFields = [
@@ -79,6 +79,7 @@ export default function SignUpPage() {
     password: "",
   });
   const [hasPrefilledName, setHasPrefilledName] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState(false);
 
   // Check company name availability
   const companyNameCheck = useQuery(
@@ -163,28 +164,45 @@ export default function SignUpPage() {
     }));
   };
 
-  const handleOAuthSignUp = async (provider: "oauth_google" | "oauth_linkedin" | "oauth_facebook") => {
+  const handleOAuthSignUp = async (provider: "oauth_google" | "oauth_linkedin_oidc" | "oauth_facebook") => {
     if (!isLoaded || !signUp) return;
 
-    try {
-      // Store selected roles before OAuth redirect
-      if (selectedRoles.length > 0) {
-        sessionStorage.setItem('pendingRoles', JSON.stringify(selectedRoles));
-      }
+    console.log("Starting OAuth for:", provider);
+    setSsoLoading(true);
 
+    try {
+      // Store ALL signup data before OAuth redirect
+      const signupData = {
+        roles: selectedRoles,
+        fields: selectedFields,
+        otherFieldDescription,
+        companyInfo: selectedRoles.includes("employer") ? companyInfo : null,
+        timestamp: Date.now(),
+      };
+      
+      sessionStorage.setItem('pendingSignupData', JSON.stringify(signupData));
+      console.log("Saved signup data:", signupData);
+
+      // Use Clerk's OAuth with proper callback handling
+      // The key is to NOT set redirectUrlComplete - let it come back to our callback
       await signUp.authenticateWithRedirect({
         strategy: provider,
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/dashboard",
+        redirectUrlComplete: "/sso-callback",
       });
     } catch (err: any) {
       console.error("OAuth error:", err);
+      setSsoLoading(false);
       
-      // Handle "already signed in" error
-      if (err.errors?.[0]?.code === "form_identifier_exists" || err.message?.includes("already signed in")) {
-        setError("You're already signed in. Please sign out first or go to dashboard.");
+      // More specific error handling
+      const errorMessage = err.errors?.[0]?.message || err.message || "";
+      
+      if (errorMessage.includes("already signed in")) {
+        setError("You're already signed in. Please sign out first to create a new account.");
+      } else if (errorMessage.includes("Identifier already exists")) {
+        setError("An account with this email already exists. Please sign in instead.");
       } else {
-        setError(err.errors?.[0]?.message || "OAuth sign up failed");
+        setError(errorMessage || "OAuth sign up failed. Please try again.");
       }
     }
   };
@@ -229,10 +247,23 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Form (2/3 width) */}
-      <div className="w-full lg:w-2/3 flex items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md">
+    <>
+      {/* SSO Loading Overlay */}
+      {ssoLoading && (
+        <div className="fixed inset-0 bg-white/95 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-brand-orange border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h3 className="text-xl font-semibold text-neutral-text mb-2">Redirecting to sign in...</h3>
+            <p className="text-neutral-text-secondary">Please wait while we connect your account</p>
+            <p className="text-xs text-neutral-text-muted mt-4">Do not close or refresh this page</p>
+          </div>
+        </div>
+      )}
+
+      <div className="min-h-screen flex">
+        {/* Left Side - Form (2/3 width) */}
+        <div className="w-full lg:w-2/3 flex items-center justify-center p-8 bg-white">
+          <div className="w-full max-w-md">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-6">
@@ -243,7 +274,7 @@ export default function SignUpPage() {
               />
               <div className="flex flex-col">
                 <span className="text-2xl font-bold text-neutral-text">
-                  Kazi<span className="text-brand-orange">Cloud</span>
+                  Kazi<span className="text-brand-orange">cloud</span>
                 </span>
                 <span className="text-[10px] text-neutral-text-secondary font-medium tracking-wide">
                   MASTERING RECRUITMENT
@@ -718,6 +749,9 @@ export default function SignUpPage() {
                   </div>
                 )}
 
+                {/* Required for sign-up flows - Clerk's bot protection */}
+                <div id="clerk-captcha" />
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -740,8 +774,12 @@ export default function SignUpPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
-                    onClick={() => handleOAuthSignUp("oauth_google")}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+                    onClick={() => {
+                      console.log("Google SSO clicked");
+                      handleOAuthSignUp("oauth_google");
+                    }}
+                    disabled={ssoLoading}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -753,8 +791,12 @@ export default function SignUpPage() {
 
                   <button
                     type="button"
-                    onClick={() => handleOAuthSignUp("oauth_linkedin")}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+                    onClick={() => {
+                      console.log("LinkedIn SSO clicked");
+                      handleOAuthSignUp("oauth_linkedin_oidc");
+                    }}
+                    disabled={ssoLoading}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-5 h-5" fill="#0A66C2" viewBox="0 0 24 24">
                       <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
@@ -763,8 +805,12 @@ export default function SignUpPage() {
 
                   <button
                     type="button"
-                    onClick={() => handleOAuthSignUp("oauth_facebook")}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+                    onClick={() => {
+                      console.log("Facebook SSO clicked");
+                      handleOAuthSignUp("oauth_facebook");
+                    }}
+                    disabled={ssoLoading}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -831,5 +877,6 @@ export default function SignUpPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
