@@ -1,4 +1,4 @@
-# Kazicloud Platform
+# Kazicloud
 
 Professional job platform built with a production-grade monorepo architecture.
 
