@@ -3,7 +3,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": ["CONVEX_DEPLOYMENT", "CLERK_SECRET_KEY", "GEMINI_API_KEY", "RESEND_API_KEY", "ADMIN_EMAIL", "NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"]
     },
     "dev": {
       "cache": false,
