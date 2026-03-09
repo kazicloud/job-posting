@@ -30,16 +30,16 @@ function CareerSummarySection({ profile }: { profile: any }) {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-neutral-border p-6">
+    <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-neutral-text">About</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-neutral-text">About</h3>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
-            className="text-brand-orange hover:text-brand-orange/80 text-sm font-medium"
+            className="text-brand-orange hover:text-brand-orange/80 text-sm font-medium flex items-center gap-1"
           >
-            <Edit2 className="w-4 h-4 inline mr-1" />
-            Edit
+            <Edit2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Edit</span>
           </button>
         )}
       </div>
@@ -50,27 +50,27 @@ function CareerSummarySection({ profile }: { profile: any }) {
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
             placeholder="Write a brief summary about your career goals, experience, and what you're looking for..."
-            className="w-full min-h-[150px] p-3 border border-neutral-border rounded-md text-neutral-text placeholder:text-neutral-text-muted focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+            className="w-full min-h-[120px] sm:min-h-[150px] p-3 border border-neutral-border rounded-md text-sm sm:text-base text-neutral-text placeholder:text-neutral-text-muted focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
             maxLength={500}
           />
-          <div className="flex items-center justify-between mt-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-3 gap-2">
             <span className="text-xs text-neutral-text-muted">
               {summary.length}/500 characters
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <button
                 onClick={() => {
                   setSummary(profile.jobSeekerProfile?.careerSummary || "");
                   setIsEditing(false);
                 }}
-                className="px-4 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-md transition-colors"
+                className="flex-1 sm:flex-none px-4 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-md transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 text-sm bg-brand-orange text-white rounded-md hover:bg-brand-orange/90 disabled:opacity-50 transition-colors"
+                className="flex-1 sm:flex-none px-4 py-2 text-sm bg-brand-orange text-white rounded-md hover:bg-brand-orange/90 disabled:opacity-50 transition-colors"
               >
                 {saving ? "Saving..." : "Save"}
               </button>
@@ -761,33 +761,57 @@ export default function ProfilePage() {
 
   return (
     <DashboardLayout>
-      <div className="p-8">
-        <PageHeader
-          title="My Profile"
-          description="Manage your professional information"
-          action={
-            profile?.jobSeekerProfile?.profileCompleteness && profile.jobSeekerProfile.profileCompleteness < 100 ? (
-              <Link
-                href="/onboarding"
-                className="flex items-center gap-2 px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
-              >
-                Complete Profile
-              </Link>
-            ) : null
-          }
-        />
+      <div className="p-4 sm:p-6 lg:p-8">
+        {/* Show PageHeader only on desktop, show button on mobile */}
+        <div className="hidden sm:block">
+          <PageHeader
+            title="My Profile"
+            description="Manage your professional information"
+            action={
+              profile?.jobSeekerProfile?.profileCompleteness && profile.jobSeekerProfile.profileCompleteness < 100 ? (
+                <Link
+                  href="/onboarding"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
+                >
+                  Complete Profile
+                </Link>
+              ) : null
+            }
+          />
+        </div>
+        
+        {/* Mobile: Show only Complete Profile button if needed */}
+        {profile?.jobSeekerProfile?.profileCompleteness && profile.jobSeekerProfile.profileCompleteness < 100 && (
+          <div className="sm:hidden mb-4">
+            <Link
+              href="/onboarding"
+              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-brand-orange text-white text-sm font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
+            >
+              Complete Profile ({profile.jobSeekerProfile.profileCompleteness}%)
+            </Link>
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Profile Card */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Basic Info */}
-            <div className="bg-white border border-neutral-border rounded-lg p-6">
-              <div className="flex items-start gap-4">
+            <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
                 {/* Avatar with Circular Progress */}
-                <div className="relative flex-shrink-0">
+                <div className="relative flex-shrink-0 mx-auto sm:mx-0">
                   {/* Circular Progress Bar */}
-                  <svg className="w-24 h-24 -rotate-90">
+                  <svg className="w-20 h-20 sm:w-24 sm:h-24 -rotate-90">
                     {/* Background circle */}
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="36"
+                      stroke="#E2E8F0"
+                      strokeWidth="4"
+                      fill="none"
+                      className="sm:hidden"
+                    />
                     <circle
                       cx="48"
                       cy="48"
@@ -795,8 +819,21 @@ export default function ProfilePage() {
                       stroke="#E2E8F0"
                       strokeWidth="4"
                       fill="none"
+                      className="hidden sm:block"
                     />
                     {/* Progress circle */}
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="36"
+                      stroke="#DC842C"
+                      strokeWidth="4"
+                      fill="none"
+                      strokeDasharray={`${2 * Math.PI * 36}`}
+                      strokeDashoffset={`${2 * Math.PI * 36 * (1 - (profile.jobSeekerProfile?.profileCompleteness || 0) / 100)}`}
+                      strokeLinecap="round"
+                      className="transition-all duration-500 sm:hidden"
+                    />
                     <circle
                       cx="48"
                       cy="48"
@@ -807,7 +844,7 @@ export default function ProfilePage() {
                       strokeDasharray={`${2 * Math.PI * 44}`}
                       strokeDashoffset={`${2 * Math.PI * 44 * (1 - (profile.jobSeekerProfile?.profileCompleteness || 0) / 100)}`}
                       strokeLinecap="round"
-                      className="transition-all duration-500"
+                      className="transition-all duration-500 hidden sm:block"
                     />
                   </svg>
                   
@@ -816,7 +853,7 @@ export default function ProfilePage() {
                     <button
                       onClick={() => setShowPhotoModal(true)}
                       disabled={uploading}
-                      className="relative w-20 h-20 rounded-full overflow-hidden bg-neutral-text group cursor-pointer disabled:cursor-not-allowed"
+                      className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-neutral-text group cursor-pointer disabled:cursor-not-allowed"
                     >
                       {profile.profilePhoto ? (
                         <img 
@@ -825,7 +862,7 @@ export default function ProfilePage() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white text-2xl font-semibold">
+                        <div className="w-full h-full flex items-center justify-center text-white text-xl sm:text-2xl font-semibold">
                           {profile.fullName?.split(" ").map(n => n[0]).join("") || "U"}
                         </div>
                       )}
@@ -833,14 +870,14 @@ export default function ProfilePage() {
                       {/* Loading overlay */}
                       {uploading && (
                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                          <Loader2 className="w-8 h-8 animate-spin text-white" />
+                          <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-white" />
                         </div>
                       )}
                       
                       {/* Hover overlay */}
                       {!uploading && (
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Camera className="w-6 h-6 text-white" />
+                          <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                         </div>
                       )}
                     </button>
@@ -858,31 +895,31 @@ export default function ProfilePage() {
                   {uploadError && (
                     <p className="text-xs text-red-600 mb-2">{uploadError}</p>
                   )}
-                  <h2 className="text-2xl font-semibold text-neutral-text mb-1">
+                  <h2 className="text-xl sm:text-2xl font-semibold text-neutral-text mb-1">
                     {profile.fullName || "User"}
                   </h2>
-                  <p className="text-neutral-text-secondary mb-3">{profile.jobSeekerProfile?.headline || "No headline"}</p>
-                  <div className="flex flex-wrap gap-4 text-sm text-neutral-text-secondary">
+                  <p className="text-sm sm:text-base text-neutral-text-secondary mb-3">{profile.jobSeekerProfile?.headline || "No headline"}</p>
+                  <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm text-neutral-text-secondary">
                     {profile.county && (
                       <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {profile.county}, Kenya
+                        <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span className="truncate">{profile.county}, Kenya</span>
                       </div>
                     )}
                     {profile.phone && (
                       <div className="flex items-center gap-1">
-                        <Phone className="w-4 h-4" />
+                        <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
                         {profile.phone}
                       </div>
                     )}
                     <div className="flex items-center gap-1">
-                      <Mail className="w-4 h-4" />
-                      {profile.email}
+                      <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="truncate">{profile.email}</span>
                     </div>
                   </div>
                   {profile.jobSeekerProfile?.currentStatus && (
                     <div className="mt-3">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-brand-orange/10 text-brand-orange text-sm font-medium rounded-full">
+                      <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-brand-orange/10 text-brand-orange text-xs sm:text-sm font-medium rounded-full">
                         ⚡ {statusMap[profile.jobSeekerProfile.currentStatus] || profile.jobSeekerProfile.currentStatus}
                       </span>
                     </div>
@@ -896,29 +933,29 @@ export default function ProfilePage() {
 
             {/* Career Preferences - Modern Card Grid */}
             {profile.jobSeekerProfile && (
-              <div className="bg-white border border-neutral-border rounded-lg p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <h3 className="text-lg font-semibold text-neutral-text">Career Preferences</h3>
+              <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-5">
+                  <h3 className="text-base sm:text-lg font-semibold text-neutral-text">Career Preferences</h3>
                   <Link
                     href="/dashboard/profile/edit"
-                    className="text-brand-orange hover:text-brand-orange/80 text-sm font-medium"
+                    className="text-brand-orange hover:text-brand-orange/80 text-sm font-medium flex items-center gap-1"
                   >
-                    <Edit2 className="w-4 h-4 inline mr-1" />
-                    Edit
+                    <Edit2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Edit</span>
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   {/* Desired Role */}
                   {profile.jobSeekerProfile.desiredJobTitle && (
-                    <div className="p-4 bg-neutral-bg-secondary rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-brand-orange/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Briefcase className="w-5 h-5 text-brand-orange" />
+                    <div className="p-3 sm:p-4 bg-neutral-bg-secondary rounded-lg">
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-orange/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-brand-orange" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-neutral-text-muted mb-1">Looking for</p>
-                          <p className="font-medium text-neutral-text">{profile.jobSeekerProfile.desiredJobTitle}</p>
+                          <p className="text-sm sm:text-base font-medium text-neutral-text break-words">{profile.jobSeekerProfile.desiredJobTitle}</p>
                         </div>
                       </div>
                     </div>
@@ -1135,13 +1172,13 @@ export default function ProfilePage() {
                     </span>
                   </Link>
                 )}
-                <Link
+                {/* <Link
                   href="/dashboard/profile/edit"
                   className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-md transition-colors"
                 >
                   <Edit2 className="w-4 h-4 text-neutral-text-secondary" />
                   <span>Edit Profile</span>
-                </Link>
+                </Link> */}
                 <Link
                   href="/dashboard/applications"
                   className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-md transition-colors"

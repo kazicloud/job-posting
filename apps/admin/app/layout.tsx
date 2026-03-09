@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+import { ConvexClientProvider } from "../components/convex-provider";
+import { ConvexClerkSync } from "../components/convex-clerk-sync";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,8 +15,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
+    <ClerkProvider
+      signInUrl="/sign-in"
+      appearance={{
+        variables: {
+          colorPrimary: "#DC842C",
+        },
+      }}
+    >
+      <html lang="en">
+        <body>
+          <ConvexClientProvider>
+            <ConvexClerkSync />
+            {children}
+          </ConvexClientProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

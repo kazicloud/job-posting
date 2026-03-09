@@ -50,30 +50,30 @@ export default function EmployerDashboardPage() {
   if (isLoading) {
     return (
       <EmployerDashboardLayout>
-        <div className="p-8">
+        <div className="p-4 sm:p-6 lg:p-8">
           {/* Header Skeleton */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <div className="h-8 bg-gray-200 rounded w-96 mb-2 animate-pulse"></div>
-              <div className="h-5 bg-gray-200 rounded w-64 animate-pulse"></div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+            <div className="w-full sm:w-auto">
+              <div className="h-6 sm:h-8 bg-gray-200 rounded w-full sm:w-96 mb-2 animate-pulse"></div>
+              <div className="h-4 sm:h-5 bg-gray-200 rounded w-48 sm:w-64 animate-pulse"></div>
             </div>
-            <div className="h-11 bg-gray-200 rounded w-40 animate-pulse"></div>
+            <div className="h-10 sm:h-11 bg-gray-200 rounded w-full sm:w-40 animate-pulse"></div>
           </div>
 
           {/* Stats Grid Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
             {[1, 2, 3, 4].map((i) => (
               <StatCardSkeleton key={i} />
             ))}
           </div>
 
           {/* Main Content Grid Skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               <JobsSectionSkeleton />
               <ApplicationsSectionSkeleton />
             </div>
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <ProfileCardSkeleton />
               <QuickActionsSkeleton />
             </div>
@@ -101,17 +101,17 @@ export default function EmployerDashboardPage() {
 
   return (
     <EmployerDashboardLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Verification Status Banner */}
         {!isVerified && (
-          <div className={`mb-6 p-5 rounded-lg border ${
+          <div className={`mb-4 sm:mb-6 p-4 sm:p-5 rounded-lg border ${
             verificationStatus === "under_review"
               ? "bg-blue-50 border-blue-200"
               : verificationStatus === "rejected"
               ? "bg-red-50 border-red-200"
               : "bg-yellow-50 border-yellow-200"
           }`}>
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2 sm:gap-3">
               {verificationStatus === "under_review" ? (
                 <Clock className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
               ) : verificationStatus === "rejected" ? (
@@ -119,15 +119,15 @@ export default function EmployerDashboardPage() {
               ) : (
                 <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
               )}
-              <div className="flex-1">
-                <p className="font-semibold text-neutral-text mb-1">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm sm:text-base font-semibold text-neutral-text mb-1">
                   {verificationStatus === "under_review"
                     ? "Verification in Progress"
                     : verificationStatus === "rejected"
                     ? "Verification Failed"
                     : "Verification Pending"}
                 </p>
-                <p className="text-sm text-neutral-text-secondary leading-relaxed">
+                <p className="text-xs sm:text-sm text-neutral-text-secondary leading-relaxed">
                   {verificationStatus === "under_review"
                     ? "We're reviewing your documents. You'll be able to post jobs once verified (typically 24-48 hours)."
                     : verificationStatus === "rejected"
@@ -140,51 +140,52 @@ export default function EmployerDashboardPage() {
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-neutral-text mb-2">
+            <h1 className="text-xl sm:text-2xl font-semibold text-neutral-text mb-1 sm:mb-2">
               Welcome back, {profile.employerProfile?.companyName}!
             </h1>
-            <p className="text-neutral-text-secondary">
+            <p className="text-sm sm:text-base text-neutral-text-secondary">
               Here's what's happening with your job postings
             </p>
           </div>
           {isVerified && (
             <Link
               href="/employer-dashboard/jobs/new"
-              className="flex items-center gap-2 px-6 py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
             >
               <Plus className="w-5 h-5" />
-              Post New Job
+              <span className="hidden sm:inline">Post New Job</span>
+              <span className="sm:hidden">New Job</span>
             </Link>
           )}
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           <StatCard 
-            icon={<Briefcase className="w-5 h-5" />} 
+            icon={<Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />} 
             label="Active Jobs" 
             value={activeJobs.toString()}
             iconBg="bg-blue-50"
             iconColor="text-blue-600"
           />
           <StatCard 
-            icon={<Users className="w-5 h-5" />} 
+            icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />} 
             label="Total Applications" 
             value={totalApplications.toString()}
             iconBg="bg-green-50"
             iconColor="text-green-600"
           />
           <StatCard 
-            icon={<Eye className="w-5 h-5" />} 
+            icon={<Eye className="w-4 h-4 sm:w-5 sm:h-5" />} 
             label="Total Views" 
             value={totalViews.toString()}
             iconBg="bg-purple-50"
             iconColor="text-purple-600"
           />
           <StatCard 
-            icon={<CheckCircle className="w-5 h-5" />} 
+            icon={<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />} 
             label="Conversion Rate" 
             value={`${employerAnalytics?.overallConversionRate || 0}%`}
             iconBg="bg-orange-50"
@@ -193,23 +194,23 @@ export default function EmployerDashboardPage() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left Column - Jobs & Applications */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Active Jobs */}
             <div className="bg-white rounded-lg border border-neutral-border overflow-hidden">
-              <div className="px-6 py-5 border-b border-neutral-border">
-                <div className="flex items-center justify-between">
+              <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-neutral-border">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold text-neutral-text">Active Jobs</h2>
-                    <p className="text-sm text-neutral-text-secondary mt-0.5">
+                    <h2 className="text-base sm:text-lg font-semibold text-neutral-text">Active Jobs</h2>
+                    <p className="text-xs sm:text-sm text-neutral-text-secondary mt-0.5">
                       {activeJobs} {activeJobs === 1 ? 'job' : 'jobs'} currently published
                     </p>
                   </div>
                   {isVerified && (
                     <Link
                       href="/employer-dashboard/jobs/new"
-                      className="flex items-center gap-2 px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
                       Post Job
@@ -380,26 +381,26 @@ function StatCard({
   iconColor: string;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-neutral-border p-6 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}`}>
+    <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}`}>
           {icon}
         </div>
       </div>
-      <p className="text-3xl font-semibold text-neutral-text mb-1">{value}</p>
-      <p className="text-sm text-neutral-text-secondary font-medium">{label}</p>
+      <p className="text-2xl sm:text-3xl font-semibold text-neutral-text mb-1">{value}</p>
+      <p className="text-xs sm:text-sm text-neutral-text-secondary font-medium">{label}</p>
     </div>
   );
 }
 
 function StatCardSkeleton() {
   return (
-    <div className="bg-white rounded-lg border border-neutral-border p-6 animate-pulse">
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+    <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6 animate-pulse">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-lg"></div>
       </div>
-      <div className="h-9 bg-gray-200 rounded w-20 mb-1"></div>
-      <div className="h-5 bg-gray-200 rounded w-32"></div>
+      <div className="h-7 sm:h-9 bg-gray-200 rounded w-16 sm:w-20 mb-1"></div>
+      <div className="h-4 sm:h-5 bg-gray-200 rounded w-24 sm:w-32"></div>
     </div>
   );
 }

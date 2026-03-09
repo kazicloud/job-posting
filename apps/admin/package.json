@@ -11,13 +11,17 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.37.0",
+    "@react-email/components": "^1.0.8",
     "@repo/lib": "workspace:*",
     "@repo/types": "workspace:*",
     "@repo/ui": "workspace:*",
     "convex": "^1.18.0",
+    "lucide-react": "^0.563.0",
     "next": "^16.1.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-email": "^5.2.9",
+    "resend": "^6.9.3"
   },
   "devDependencies": {
     "@repo/config-eslint": "workspace:*",

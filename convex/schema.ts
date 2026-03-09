@@ -17,6 +17,7 @@ export default defineSchema({
     country: v.optional(v.string()), // Defaults to "Kenya"
     resumeStorageId: v.optional(v.string()), // Convex file storage ID
     onboardingCompleted: v.optional(v.boolean()),
+    verified: v.optional(v.boolean()), // For employer verification
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_email", ["email"])
@@ -324,6 +325,9 @@ export default defineSchema({
       ),
       fileUrl: v.optional(v.string()),
     }))),
+    
+    // Response tracking
+    firstActionAt: v.optional(v.number()), // Timestamp when employer first changed status
   })
     .index("by_job", ["jobId"])
     .index("by_job_seeker", ["jobSeekerId"])

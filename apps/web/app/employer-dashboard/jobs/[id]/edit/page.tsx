@@ -119,7 +119,72 @@ export default function EditJobPage() {
   if (!job) {
     return (
       <EmployerDashboardLayout>
-        <div className="p-8">Loading...</div>
+        <div className="p-4 sm:p-6 lg:p-8 animate-pulse">
+          {/* Header Skeleton */}
+          <div className="mb-4 sm:mb-6">
+            <div className="h-7 sm:h-8 bg-gray-200 rounded w-48 mb-2"></div>
+          </div>
+
+          {/* Form Skeleton */}
+          <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6">
+            <div className="space-y-6">
+              {/* Basic Info Section */}
+              <div>
+                <div className="h-5 sm:h-6 bg-gray-200 rounded w-40 mb-4"></div>
+                <div className="space-y-4">
+                  {/* Job Title */}
+                  <div>
+                    <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
+                    <div className="h-10 bg-gray-200 rounded"></div>
+                  </div>
+                  {/* Two column grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                      <div className="h-10 bg-gray-200 rounded"></div>
+                    </div>
+                    <div>
+                      <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
+                      <div className="h-10 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                  {/* Another two column grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="h-4 bg-gray-200 rounded w-28 mb-2"></div>
+                      <div className="h-10 bg-gray-200 rounded"></div>
+                    </div>
+                    <div>
+                      <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                      <div className="h-10 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description Section */}
+              <div>
+                <div className="h-5 sm:h-6 bg-gray-200 rounded w-32 mb-4"></div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="h-4 bg-gray-200 rounded w-36 mb-2"></div>
+                    <div className="h-32 bg-gray-200 rounded"></div>
+                  </div>
+                  <div>
+                    <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                    <div className="h-32 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-neutral-border">
+                <div className="h-10 bg-gray-200 rounded flex-1"></div>
+                <div className="h-10 bg-gray-200 rounded flex-1"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </EmployerDashboardLayout>
     );
   }
@@ -127,18 +192,18 @@ export default function EditJobPage() {
   if (job.applicationCount >= 10) {
     return (
       <EmployerDashboardLayout>
-        <div className="p-8">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-            <h2 className="text-xl font-semibold text-neutral-text mb-2">Cannot Edit This Job</h2>
-            <p className="text-neutral-text-secondary mb-4">
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6 text-center">
+            <h2 className="text-lg sm:text-xl font-semibold text-neutral-text mb-2">Cannot Edit This Job</h2>
+            <p className="text-sm sm:text-base text-neutral-text-secondary mb-4">
               This job has {job.applicationCount} applications. Jobs with 10 or more applications cannot be edited.
             </p>
-            <p className="text-sm text-neutral-text-muted mb-4">
+            <p className="text-xs sm:text-sm text-neutral-text-muted mb-4">
               To make changes, close this job and create a new posting.
             </p>
             <button
               onClick={() => router.push("/employer-dashboard/jobs")}
-              className="px-6 py-2 bg-neutral-text text-white rounded-md hover:bg-neutral-text/90"
+              className="px-4 sm:px-6 py-2 text-sm sm:text-base bg-neutral-text text-white rounded-md hover:bg-neutral-text/90"
             >
               Back to Jobs
             </button>
@@ -252,22 +317,22 @@ export default function EditJobPage() {
 
   return (
     <EmployerDashboardLayout>
-      <div className="p-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-neutral-text mb-2">Edit Job Posting</h1>
+      <div className="p-4 sm:p-6 lg:p-8 pb-12 sm:pb-8">
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-semibold text-neutral-text mb-2">Edit Job Posting</h1>
           {job.applicationCount > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm text-yellow-800">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs sm:text-sm text-yellow-800">
               ⚠️ This job has {job.applicationCount} application{job.applicationCount !== 1 ? 's' : ''}. 
               Changes will update the live posting.
             </div>
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-neutral-border p-6">
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6">
           <div className="space-y-6">
             {/* Basic Info */}
             <div>
-              <h3 className="text-lg font-semibold text-neutral-text mb-4">Basic Information</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-neutral-text mb-4">Basic Information</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-text mb-2">Job Title *</label>
@@ -275,19 +340,19 @@ export default function EditJobPage() {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-border rounded-md"
+                    className="w-full px-3 sm:px-4 py-2 border border-neutral-border rounded-md text-sm sm:text-base"
                     required
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-neutral-text mb-2">Department *</label>
                     <select
                       required
                       value={formData.department}
                       onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                      className="w-full px-4 py-2 border border-neutral-border rounded-md"
+                      className="w-full px-3 sm:px-4 py-2 border border-neutral-border rounded-md text-sm sm:text-base"
                     >
                       <option value="">Select department</option>
                       <option value="technology">Technology & IT</option>

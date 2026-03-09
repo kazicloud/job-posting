@@ -1,8 +1,28 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action, internalMutation, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 // Submit job application
-export const apply = mutation({
+export const apply = action({
+  args: {
+    jobId: v.id("jobs"),
+    coverLetter: v.optional(v.string()),
+  },
+  handler: async (ctx: ActionCtx, args): Promise<Id<"applications">> => {
+    const applicationId = await ctx.runMutation(internal.applications.applyInternal, args);
+    
+    // Send email notification to employer
+    await ctx.runAction(internal.emails.notifyEmployerNewApplication, {
+      applicationId,
+    });
+    
+    return applicationId;
+  },
+});
+
+// Internal mutation for applying
+export const applyInternal = internalMutation({
   args: {
     jobId: v.id("jobs"),
     coverLetter: v.optional(v.string()),
@@ -37,7 +57,35 @@ export const apply = mutation({
 });
 
 // Submit job application with detailed information (NEW)
-export const applyWithDetails = mutation({
+export const applyWithDetails = action({
+  args: {
+    jobId: v.id("jobs"),
+    coverLetter: v.optional(v.string()),
+    portfolioUrl: v.optional(v.string()),
+    linkedInUrl: v.optional(v.string()),
+    availability: v.optional(v.string()),
+    salaryExpectations: v.optional(v.string()),
+    workAuthorization: v.optional(v.string()),
+    willingToRelocate: v.optional(v.boolean()),
+    customAnswers: v.optional(v.array(v.object({
+      questionIndex: v.number(),
+      answer: v.union(v.string(), v.array(v.string())),
+    }))),
+  },
+  handler: async (ctx: ActionCtx, args): Promise<Id<"applications">> => {
+    const applicationId = await ctx.runMutation(internal.applications.applyWithDetailsInternal, args);
+    
+    // Send email notification to employer
+    await ctx.runAction(internal.emails.notifyEmployerNewApplication, {
+      applicationId,
+    });
+    
+    return applicationId;
+  },
+});
+
+// Internal mutation for applying with details
+export const applyWithDetailsInternal = internalMutation({
   args: {
     jobId: v.id("jobs"),
     coverLetter: v.optional(v.string()),
@@ -212,34 +260,44 @@ export const getEmployerApplications = query({
   },
 });
 
-// Get user's applications
+// Get user's applications with pagination
 export const myApplications = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    paginationOpts: v.optional(v.object({
+      numItems: v.number(),
+      cursor: v.union(v.string(), v.null()),
+    })),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    if (!identity) return { page: [], continueCursor: null, isDone: true };
 
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!user) return [];
+    if (!user) return { page: [], continueCursor: null, isDone: true };
 
-    const applications = await ctx.db
+    const result = await ctx.db
       .query("applications")
       .withIndex("by_job_seeker", (q) => q.eq("jobSeekerId", user._id))
-      .collect();
+      .order("desc")
+      .paginate(args.paginationOpts || { numItems: 20, cursor: null });
 
     // Get job details for each application
     const applicationsWithJobs = await Promise.all(
-      applications.map(async (app) => {
+      result.page.map(async (app) => {
         const job = await ctx.db.get(app.jobId);
         return { ...app, job };
       })
     );
 
-    return applicationsWithJobs;
+    return {
+      page: applicationsWithJobs,
+      continueCursor: result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });
 
@@ -279,10 +337,17 @@ export const updateStatus = mutation({
       throw new Error("Unauthorized");
     }
 
-    // Update status
-    await ctx.db.patch(args.applicationId, {
+    // Update status and track first action time
+    const updateData: any = {
       status: args.status,
-    });
+    };
+    
+    // Set firstActionAt if this is the first time employer is taking action
+    if (!application.firstActionAt && application.status === "submitted") {
+      updateData.firstActionAt = Date.now();
+    }
+    
+    await ctx.db.patch(args.applicationId, updateData);
 
     return { success: true };
   },

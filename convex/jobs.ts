@@ -7,6 +7,13 @@ export const list = query({
       numItems: v.number(),
       cursor: v.union(v.string(), v.null()),
     })),
+    sortBy: v.optional(v.union(
+      v.literal("newest"),
+      v.literal("oldest"),
+      v.literal("alphabetical"),
+      v.literal("views"),
+      v.literal("applications")
+    )),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -19,10 +26,69 @@ export const list = query({
 
     if (!user) return { page: [], continueCursor: null, isDone: true };
 
+    const sortBy = args.sortBy || "newest";
+    
+    // Fetch all jobs for this employer
+    const allJobs = await ctx.db
+      .query("jobs")
+      .withIndex("by_employer", (q) => q.eq("employerId", user._id))
+      .collect();
+    
+    // For views or applications sorting, fetch analytics
+    if (sortBy === "views" || sortBy === "applications") {
+      const jobsWithStats = await Promise.all(
+        allJobs.map(async (job) => {
+          if (sortBy === "views") {
+            const viewCount = await ctx.db
+              .query("jobViews")
+              .withIndex("by_job", (q) => q.eq("jobId", job._id))
+              .collect()
+              .then(views => views.length);
+            return { ...job, statValue: viewCount };
+          } else {
+            const applicationCount = await ctx.db
+              .query("applications")
+              .withIndex("by_job", (q) => q.eq("jobId", job._id))
+              .collect()
+              .then(apps => apps.length);
+            return { ...job, statValue: applicationCount };
+          }
+        })
+      );
+      
+      const sorted = jobsWithStats.sort((a, b) => b.statValue - a.statValue);
+      
+      // Manual pagination
+      const cursor = args.paginationOpts?.cursor;
+      const numItems = args.paginationOpts?.numItems || 10;
+      const startIndex = cursor ? parseInt(cursor) : 0;
+      const page = sorted.slice(startIndex, startIndex + numItems);
+      const isDone = startIndex + numItems >= sorted.length;
+      const continueCursor = isDone ? null : String(startIndex + numItems);
+      
+      return { page, continueCursor, isDone };
+    }
+    
+    // For alphabetical sorting
+    if (sortBy === "alphabetical") {
+      const sorted = allJobs.sort((a, b) => a.title.localeCompare(b.title));
+      
+      // Manual pagination
+      const cursor = args.paginationOpts?.cursor;
+      const numItems = args.paginationOpts?.numItems || 10;
+      const startIndex = cursor ? parseInt(cursor) : 0;
+      const page = sorted.slice(startIndex, startIndex + numItems);
+      const isDone = startIndex + numItems >= sorted.length;
+      const continueCursor = isDone ? null : String(startIndex + numItems);
+      
+      return { page, continueCursor, isDone };
+    }
+
+    // For newest/oldest, use native ordering
     const result = await ctx.db
       .query("jobs")
       .withIndex("by_employer", (q) => q.eq("employerId", user._id))
-      .order("desc")
+      .order(sortBy === "oldest" ? "asc" : "desc")
       .paginate(args.paginationOpts || { numItems: 10, cursor: null });
 
     return result;
@@ -87,12 +153,45 @@ export const listPublished = query({
       numItems: v.number(),
       cursor: v.union(v.string(), v.null()),
     })),
+    sortBy: v.optional(v.union(
+      v.literal("newest"),
+      v.literal("oldest"),
+      v.literal("salary-high"),
+      v.literal("salary-low")
+    )),
   },
   handler: async (ctx, args) => {
+    const sortBy = args.sortBy || "newest";
+    
+    // For salary sorting, fetch all and sort manually
+    if (sortBy === "salary-high" || sortBy === "salary-low") {
+      const allJobs = await ctx.db
+        .query("jobs")
+        .withIndex("by_status", (q) => q.eq("status", "published"))
+        .collect();
+      
+      const sorted = allJobs.sort((a, b) => {
+        const aMax = a.salaryMax || 0;
+        const bMax = b.salaryMax || 0;
+        return sortBy === "salary-high" ? bMax - aMax : aMax - bMax;
+      });
+      
+      // Manual pagination
+      const cursor = args.paginationOpts?.cursor;
+      const numItems = args.paginationOpts?.numItems || 10;
+      const startIndex = cursor ? parseInt(cursor) : 0;
+      const page = sorted.slice(startIndex, startIndex + numItems);
+      const isDone = startIndex + numItems >= sorted.length;
+      const continueCursor = isDone ? null : String(startIndex + numItems);
+      
+      return { page, continueCursor, isDone };
+    }
+    
+    // For newest/oldest, use native ordering
     return await ctx.db
       .query("jobs")
       .withIndex("by_status", (q) => q.eq("status", "published"))
-      .order("desc")
+      .order(sortBy === "oldest" ? "asc" : "desc")
       .paginate(args.paginationOpts || { numItems: 10, cursor: null });
   },
 });

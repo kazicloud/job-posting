@@ -1,5 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { api, internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 export const saveEmployerOnboardingProgress = mutation({
   args: {
@@ -120,6 +122,28 @@ export const completeEmployerOnboarding = mutation({
         updatedAt: Date.now(),
       });
     }
+
+    return profileId;
+  },
+});
+
+// Action wrapper to complete onboarding and send email notification
+export const completeEmployerOnboardingWithNotification = action({
+  args: {
+    userId: v.id("users"),
+    data: v.any(),
+  },
+  handler: async (ctx: ActionCtx, args): Promise<Id<"employerProfiles">> => {
+    // Complete onboarding
+    const profileId = await ctx.runMutation(api.employerOnboarding.completeEmployerOnboarding, {
+      userId: args.userId,
+      data: args.data,
+    });
+
+    // Send email notification to admin
+    await ctx.runAction(internal.emails.notifyAdminNewEmployer, {
+      employerId: args.userId,
+    });
 
     return profileId;
   },

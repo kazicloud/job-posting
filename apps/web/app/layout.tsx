@@ -15,7 +15,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      appearance={{
+        variables: {
+          colorPrimary: "#DC842C",
+        },
+      }}
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/sso-callback"
+    >
       <html lang="en">
         <body>
           <ConvexClientProvider>

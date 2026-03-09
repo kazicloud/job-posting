@@ -176,8 +176,8 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+      {/* Left Side - Form (2/3 width) */}
+      <div className="w-full lg:w-2/3 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="mb-8">
@@ -185,8 +185,16 @@ export default function SignInPage() {
               <img 
                 src="/images/kazicloud-logo.jpg" 
                 alt="Kazicloud" 
-                className="h-10 w-auto"
+                className="h-10 w-10 rounded-lg"
               />
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold text-neutral-text">
+                  Kazi<span className="text-brand-orange">cloud</span>
+                </span>
+                <span className="text-[10px] text-neutral-text-secondary font-medium tracking-wide">
+                  MASTERING RECRUITMENT
+                </span>
+              </div>
             </div>
             
             <div className="flex items-center gap-2 mb-6">
@@ -326,8 +334,8 @@ export default function SignInPage() {
         </div>
       </div>
 
-      {/* Right Side - Testimonials */}
-      <div className="hidden lg:flex flex-1 bg-neutral-bg-secondary items-center justify-center p-12">
+      {/* Right Side - Testimonials (1/3 width) */}
+      <div className="hidden lg:flex lg:w-1/3 bg-neutral-bg-secondary items-center justify-center p-12">
         <div className="max-w-lg">
           <div className="bg-white rounded-2xl p-8 shadow-sm">
             <p className="text-xl text-neutral-text leading-relaxed mb-6">

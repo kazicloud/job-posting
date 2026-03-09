@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { WishlistButton } from "@/components/wishlist-button";
 import { ShareButton } from "@/components/share-button";
 import { useState } from "react";
-import { Search, MapPin, Clock, Briefcase, DollarSign, Share2, Bookmark, ChevronDown, Building2, Home, Laptop, Award, Calendar, Users, Eye, CheckCircle2, Building, Clock4 } from "lucide-react";
+import { Search, MapPin, Clock, Briefcase, DollarSign, Share2, Bookmark, ChevronDown, Building2, Home, Laptop, Award, Calendar, Users, Eye, CheckCircle2, Building, Clock4, Sparkles, X } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import Link from "next/link";
@@ -15,6 +15,8 @@ export default function JobsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
   const [paginationOpts, setPaginationOpts] = useState({ numItems: 20, cursor: null as string | null });
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "salary-high" | "salary-low">("newest");
+  const [showSortMenu, setShowSortMenu] = useState(false);
   
   // Filter states
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
@@ -30,12 +32,12 @@ export default function JobsPage() {
 
   // Query based on active tab
   const fieldJobsResult = useQuery(
-    api.jobs.listJobsInUserField, 
-    activeTab === "field" ? { paginationOpts } : "skip"
+    api.recommendations.getSmartRecommendationsPaginated, 
+    activeTab === "field" ? { paginationOpts, sortBy } : "skip"
   );
   const allJobsResult = useQuery(
     api.jobs.listPublished, 
-    activeTab === "all" ? { paginationOpts } : "skip"
+    activeTab === "all" ? { paginationOpts, sortBy } : "skip"
   );
 
   const result = activeTab === "field" ? fieldJobsResult : allJobsResult;
@@ -52,10 +54,16 @@ export default function JobsPage() {
     }
   };
 
-  // Reset pagination when switching tabs
+  // Reset pagination when switching tabs or changing sort
   const handleTabChange = (tab: "field" | "all") => {
     setActiveTab(tab);
     setPaginationOpts({ numItems: 20, cursor: null });
+  };
+
+  const handleSortChange = (newSort: typeof sortBy) => {
+    setSortBy(newSort);
+    setPaginationOpts({ numItems: 20, cursor: null });
+    setShowSortMenu(false);
   };
 
   // Filter jobs by search query and filters
@@ -101,6 +109,9 @@ export default function JobsPage() {
            matchesWorkType && matchesEmploymentType && matchesExperience && matchesSalary;
   });
 
+  // Jobs are already sorted by API, just use filtered jobs
+  const sortedJobs = filteredJobs;
+
   // Get unique values for filter dropdowns
   const uniqueLocations = Array.from(new Set(jobs.map(j => j.location))).sort();
   const uniqueSkills = Array.from(new Set(jobs.flatMap(j => j.requiredSkills || []))).sort();
@@ -124,21 +135,23 @@ export default function JobsPage() {
       <div className="min-h-screen bg-neutral-bg-secondary">
         {/* Header with Tabs */}
         <div className="bg-white border-b border-neutral-border">
-          <div className="max-w-7xl mx-auto px-8 pt-8">
-            <div className="flex items-center gap-8 mb-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 lg:pt-8">
+            <div className="flex items-center gap-4 sm:gap-8 mb-4 sm:mb-6 overflow-x-auto">
               <button
                 onClick={() => handleTabChange("field")}
-                className={`pb-4 text-lg font-semibold border-b-2 transition-colors capitalize ${
+                className={`pb-3 sm:pb-4 text-base sm:text-lg font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
                   activeTab === "field"
                     ? "border-neutral-text text-neutral-text"
                     : "border-transparent text-neutral-text-muted hover:text-neutral-text"
                 }`}
               >
-                {userField} jobs
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Recommended for you</span>
+                <span className="sm:hidden">For You</span>
               </button>
               <button
                 onClick={() => handleTabChange("all")}
-                className={`pb-4 text-lg font-semibold border-b-2 transition-colors ${
+                className={`pb-3 sm:pb-4 text-base sm:text-lg font-semibold border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "all"
                     ? "border-neutral-text text-neutral-text"
                     : "border-transparent text-neutral-text-muted hover:text-neutral-text"
@@ -151,69 +164,71 @@ export default function JobsPage() {
         </div>
 
         {/* Filters Bar */}
-        <div className="bg-white border-b border-neutral-border sticky top-0 z-10">
-          <div className="max-w-7xl mx-auto px-8 py-4">
-            <div className="flex items-center gap-3 flex-wrap">
+        <div className="bg-white border-b border-neutral-border sticky top-0 z-10 overflow-visible">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               {/* Search */}
-              <div className="relative flex-1 min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-text-muted" />
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-neutral-text-muted" />
                 <input
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search jobs"
-                  className="w-full pl-10 pr-4 py-2.5 border border-neutral-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 border border-neutral-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
                 />
               </div>
 
-              {/* Filter Buttons */}
-              <div className="relative">
-                <button
-                  onClick={() => setOpenFilter(openFilter === "skills" ? null : "skills")}
-                  className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors ${
-                    selectedSkills.length > 0
-                      ? "bg-neutral-text text-white border-neutral-text"
-                      : "border-neutral-border text-neutral-text hover:bg-neutral-bg-secondary"
-                  }`}
-                >
-                  <Briefcase className="w-4 h-4" />
-                  Skills
-                  {selectedSkills.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 bg-white/20 text-white text-xs rounded-full">
-                      {selectedSkills.length}
-                    </span>
-                  )}
-                </button>
-                {openFilter === "skills" && (
-                  <FilterDropdown
-                    title="Skills"
-                    items={uniqueSkills}
-                    selectedItems={selectedSkills}
-                    onToggle={(skill) => {
-                      setSelectedSkills(prev =>
-                        prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
-                      );
-                    }}
-                    onClear={() => setSelectedSkills([])}
-                    onClose={() => setOpenFilter(null)}
-                    searchValue={filterSearch}
+              {/* Filter Buttons - Horizontal scroll on mobile */}
+              <div className="flex items-center gap-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible">
+                <div className="flex items-center gap-2 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0">
+                <div className="relative flex-shrink-0">
+                  <button
+                    onClick={() => setOpenFilter(openFilter === "skills" ? null : "skills")}
+                    className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                      selectedSkills.length > 0
+                        ? "bg-neutral-text text-white border-neutral-text"
+                        : "border-neutral-border text-neutral-text hover:bg-neutral-bg-secondary"
+                    }`}
+                  >
+                    <Briefcase className="w-4 h-4" />
+                    <span className="hidden sm:inline">Skills</span>
+                    {selectedSkills.length > 0 && (
+                      <span className="px-1.5 py-0.5 bg-white/20 text-white text-xs rounded-full">
+                        {selectedSkills.length}
+                      </span>
+                    )}
+                  </button>
+                  {openFilter === "skills" && (
+                    <FilterDropdown
+                      title="Skills"
+                      items={uniqueSkills}
+                      selectedItems={selectedSkills}
+                      onToggle={(skill) => {
+                        setSelectedSkills(prev =>
+                          prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
+                        );
+                      }}
+                      onClear={() => setSelectedSkills([])}
+                      onClose={() => setOpenFilter(null)}
+                      searchValue={filterSearch}
                     onSearchChange={setFilterSearch}
                   />
                 )}
               </div>
 
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setOpenFilter(openFilter === "location" ? null : "location")}
-                  className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                     selectedLocation
                       ? "bg-neutral-text text-white border-neutral-text"
                       : "border-neutral-border text-neutral-text hover:bg-neutral-bg-secondary"
                   }`}
                 >
                   <MapPin className="w-4 h-4" />
-                  Location
-                  {selectedLocation && <span className="ml-1 text-xs">✓</span>}
+                  <span className="hidden sm:inline">Location</span>
+                  {selectedLocation && <span className="text-xs">✓</span>}
                 </button>
                 {openFilter === "location" && (
                   <FilterDropdown
@@ -230,18 +245,18 @@ export default function JobsPage() {
                 )}
               </div>
 
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setOpenFilter(openFilter === "workType" ? null : "workType")}
-                  className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                     selectedWorkType
                       ? "bg-neutral-text text-white border-neutral-text"
                       : "border-neutral-border text-neutral-text hover:bg-neutral-bg-secondary"
                   }`}
                 >
                   <Home className="w-4 h-4" />
-                  Work Type
-                  {selectedWorkType && <span className="ml-1 text-xs">✓</span>}
+                  <span className="hidden sm:inline">Work Type</span>
+                  {selectedWorkType && <span className="text-xs">✓</span>}
                 </button>
                 {openFilter === "workType" && (
                   <FilterDropdown
@@ -256,18 +271,18 @@ export default function JobsPage() {
                 )}
               </div>
 
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setOpenFilter(openFilter === "jobType" ? null : "jobType")}
-                  className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                     selectedEmploymentType
                       ? "bg-neutral-text text-white border-neutral-text"
                       : "border-neutral-border text-neutral-text hover:bg-neutral-bg-secondary"
                   }`}
                 >
                   <Clock className="w-4 h-4" />
-                  Job Type
-                  {selectedEmploymentType && <span className="ml-1 text-xs">✓</span>}
+                  <span className="hidden sm:inline">Job Type</span>
+                  {selectedEmploymentType && <span className="text-xs">✓</span>}
                 </button>
                 {openFilter === "jobType" && (
                   <FilterDropdown
@@ -282,18 +297,18 @@ export default function JobsPage() {
                 )}
               </div>
 
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setOpenFilter(openFilter === "experience" ? null : "experience")}
-                  className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                     selectedExperienceLevel
                       ? "bg-neutral-text text-white border-neutral-text"
                       : "border-neutral-border text-neutral-text hover:bg-neutral-bg-secondary"
                   }`}
                 >
                   <Award className="w-4 h-4" />
-                  Experience
-                  {selectedExperienceLevel && <span className="ml-1 text-xs">✓</span>}
+                  <span className="hidden sm:inline">Experience</span>
+                  {selectedExperienceLevel && <span className="text-xs">✓</span>}
                 </button>
                 {openFilter === "experience" && (
                   <FilterDropdown
@@ -322,34 +337,79 @@ export default function JobsPage() {
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
-                  className="px-4 py-2.5 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                  className="flex-shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-red-600 hover:text-red-700 transition-colors whitespace-nowrap"
                 >
                   Clear all
                 </button>
               )}
+              </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Job Listings */}
-        <div className="max-w-7xl mx-auto px-8 py-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
             <p className="text-sm text-neutral-text-secondary">
               {isLoading ? (
                 "Loading..."
               ) : (
                 <>
-                  <span className="font-semibold text-neutral-text">{filteredJobs.length}</span> job{filteredJobs.length !== 1 ? 's' : ''} found
-                  {activeTab === "field" && ` in ${userField}`}
+                  <span className="font-semibold text-neutral-text">{sortedJobs.length}</span> job{sortedJobs.length !== 1 ? 's' : ''} 
+                  {activeTab === "field" && " recommended for you"}
                 </>
               )}
             </p>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-neutral-text-secondary">Sorted by</span>
-              <button className="flex items-center gap-1 text-sm font-medium text-neutral-text hover:text-brand-orange">
-                Newest
+            <div className="flex items-center gap-2 relative">
+              <span className="text-sm text-neutral-text-secondary hidden sm:inline">Sorted by</span>
+              <button 
+                onClick={() => setShowSortMenu(!showSortMenu)}
+                className="flex items-center gap-1 text-sm font-medium text-neutral-text hover:text-brand-orange"
+              >
+                {sortBy === "newest" ? "Newest" : sortBy === "oldest" ? "Oldest" : sortBy === "salary-high" ? "Salary: High to Low" : "Salary: Low to High"}
                 <ChevronDown className="w-4 h-4" />
               </button>
+              
+              {showSortMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
+                  <div className="fixed sm:absolute right-4 sm:right-0 top-[180px] sm:top-full sm:mt-2 w-48 bg-white border border-neutral-border rounded-lg shadow-lg z-50">
+                    <button
+                      onClick={() => handleSortChange("newest")}
+                      className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-bg-secondary transition-colors ${
+                        sortBy === "newest" ? "text-brand-orange font-medium" : "text-neutral-text"
+                      }`}
+                    >
+                      Newest
+                    </button>
+                    <button
+                      onClick={() => handleSortChange("oldest")}
+                      className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-bg-secondary transition-colors ${
+                        sortBy === "oldest" ? "text-brand-orange font-medium" : "text-neutral-text"
+                      }`}
+                    >
+                      Oldest
+                    </button>
+                    <button
+                      onClick={() => handleSortChange("salary-high")}
+                      className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-bg-secondary transition-colors ${
+                        sortBy === "salary-high" ? "text-brand-orange font-medium" : "text-neutral-text"
+                      }`}
+                    >
+                      Salary: High to Low
+                    </button>
+                    <button
+                      onClick={() => handleSortChange("salary-low")}
+                      className={`w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-bg-secondary transition-colors ${
+                        sortBy === "salary-low" ? "text-brand-orange font-medium" : "text-neutral-text"
+                      }`}
+                    >
+                      Salary: Low to High
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -362,24 +422,24 @@ export default function JobsPage() {
                   <JobCardSkeleton key={i} />
                 ))}
               </>
-            ) : filteredJobs.length === 0 ? (
+            ) : sortedJobs.length === 0 ? (
               <div className="bg-white border border-neutral-border rounded-lg p-12 text-center">
                 <p className="text-neutral-text-secondary mb-2">
                   {activeTab === "field" 
-                    ? `No ${userField} jobs found` 
+                    ? "No recommended jobs found" 
                     : searchQuery 
                     ? "No jobs match your search" 
                     : "No jobs available"}
                 </p>
                 {activeTab === "field" && (
                   <p className="text-sm text-neutral-text-muted">
-                    Try viewing "All jobs" or update your interested fields in your profile
+                    Complete your profile and add skills to get personalized recommendations
                   </p>
                 )}
               </div>
             ) : (
               <>
-                {filteredJobs.map((job) => (
+                {sortedJobs.map((job) => (
                   <JobCard
                     key={job._id}
                     id={job._id}
@@ -510,107 +570,127 @@ function JobCard({
   };
   
   return (
-    <div className="bg-white border border-neutral-border rounded-xl p-6 hover:shadow-md transition-all">
-      <div className="flex gap-6">
+    <div className="bg-white border border-neutral-border rounded-xl p-4 sm:p-6 hover:shadow-md transition-all overflow-hidden">
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
         {/* Company Logo */}
-        <div className={`w-[148px] h-[160px] ${bgColors[colorIndex]} rounded-2xl flex flex-col items-center justify-center flex-shrink-0 p-4`}>
-          <span className={`text-sm font-semibold ${textColors[colorIndex]} mb-3`}>{company}</span>
-          <div className="w-20 h-20 bg-[#E8FF00] rounded-xl flex items-center justify-center">
-            <span className="text-4xl font-bold text-neutral-text">{logo}</span>
+        <div className={`w-full sm:w-[120px] lg:w-[148px] h-[100px] sm:h-[140px] lg:h-[160px] ${bgColors[colorIndex]} rounded-2xl flex flex-col items-center justify-center flex-shrink-0 p-3 sm:p-4`}>
+          <span className={`text-xs sm:text-sm font-semibold ${textColors[colorIndex]} mb-2 sm:mb-3 text-center truncate w-full px-2`}>{company}</span>
+          <div className="w-16 h-16 sm:w-18 sm:h-18 lg:w-20 lg:h-20 bg-[#E8FF00] rounded-xl flex items-center justify-center overflow-hidden">
+            {employerProfile?.companyLogo ? (
+              <img 
+                src={employerProfile.companyLogo} 
+                alt={`${company} logo`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-neutral-text">{logo}</span>
+            )}
           </div>
         </div>
 
         {/* Job Content */}
         <div className="flex-1 min-w-0">
           {/* Top Row: Tags and Actions */}
-          <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start justify-between mb-3 gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-3 py-1.5 text-xs font-medium rounded-md bg-[#FFE4C4] text-neutral-text capitalize flex items-center gap-1.5">
-                <Clock4 className="w-3.5 h-3.5" />
+              <span className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-md bg-[#FFE4C4] text-neutral-text capitalize flex items-center gap-1 sm:gap-1.5">
+                <Clock4 className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
                 {employmentType}
               </span>
               {department && (
-                <span className="px-3 py-1.5 text-xs font-medium rounded-md bg-[#E8F0FC] text-neutral-text capitalize flex items-center gap-1.5">
-                  <Briefcase className="w-3.5 h-3.5" />
+                <span className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-md bg-[#E8F0FC] text-neutral-text capitalize flex items-center gap-1 sm:gap-1.5">
+                  <Briefcase className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
                   {department}
                 </span>
               )}
               {isNew && <span className="px-2 py-1 text-xs font-semibold text-[#EF4444]">New</span>}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {daysLeft !== null && (
                 <div className="flex items-center gap-1 px-2 py-1 bg-orange-50 rounded-md">
-                  <Calendar className="w-3.5 h-3.5 text-orange-600" />
+                  <Calendar className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-orange-600" />
                   <span className="text-xs font-medium text-orange-600">
-                    {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
+                    {daysLeft}d
                   </span>
                 </div>
               )}
-              <ShareButton jobId={id as any} jobTitle={title} />
-              <WishlistButton jobId={id as any} />
+              <div className="hidden sm:flex items-center gap-2">
+                <ShareButton jobId={id as any} jobTitle={title} />
+                <WishlistButton jobId={id as any} />
+              </div>
             </div>
           </div>
 
           {/* Title and Salary */}
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <h3 className="text-xl font-semibold text-neutral-text hover:text-brand-orange cursor-pointer leading-tight flex-1">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-4 mb-3">
+            <h3 className="text-lg sm:text-xl font-semibold text-neutral-text hover:text-brand-orange cursor-pointer leading-tight flex-1 break-words">
               {title}
             </h3>
-            <p className="text-xl font-semibold text-neutral-text whitespace-nowrap">{salary}</p>
+            <p className="text-base sm:text-xl font-semibold text-neutral-text whitespace-nowrap flex-shrink-0">{salary}</p>
           </div>
 
           {/* Meta Info */}
-          <div className="flex items-center gap-4 text-sm text-neutral-text-secondary mb-4 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4" />
-              <span>{location}</span>
+          <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-neutral-text-secondary mb-4 flex-wrap">
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <MapPin className="w-4 sm:w-4 h-4 sm:h-4" />
+              <span className="truncate max-w-[120px] sm:max-w-none">{location}</span>
             </div>
             {workType.toLowerCase() !== 'remote' && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 {getWorkplaceIcon()}
                 <span className="capitalize">{workType}</span>
               </div>
             )}
-            <div className="flex items-center gap-1.5">
-              <Award className="w-4 h-4" />
-              <span>{formatExperience(experienceLevel)}</span>
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <Award className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+              <span className="hidden sm:inline">{formatExperience(experienceLevel)}</span>
+              <span className="sm:hidden">{experienceLevel}</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 hidden sm:flex">
               <Clock className="w-4 h-4" />
               <span>Posted: {new Date(createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             </div>
           </div>
 
+          {/* Mobile Actions */}
+          <div className="flex sm:hidden items-center gap-2 mb-4">
+            <ShareButton jobId={id as any} jobTitle={title} />
+            <WishlistButton jobId={id as any} />
+          </div>
+
           {/* Separator */}
-          <div className="border-t border-neutral-border my-4"></div>
+          <div className="border-t border-neutral-border my-3 sm:my-4"></div>
 
           {/* Skills Tags and Actions */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
             <div className="flex items-center gap-2 flex-wrap flex-1">
               {requiredSkills && requiredSkills.length > 0 ? (
-                requiredSkills.slice(0, 5).map((skill, index) => (
-                  <span key={index} className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700">
+                requiredSkills.slice(0, 3).map((skill, index) => (
+                  <span key={index} className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700">
                     {skill}
                   </span>
                 ))
               ) : (
                 <span className="text-xs text-neutral-text-muted">No skills specified</span>
               )}
+              {requiredSkills && requiredSkills.length > 3 && (
+                <span className="text-xs text-neutral-text-muted">+{requiredSkills.length - 3} more</span>
+              )}
             </div>
 
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto">
               <Link
                 href={`/dashboard/jobs/${id}`}
-                className="px-5 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-black/90 transition-colors flex items-center gap-2"
+                className="flex-1 sm:flex-none px-4 sm:px-5 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-black/90 transition-colors flex items-center justify-center gap-2"
               >
-                View job
+                <span>View job</span>
                 <span className="text-lg">→</span>
               </Link>
               <button
                 onClick={onToggleExpand}
-                className="text-sm font-medium text-neutral-text hover:text-brand-orange flex items-center gap-1"
+                className="hidden sm:flex text-sm font-medium text-neutral-text hover:text-brand-orange items-center gap-1"
               >
-                Expand details
+                Expand
                 <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
               </button>
             </div>
@@ -619,7 +699,7 @@ function JobCard({
           {/* Expanded Details */}
           {isExpanded && (
             <div className="mt-4 pt-4 border-t border-neutral-border">
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* Quick Stats */}
                 <div>
                   <h4 className="text-sm font-semibold text-neutral-text mb-3">Quick Stats</h4>
@@ -713,53 +793,58 @@ function JobCard({
 
 function JobCardSkeleton() {
   return (
-    <div className="bg-white border border-neutral-border rounded-xl p-6 animate-pulse">
-      <div className="flex gap-6">
+    <div className="bg-white border border-neutral-border rounded-xl p-4 sm:p-6 animate-pulse overflow-hidden">
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
         {/* Company Logo Skeleton */}
-        <div className="w-[148px] h-[160px] bg-gray-200 rounded-2xl flex-shrink-0"></div>
+        <div className="w-full sm:w-[120px] lg:w-[148px] h-[100px] sm:h-[140px] lg:h-[160px] bg-gray-200 rounded-2xl flex-shrink-0"></div>
 
         {/* Job Content Skeleton */}
         <div className="flex-1 min-w-0">
           {/* Top Row: Tags */}
-          <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start justify-between mb-3 gap-2">
             <div className="flex items-center gap-2">
-              <div className="h-7 bg-gray-200 rounded-md w-24"></div>
-              <div className="h-7 bg-gray-200 rounded-md w-20"></div>
+              <div className="h-6 sm:h-7 bg-gray-200 rounded-md w-16 sm:w-24"></div>
+              <div className="h-6 sm:h-7 bg-gray-200 rounded-md w-14 sm:w-20"></div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2">
               <div className="h-8 w-8 bg-gray-200 rounded-md"></div>
               <div className="h-8 w-8 bg-gray-200 rounded-md"></div>
             </div>
           </div>
 
           {/* Title and Salary */}
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div className="h-7 bg-gray-200 rounded w-2/3"></div>
-            <div className="h-7 bg-gray-200 rounded w-32"></div>
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-4 mb-3">
+            <div className="h-6 sm:h-7 bg-gray-200 rounded w-full sm:w-2/3"></div>
+            <div className="h-5 sm:h-7 bg-gray-200 rounded w-24 sm:w-32"></div>
           </div>
 
           {/* Meta Info */}
-          <div className="flex items-center gap-4 mb-4">
-            <div className="h-4 bg-gray-200 rounded w-24"></div>
-            <div className="h-4 bg-gray-200 rounded w-20"></div>
-            <div className="h-4 bg-gray-200 rounded w-28"></div>
-            <div className="h-4 bg-gray-200 rounded w-32"></div>
+          <div className="flex items-center gap-3 sm:gap-4 mb-4 flex-wrap">
+            <div className="h-4 bg-gray-200 rounded w-20 sm:w-24"></div>
+            <div className="h-4 bg-gray-200 rounded w-16 sm:w-20"></div>
+            <div className="h-4 bg-gray-200 rounded w-20 sm:w-28 hidden sm:block"></div>
+            <div className="h-4 bg-gray-200 rounded w-24 sm:w-32 hidden sm:block"></div>
+          </div>
+
+          {/* Mobile Actions */}
+          <div className="flex sm:hidden items-center gap-2 mb-4">
+            <div className="h-8 w-8 bg-gray-200 rounded-md"></div>
+            <div className="h-8 w-8 bg-gray-200 rounded-md"></div>
           </div>
 
           {/* Separator */}
-          <div className="border-t border-neutral-border my-4"></div>
+          <div className="border-t border-neutral-border my-3 sm:my-4"></div>
 
           {/* Skills and Actions */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 flex-1">
-              <div className="h-7 bg-gray-200 rounded-md w-20"></div>
-              <div className="h-7 bg-gray-200 rounded-md w-24"></div>
-              <div className="h-7 bg-gray-200 rounded-md w-20"></div>
-              <div className="h-7 bg-gray-200 rounded-md w-28"></div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 flex-wrap flex-1">
+              <div className="h-6 sm:h-7 bg-gray-200 rounded-md w-16 sm:w-20"></div>
+              <div className="h-6 sm:h-7 bg-gray-200 rounded-md w-20 sm:w-24"></div>
+              <div className="h-6 sm:h-7 bg-gray-200 rounded-md w-16 sm:w-20"></div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="h-9 bg-gray-200 rounded-lg w-28"></div>
-              <div className="h-5 bg-gray-200 rounded w-32"></div>
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="h-9 bg-gray-200 rounded-lg flex-1 sm:flex-none sm:w-28"></div>
+              <div className="h-5 bg-gray-200 rounded w-20 hidden sm:block"></div>
             </div>
           </div>
         </div>
@@ -801,11 +886,19 @@ function FilterDropdown({
         onClick={onClose}
       />
       
-      {/* Dropdown - positioned to stay within viewport */}
-      <div className="absolute top-full right-0 mt-2 w-96 bg-white border border-neutral-border rounded-xl shadow-lg z-50 max-h-[500px] flex flex-col">
+      {/* Dropdown - Fixed positioning on mobile, absolute on desktop */}
+      <div className="fixed sm:absolute left-4 right-4 top-20 sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 bg-white border border-neutral-border rounded-xl shadow-lg z-50 max-h-[70vh] sm:max-h-[500px] flex flex-col">
         {/* Header with Search */}
         <div className="p-4 border-b border-neutral-border">
-          <h3 className="text-sm font-semibold text-neutral-text mb-3">{title}</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-neutral-text">{title}</h3>
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-neutral-bg-secondary rounded-md"
+            >
+              <X className="w-5 h-5 text-neutral-text-muted" />
+            </button>
+          </div>
           {onSearchChange && (
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-text-muted" />
@@ -833,7 +926,7 @@ function FilterDropdown({
                   <button
                     key={item}
                     onClick={() => onToggle(item)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    className={`px-3 sm:px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                       isSelected
                         ? "bg-neutral-text text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -848,7 +941,7 @@ function FilterDropdown({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-neutral-border flex items-center justify-between">
+        <div className="p-4 border-t border-neutral-border flex items-center justify-between gap-3">
           <button
             onClick={() => {
               onClear();
@@ -860,7 +953,7 @@ function FilterDropdown({
           </button>
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-neutral-text text-white text-sm font-semibold rounded-lg hover:bg-neutral-text/90 transition-colors"
+            className="px-4 sm:px-6 py-2 bg-neutral-text text-white text-sm font-semibold rounded-lg hover:bg-neutral-text/90 transition-colors"
           >
             Apply
           </button>

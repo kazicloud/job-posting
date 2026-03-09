@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Briefcase, Building2, Users, Eye, EyeOff, ArrowLeft, Code, TrendingUp, DollarSign, Wrench, Heart, GraduationCap, Coffee, Sprout, HardHat, Truck, Palette, Headphones, Rocket, Building, Landmark, Castle, HandHeart, UserCheck } from "lucide-react";
+import { Briefcase, Building2, Users, Eye, EyeOff, ArrowLeft, Code, TrendingUp, DollarSign, Wrench, Heart, GraduationCap, Coffee, Sprout, HardHat, Truck, Palette, Headphones, Rocket, Building, Landmark, Castle, HandHeart, UserCheck, CheckCircle, XCircle } from "lucide-react";
 import { useSignUpStore } from "@/store/signup-store";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 
 const testimonials = [
   {
@@ -28,7 +30,7 @@ const testimonials = [
 const roles = [
   { value: "job_seeker", label: "Get a job", icon: Briefcase },
   { value: "employer", label: "Hire talent", icon: Building2 },
-  { value: "recruiter", label: "Get career help", icon: Users },
+  // { value: "recruiter", label: "Get career help", icon: Users },
 ];
 
 const jobSeekerFields = [
@@ -69,6 +71,7 @@ export default function SignUpPage() {
     companyType: "",
     companyIndustry: [] as string[],
   });
+  const [debouncedCompanyName, setDebouncedCompanyName] = useState("");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -76,6 +79,21 @@ export default function SignUpPage() {
     password: "",
   });
   const [hasPrefilledName, setHasPrefilledName] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState(false);
+
+  // Check company name availability
+  const companyNameCheck = useQuery(
+    api.signupValidation.checkCompanyNameAvailability,
+    debouncedCompanyName?.trim().length >= 2 ? { companyName: debouncedCompanyName } : "skip"
+  );
+
+  // Debounce company name
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCompanyName(companyInfo.companyName);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [companyInfo.companyName]);
 
   // Pre-fill first name when moving to step 2 (only once)
   useEffect(() => {
@@ -146,28 +164,45 @@ export default function SignUpPage() {
     }));
   };
 
-  const handleOAuthSignUp = async (provider: "oauth_google" | "oauth_linkedin" | "oauth_facebook") => {
+  const handleOAuthSignUp = async (provider: "oauth_google" | "oauth_linkedin_oidc" | "oauth_facebook") => {
     if (!isLoaded || !signUp) return;
 
-    try {
-      // Store selected roles before OAuth redirect
-      if (selectedRoles.length > 0) {
-        sessionStorage.setItem('pendingRoles', JSON.stringify(selectedRoles));
-      }
+    console.log("Starting OAuth for:", provider);
+    setSsoLoading(true);
 
+    try {
+      // Store ALL signup data before OAuth redirect
+      const signupData = {
+        roles: selectedRoles,
+        fields: selectedFields,
+        otherFieldDescription,
+        companyInfo: selectedRoles.includes("employer") ? companyInfo : null,
+        timestamp: Date.now(),
+      };
+      
+      sessionStorage.setItem('pendingSignupData', JSON.stringify(signupData));
+      console.log("Saved signup data:", signupData);
+
+      // Use Clerk's OAuth with proper callback handling
+      // The key is to NOT set redirectUrlComplete - let it come back to our callback
       await signUp.authenticateWithRedirect({
         strategy: provider,
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/dashboard",
+        redirectUrlComplete: "/sso-callback",
       });
     } catch (err: any) {
       console.error("OAuth error:", err);
+      setSsoLoading(false);
       
-      // Handle "already signed in" error
-      if (err.errors?.[0]?.code === "form_identifier_exists" || err.message?.includes("already signed in")) {
-        setError("You're already signed in. Please sign out first or go to dashboard.");
+      // More specific error handling
+      const errorMessage = err.errors?.[0]?.message || err.message || "";
+      
+      if (errorMessage.includes("already signed in")) {
+        setError("You're already signed in. Please sign out first to create a new account.");
+      } else if (errorMessage.includes("Identifier already exists")) {
+        setError("An account with this email already exists. Please sign in instead.");
       } else {
-        setError(err.errors?.[0]?.message || "OAuth sign up failed");
+        setError(errorMessage || "OAuth sign up failed. Please try again.");
       }
     }
   };
@@ -212,18 +247,39 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md">
+    <>
+      {/* SSO Loading Overlay */}
+      {ssoLoading && (
+        <div className="fixed inset-0 bg-white/95 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-brand-orange border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h3 className="text-xl font-semibold text-neutral-text mb-2">Redirecting to sign in...</h3>
+            <p className="text-neutral-text-secondary">Please wait while we connect your account</p>
+            <p className="text-xs text-neutral-text-muted mt-4">Do not close or refresh this page</p>
+          </div>
+        </div>
+      )}
+
+      <div className="min-h-screen flex">
+        {/* Left Side - Form (2/3 width) */}
+        <div className="w-full lg:w-2/3 flex items-center justify-center p-8 bg-white">
+          <div className="w-full max-w-md">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-6">
               <img 
                 src="/images/kazicloud-logo.jpg" 
                 alt="Kazicloud" 
-                className="h-10 w-auto"
+                className="h-10 w-10 rounded-lg"
               />
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold text-neutral-text">
+                  Kazi<span className="text-brand-orange">cloud</span>
+                </span>
+                <span className="text-[10px] text-neutral-text-secondary font-medium tracking-wide">
+                  MASTERING RECRUITMENT
+                </span>
+              </div>
             </div>
             
             <div className="flex items-center gap-2 mb-6">
@@ -418,9 +474,27 @@ export default function SignUpPage() {
                         value={companyInfo.companyName}
                         onChange={(e) => setCompanyInfo({ ...companyInfo, companyName: e.target.value })}
                         placeholder="Enter company name"
-                        className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-colors ${
+                          companyNameCheck?.available === true
+                            ? "border-green-500 bg-green-50/30"
+                            : companyNameCheck?.available === false
+                            ? "border-red-500 bg-red-50/30"
+                            : "border-neutral-border"
+                        }`}
                         required
                       />
+                      {companyNameCheck?.message && (
+                        <div className={`flex items-center gap-1.5 mt-1.5 text-xs font-medium ${
+                          companyNameCheck.available ? "text-green-600" : "text-red-600"
+                        }`}>
+                          {companyNameCheck.available ? (
+                            <CheckCircle className="w-4 h-4" />
+                          ) : (
+                            <XCircle className="w-4 h-4" />
+                          )}
+                          <span>{companyNameCheck.message}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -460,7 +534,7 @@ export default function SignUpPage() {
                 onClick={handleStep1Continue}
                 disabled={
                   (selectedRoles.includes("job_seeker") && selectedFields.length === 0) ||
-                  (selectedRoles.includes("employer") && (!companyInfo.companyName.trim() || !companyInfo.companyType))
+                  (selectedRoles.includes("employer") && (!companyInfo.companyName.trim() || !companyInfo.companyType || companyNameCheck?.available === false))
                 }
                 className="w-full py-3 bg-neutral-text text-white font-medium rounded-lg hover:bg-neutral-text/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -490,22 +564,26 @@ export default function SignUpPage() {
                 What industry is your company in?
               </h1>
               <p className="text-neutral-text-secondary mb-6">
-                Select all that apply
+                Select up to 3 most relevant industries
               </p>
 
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {jobSeekerFields.map((field) => {
                   const Icon = field.icon;
                   const isSelected = companyInfo.companyIndustry.includes(field.value);
+                  const isMaxReached = companyInfo.companyIndustry.length >= 3 && !isSelected;
                   
                   return (
                     <button
                       key={field.value}
                       type="button"
                       onClick={() => handleIndustryToggle(field.value)}
+                      disabled={isMaxReached}
                       className={`p-3 border-2 rounded-lg transition-all text-left ${
                         isSelected
                           ? "border-brand-orange bg-brand-orange/5"
+                          : isMaxReached
+                          ? "border-neutral-border opacity-50 cursor-not-allowed"
                           : "border-neutral-border hover:border-brand-orange/50"
                       }`}
                     >
@@ -517,6 +595,13 @@ export default function SignUpPage() {
                   );
                 })}
               </div>
+
+              {companyInfo.companyIndustry.length >= 3 && (
+                <p className="text-xs text-amber-600 mb-4 flex items-center gap-1">
+                  <span>⚠️</span>
+                  <span>Maximum 3 industries selected. Deselect one to choose another.</span>
+                </p>
+              )}
 
               {companyInfo.companyIndustry.includes("other") && (
                 <div className="mb-6">
@@ -664,6 +749,9 @@ export default function SignUpPage() {
                   </div>
                 )}
 
+                {/* Required for sign-up flows - Clerk's bot protection */}
+                <div id="clerk-captcha" />
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -686,8 +774,12 @@ export default function SignUpPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
-                    onClick={() => handleOAuthSignUp("oauth_google")}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+                    onClick={() => {
+                      console.log("Google SSO clicked");
+                      handleOAuthSignUp("oauth_google");
+                    }}
+                    disabled={ssoLoading}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -699,8 +791,12 @@ export default function SignUpPage() {
 
                   <button
                     type="button"
-                    onClick={() => handleOAuthSignUp("oauth_linkedin")}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+                    onClick={() => {
+                      console.log("LinkedIn SSO clicked");
+                      handleOAuthSignUp("oauth_linkedin_oidc");
+                    }}
+                    disabled={ssoLoading}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-5 h-5" fill="#0A66C2" viewBox="0 0 24 24">
                       <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
@@ -709,8 +805,12 @@ export default function SignUpPage() {
 
                   <button
                     type="button"
-                    onClick={() => handleOAuthSignUp("oauth_facebook")}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+                    onClick={() => {
+                      console.log("Facebook SSO clicked");
+                      handleOAuthSignUp("oauth_facebook");
+                    }}
+                    disabled={ssoLoading}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-border rounded-lg hover:bg-neutral-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -742,8 +842,8 @@ export default function SignUpPage() {
         </div>
       </div>
 
-      {/* Right Side - Testimonials */}
-      <div className="hidden lg:flex flex-1 bg-neutral-bg-secondary items-center justify-center p-12">
+      {/* Right Side - Testimonials (1/3 width) */}
+      <div className="hidden lg:flex lg:w-1/3 bg-neutral-bg-secondary items-center justify-center p-12">
         <div className="max-w-lg">
           <div className="bg-white rounded-2xl p-8 shadow-sm">
             <p className="text-xl text-neutral-text leading-relaxed mb-6">
@@ -777,5 +877,6 @@ export default function SignUpPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

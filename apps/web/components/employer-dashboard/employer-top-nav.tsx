@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Bell } from "lucide-react";
+import { Menu, /* Bell */ } from "lucide-react";
 import { useSidebar } from "./employer-dashboard-layout";
 import { EmployerProfileDropdown } from "./employer-profile-dropdown";
 
@@ -25,10 +25,10 @@ export function EmployerTopNav() {
         {/* Right Side */}
         <div className="flex items-center gap-4">
           {/* Notifications */}
-          <button className="p-2 hover:bg-neutral-hover rounded-md text-neutral-text-secondary relative">
+          {/* <button className="p-2 hover:bg-neutral-hover rounded-md text-neutral-text-secondary relative">
             <Bell className="w-5 h-5" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
+          </button> */}
 
           {/* Profile Dropdown */}
           <EmployerProfileDropdown />

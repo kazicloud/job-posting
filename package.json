@@ -15,6 +15,7 @@
     "@google/generative-ai": "^0.21.0",
     "convex": "^1.18.0",
     "pdf-parse": "^1.1.1",
+    "resend": "^6.9.3",
     "svix": "^1.84.1"
   },
   "devDependencies": {
