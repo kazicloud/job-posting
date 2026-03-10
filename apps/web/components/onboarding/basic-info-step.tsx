@@ -171,6 +171,7 @@ export function BasicInfoStep({ onDataChange, initialData }: BasicInfoStepProps)
         headline: parsed.headline || formData.headline,
         _parsedCV: parsed, // Store full parsed data for other steps
         _cvStorageId: storageId, // Store CV file ID
+        _cvFileName: file.name, // Store CV file name
       });
 
       // Mark CV as parsed

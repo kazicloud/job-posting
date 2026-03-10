@@ -18,7 +18,8 @@ export async function GET() {
     
     return NextResponse.json({ 
       primaryRole: user?.primaryRole || "job_seeker",
-      roles: user?.roles || ["job_seeker"]
+      roles: user?.roles || ["job_seeker"],
+      onboardingCompleted: user?.onboardingCompleted || false
     });
   } catch (error) {
     console.error("Error fetching user role:", error);

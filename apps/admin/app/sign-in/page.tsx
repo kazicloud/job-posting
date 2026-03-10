@@ -213,9 +213,11 @@ export default function AdminSignInPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-sm border border-neutral-border p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-brand-orange/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-8 h-8 text-brand-orange" />
-            </div>
+            <img 
+              src="/images/kazicloud-logo.jpg" 
+              alt="Kazicloud" 
+              className="h-10 w-10 rounded-lg mx-auto mb-4"
+            />
             <h1 className="text-2xl font-bold text-neutral-text mb-2">Admin Sign In</h1>
           </div>
 

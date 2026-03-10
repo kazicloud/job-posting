@@ -11,16 +11,19 @@ const testimonials = [
     quote: "Kazicloud made my job search so much easier. I found my dream role in just 2 weeks!",
     author: "Sarah Mwangi",
     role: "Software Engineer",
+    image: "/images/auth/kc-auth-testimonial1.webp",
   },
   {
     quote: "The transparency in job postings is refreshing. No more guessing about salary ranges.",
     author: "James Ochieng",
     role: "Marketing Manager",
+    image: "/images/auth/kc-auth-testimonial2.jpeg",
   },
   {
     quote: "As an employer, I found qualified candidates faster than any other platform.",
     author: "Linda Kamau",
     role: "HR Director",
+    image: "/images/auth/kc-auth-testimonial3.webp",
   },
 ];
 
@@ -66,9 +69,15 @@ export default function SignInPage() {
             <button
               onClick={async () => {
                 const response = await fetch("/api/user-role");
-                const { primaryRole } = await response.json();
-                const dashboard = primaryRole === "employer" ? "/employer-dashboard" : "/dashboard";
-                router.push(dashboard);
+                const { primaryRole, onboardingCompleted } = await response.json();
+                
+                let destination;
+                if (!onboardingCompleted) {
+                  destination = primaryRole === "employer" ? "/employer-onboarding" : "/onboarding";
+                } else {
+                  destination = primaryRole === "employer" ? "/employer-dashboard" : "/dashboard";
+                }
+                router.push(destination);
               }}
               className="w-full py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
             >
@@ -101,7 +110,7 @@ export default function SignInPage() {
       await signIn.authenticateWithRedirect({
         strategy: provider,
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/onboarding`,
+        redirectUrlComplete: `${window.location.origin}/sso-callback`,
       });
       
     } catch (err: any) {
@@ -129,13 +138,21 @@ export default function SignInPage() {
         // Sign in successful, set session
         await setActive({ session: result.createdSessionId });
         
+        // Wait a moment for Clerk webhook to create user in Convex
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         // Get user data to determine role
         const response = await fetch("/api/user-role");
-        const { primaryRole } = await response.json();
+        const { primaryRole, onboardingCompleted } = await response.json();
         
-        // Redirect based on role
-        const dashboard = primaryRole === "employer" ? "/employer-dashboard" : "/dashboard";
-        router.push(dashboard);
+        // Redirect based on role and onboarding status
+        let destination;
+        if (!onboardingCompleted) {
+          destination = primaryRole === "employer" ? "/employer-onboarding" : "/onboarding";
+        } else {
+          destination = primaryRole === "employer" ? "/employer-dashboard" : "/dashboard";
+        }
+        router.push(destination);
       } else if (result.status === "needs_first_factor" || result.status === "needs_second_factor") {
         // Need to verify - check if email code is available
         const emailCodeFactor = result.supportedFirstFactors?.find(
@@ -199,9 +216,9 @@ export default function SignInPage() {
             
             <div className="flex items-center gap-2 mb-6">
               <div className="flex -space-x-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="w-8 h-8 rounded-full bg-neutral-bg-secondary border-2 border-white" />
-                ))}
+                <img src="/images/auth/kc-auth-member1.webp" alt="Member" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
+                <img src="/images/auth/kc-auth-member2.webp" alt="Member" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
+                <img src="/images/auth/kc-auth-testimonial1.webp" alt="Member" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
               </div>
               <span className="text-sm font-medium text-teal-600 bg-teal-50 px-3 py-1 rounded-full">
                 50,000+ members
@@ -342,7 +359,11 @@ export default function SignInPage() {
               "{testimonials[currentTestimonial]?.quote}"
             </p>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-neutral-bg-secondary rounded-full" />
+              <img 
+                src={testimonials[currentTestimonial]?.image} 
+                alt={testimonials[currentTestimonial]?.author}
+                className="w-12 h-12 rounded-full object-cover"
+              />
               <div>
                 <p className="font-semibold text-neutral-text">
                   {testimonials[currentTestimonial]?.author}

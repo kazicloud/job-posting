@@ -66,6 +66,7 @@ export default defineSchema({
     desiredJobTitle: v.optional(v.string()),
     desiredIndustries: v.optional(v.array(v.string())),
     jobTypes: v.optional(v.array(v.string())),
+    workArrangements: v.optional(v.array(v.string())),
     salaryMin: v.optional(v.number()),
     salaryCurrency: v.optional(v.string()),
     willingToRelocate: v.optional(v.boolean()),

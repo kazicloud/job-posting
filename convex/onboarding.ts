@@ -8,21 +8,21 @@ function calculateCompleteness(data: any): number {
     data.basicInfo?.fullName ? 10 : 0,
     data.basicInfo?.phone ? 5 : 0,
     data.basicInfo?.county ? 5 : 0,
-    data.basicInfo?.location ? 5 : 0,
     data.basicInfo?.desiredJobTitle ? 10 : 0,
-    data.basicInfo?.headline ? 5 : 0,
+    data.basicInfo?.headline ? 10 : 0,
     
-    // Status (20%)
+    // Status + CV (30%)
     data.status?.currentStatus ? 10 : 0,
     data.status?.yearsOfExperience !== undefined ? 10 : 0,
+    data.status?._cvStorageId ? 10 : 0,
     
     // Skills (20%)
     data.skills?.skills?.length >= 3 ? 20 : (data.skills?.skills?.length || 0) * 6.67,
     
-    // Preferences (20%)
-    data.preferences?.jobTypes?.length > 0 ? 10 : 0,
-    data.preferences?.availability ? 5 : 0,
-    data.preferences?.willingToRelocate !== undefined ? 5 : 0,
+    // Preferences (10%)
+    data.preferences?.jobTypes?.length > 0 ? 3 : 0,
+    data.preferences?.workArrangements?.length > 0 ? 4 : 0,
+    data.preferences?.expectedSalaryMin ? 3 : 0,
   ];
   
   const total = fields.reduce((sum, val) => sum + val, 0);
@@ -114,13 +114,10 @@ export const completeOnboarding = mutation({
     if (data.basicInfo?.desiredJobTitle) updates.desiredJobTitle = data.basicInfo.desiredJobTitle;
     if (data.basicInfo?.headline) updates.headline = data.basicInfo.headline;
     if (data.basicInfo?.careerSummary) updates.careerSummary = data.basicInfo.careerSummary;
-    if (data.preferences?.notLookingForWork !== undefined) updates.openToWork = !data.preferences.notLookingForWork;
-    if (data.preferences?.availability) updates.availability = data.preferences.availability;
     if (data.preferences?.jobTypes) updates.jobTypes = data.preferences.jobTypes;
-    if (data.preferences?.salaryMin) updates.salaryMin = parseInt(data.preferences.salaryMin);
-    if (data.preferences?.salaryCurrency) updates.salaryCurrency = data.preferences.salaryCurrency;
+    if (data.preferences?.workArrangements) updates.workArrangements = data.preferences.workArrangements;
+    if (data.preferences?.expectedSalaryMin) updates.salaryMin = parseInt(data.preferences.expectedSalaryMin);
     if (data.preferences?.willingToRelocate !== undefined) updates.willingToRelocate = data.preferences.willingToRelocate;
-    if (data.preferences?.allowRecruiterContact !== undefined) updates.allowRecruiterContact = data.preferences.allowRecruiterContact;
     
     // Calculate and save profile completeness
     updates.profileCompleteness = calculateCompleteness(data);
@@ -131,8 +128,8 @@ export const completeOnboarding = mutation({
     // Only mark onboarding as complete if profile is at least 80% complete
     const isComplete = updates.profileCompleteness >= 80;
     
-    // Get CV storage ID from either basicInfo (parsed) or preferences (manual upload)
-    const cvStorageId = data.basicInfo?._cvStorageId || data.preferences?._cvStorageId;
+    // Get CV storage ID from status step (primary) or basicInfo (parsed fallback)
+    const cvStorageId = data.status?._cvStorageId || data.basicInfo?._cvStorageId;
     
     await ctx.db.patch(userId, {
       fullName: data.basicInfo?.fullName,

@@ -8,6 +8,8 @@ interface OnboardingStep {
   description: string;
   component: React.ReactNode;
   validate?: () => { isValid: boolean; error?: string };
+  requiredFields?: number;
+  getFilledFields?: () => number;
 }
 
 interface OnboardingWizardProps {
@@ -47,7 +49,25 @@ export function OnboardingWizard({ steps, onComplete }: OnboardingWizardProps) {
     }
   };
 
-  const progress = ((currentStep + 1) / steps.length) * 100;
+  // Calculate progress based on filled fields across all steps
+  const calculateProgress = () => {
+    let totalRequired = 0;
+    let totalFilled = 0;
+    
+    steps.forEach((step, index) => {
+      if (step.requiredFields && step.getFilledFields) {
+        totalRequired += step.requiredFields;
+        // Only count filled fields for current and previous steps
+        if (index <= currentStep) {
+          totalFilled += step.getFilledFields();
+        }
+      }
+    });
+    
+    return totalRequired > 0 ? (totalFilled / totalRequired) * 100 : 0;
+  };
+
+  const progress = calculateProgress();
 
   return (
     <div className="min-h-screen bg-neutral-bg-secondary flex items-center justify-center p-4">

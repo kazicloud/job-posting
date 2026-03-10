@@ -68,13 +68,23 @@ export default function OnboardingPage() {
   const handleStepData = async (stepKey: string, data: any) => {
     const updated = { ...formData, [stepKey]: data };
     
-    // If CV was parsed, pre-fill other steps with parsed data
+    // If CV was parsed in Step 1, pre-fill other steps and carry CV to Step 2
     if (data._parsedCV && stepKey === 'basicInfo') {
       const cv = data._parsedCV;
+      
+      // Carry the CV storage ID to Step 2
+      if (data._cvStorageId) {
+        updated.status = {
+          ...(updated.status || {}),
+          _cvStorageId: data._cvStorageId,
+          _cvFileName: data._cvFileName,
+        };
+      }
       
       // Pre-fill status step
       if (cv.currentStatus || cv.yearsOfExperience) {
         updated.status = {
+          ...(updated.status || {}),
           currentStatus: cv.currentStatus || undefined,
           yearsOfExperience: cv.yearsOfExperience || undefined,
         };
@@ -159,6 +169,20 @@ export default function OnboardingPage() {
           initialData={formData.basicInfo}
         />
       ),
+      validate: () => {
+        const { fullName, phone, county, desiredJobTitle, headline } = formData.basicInfo || {};
+        if (!fullName?.trim()) return { isValid: false, error: "Full name is required" };
+        if (!phone?.trim()) return { isValid: false, error: "Phone number is required" };
+        if (!county?.trim()) return { isValid: false, error: "County is required" };
+        if (!desiredJobTitle?.trim()) return { isValid: false, error: "Desired job title is required" };
+        if (!headline?.trim()) return { isValid: false, error: "Professional headline is required" };
+        return { isValid: true };
+      },
+      requiredFields: 5,
+      getFilledFields: () => {
+        const { fullName, phone, county, desiredJobTitle, headline } = formData.basicInfo || {};
+        return [fullName, phone, county, desiredJobTitle, headline].filter(f => f?.trim()).length;
+      },
     },
     {
       title: "What's your current situation?",
@@ -169,6 +193,20 @@ export default function OnboardingPage() {
           initialData={formData.status}
         />
       ),
+      validate: () => {
+        const { currentStatus, yearsOfExperience, _cvStorageId } = formData.status || {};
+        if (!currentStatus) return { isValid: false, error: "Current status is required" };
+        if (yearsOfExperience === undefined || yearsOfExperience === null) {
+          return { isValid: false, error: "Years of experience is required" };
+        }
+        if (!_cvStorageId) return { isValid: false, error: "Please upload your CV/Resume" };
+        return { isValid: true };
+      },
+      requiredFields: 3,
+      getFilledFields: () => {
+        const { currentStatus, yearsOfExperience, _cvStorageId } = formData.status || {};
+        return [currentStatus, yearsOfExperience !== undefined && yearsOfExperience !== null, _cvStorageId].filter(Boolean).length;
+      },
     },
     {
       title: "What are your skills?",
@@ -190,6 +228,8 @@ export default function OnboardingPage() {
         }
         return { isValid: true };
       },
+      requiredFields: 3,
+      getFilledFields: () => formData.skills?.skills?.length || 0,
     },
     {
       title: "What are you looking for?",
@@ -200,6 +240,18 @@ export default function OnboardingPage() {
           initialData={formData.preferences}
         />
       ),
+      validate: () => {
+        const { jobTypes, workArrangements, expectedSalaryMin } = formData.preferences || {};
+        if (!jobTypes?.length) return { isValid: false, error: "Please select at least one job type" };
+        if (!workArrangements?.length) return { isValid: false, error: "Please select at least one work arrangement" };
+        if (!expectedSalaryMin) return { isValid: false, error: "Expected minimum salary is required" };
+        return { isValid: true };
+      },
+      requiredFields: 3,
+      getFilledFields: () => {
+        const { jobTypes, workArrangements, expectedSalaryMin } = formData.preferences || {};
+        return [jobTypes?.length, workArrangements?.length, expectedSalaryMin].filter(Boolean).length;
+      },
     },
   ];
 
