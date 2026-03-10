@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSignIn, useUser, useClerk } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -27,11 +27,12 @@ const testimonials = [
   },
 ];
 
-export default function SignInPage() {
+function SignInContent() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const { isSignedIn, user } = useUser();
   const { signOut } = useClerk();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [formData, setFormData] = useState({
     email: "",
@@ -42,6 +43,21 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [infoMessage, setInfoMessage] = useState("");
+
+  // Pre-fill email from URL params and show message
+  useEffect(() => {
+    const email = searchParams.get("email");
+    const message = searchParams.get("message");
+    
+    if (email) {
+      setFormData(prev => ({ ...prev, email: decodeURIComponent(email) }));
+    }
+    
+    if (message === "account_exists") {
+      setInfoMessage("An account with this email already exists. Please sign in.");
+    }
+  }, [searchParams]);
 
   // Show already signed in message
   if (isLoaded && isSignedIn && user && !signingOut) {
@@ -234,6 +250,12 @@ export default function SignInPage() {
               Sign in to continue to your account
             </p>
 
+            {infoMessage && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                {infoMessage}
+              </div>
+            )}
+
             <form onSubmit={handleSignIn} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-text mb-1.5">
@@ -390,5 +412,17 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-neutral-bg-secondary">
+        <div className="w-16 h-16 border-4 border-brand-orange border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }

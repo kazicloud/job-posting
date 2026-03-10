@@ -243,7 +243,15 @@ export default function SignUpPage() {
       router.push(`/sign-up/verify?email=${encodeURIComponent(formData.email)}`);
     } catch (err: any) {
       console.error("Sign up error:", err);
-      setError(err.errors?.[0]?.message || "Something went wrong");
+      const errorMessage = err.errors?.[0]?.message || "";
+      
+      // If account already exists, redirect to sign-in with email
+      if (errorMessage.includes("Identifier already exists") || errorMessage.includes("already exists")) {
+        router.push(`/sign-in?email=${encodeURIComponent(formData.email)}&message=account_exists`);
+        return;
+      }
+      
+      setError(errorMessage || "Something went wrong");
     } finally {
       setLoading(false);
     }
