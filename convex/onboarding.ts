@@ -109,34 +109,53 @@ export const completeOnboarding = mutation({
 
     // Always update profile with latest data (merge, don't overwrite nulls)
     const updates: any = {};
-    if (data.status?.currentStatus) updates.currentStatus = data.status.currentStatus;
-    if (data.status?.yearsOfExperience !== undefined) updates.yearsOfExperience = data.status.yearsOfExperience;
+    
+    // Basic Info
     if (data.basicInfo?.desiredJobTitle) updates.desiredJobTitle = data.basicInfo.desiredJobTitle;
     if (data.basicInfo?.headline) updates.headline = data.basicInfo.headline;
     if (data.basicInfo?.careerSummary) updates.careerSummary = data.basicInfo.careerSummary;
+    
+    // Status
+    if (data.status?.currentStatus) updates.currentStatus = data.status.currentStatus;
+    if (data.status?.yearsOfExperience !== undefined) updates.yearsOfExperience = data.status.yearsOfExperience;
+    
+    // Preferences
     if (data.preferences?.jobTypes) updates.jobTypes = data.preferences.jobTypes;
     if (data.preferences?.workArrangements) updates.workArrangements = data.preferences.workArrangements;
     if (data.preferences?.expectedSalaryMin) updates.salaryMin = parseInt(data.preferences.expectedSalaryMin);
     if (data.preferences?.willingToRelocate !== undefined) updates.willingToRelocate = data.preferences.willingToRelocate;
+    
+    // CV Resume URL (move from users table to jobSeekerProfiles)
+    const cvStorageId = data.status?._cvStorageId || data.basicInfo?._cvStorageId;
+    if (cvStorageId) updates.resumeUrl = cvStorageId; // Store storage ID as resumeUrl
+    
+    // Set openToWork based on currentStatus
+    if (data.status?.currentStatus) {
+      updates.openToWork = data.status.currentStatus === "unemployed" || data.status.currentStatus === "student";
+    }
+    
+    // Get signup data for interestedFields and otherFieldDescription
+    if (data._signupData?.fields) updates.interestedFields = data._signupData.fields;
+    if (data._signupData?.otherFieldDescription) updates.otherFieldDescription = data._signupData.otherFieldDescription;
+    
+    // Set desiredIndustries from signup interestedFields if not already set
+    if (data._signupData?.fields && !updates.desiredIndustries) {
+      updates.desiredIndustries = data._signupData.fields;
+    }
     
     // Calculate and save profile completeness
     updates.profileCompleteness = calculateCompleteness(data);
 
     await ctx.db.patch(profileId, updates);
 
-    // Update user basic info
-    // Only mark onboarding as complete if profile is at least 80% complete
+    // Update user basic info (remove resumeStorageId since it's now in profile)
     const isComplete = updates.profileCompleteness >= 80;
-    
-    // Get CV storage ID from status step (primary) or basicInfo (parsed fallback)
-    const cvStorageId = data.status?._cvStorageId || data.basicInfo?._cvStorageId;
     
     await ctx.db.patch(userId, {
       fullName: data.basicInfo?.fullName,
       phone: data.basicInfo?.phone,
       county: data.basicInfo?.county,
       country: "Kenya",
-      resumeStorageId: cvStorageId,
       onboardingCompleted: isComplete,
     });
 

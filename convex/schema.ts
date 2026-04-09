@@ -13,8 +13,8 @@ export default defineSchema({
     profilePhotoStorageId: v.optional(v.string()), // Storage ID for persistence
     phone: v.optional(v.string()),
     county: v.optional(v.string()),
-    location: v.optional(v.string()),
     country: v.optional(v.string()), // Defaults to "Kenya"
+    location: v.optional(v.string()), // Legacy field - keep for backward compatibility
     resumeStorageId: v.optional(v.string()), // Convex file storage ID
     onboardingCompleted: v.optional(v.boolean()),
     verified: v.optional(v.boolean()), // For employer verification
@@ -259,10 +259,12 @@ export default defineSchema({
       v.literal("draft"),
       v.literal("published"),
       v.literal("closed"),
-      v.literal("archived")
+      v.literal("archived"),
+      v.literal("expired")
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
+    expiresAt: v.optional(v.number()), // Job expiry date (30 days from posting)
     
     // Application Settings (NEW)
     applicationSettings: v.optional(v.object({
@@ -374,4 +376,84 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"]),
+
+  // Employer Subscriptions
+  subscriptions: defineTable({
+    userId: v.id("users"),
+    plan: v.union(
+      v.literal("free"),
+      v.literal("basic"),
+      v.literal("growth"),
+      v.literal("enterprise")
+    ),
+    status: v.union(
+      v.literal("active"),
+      v.literal("expired"),
+      v.literal("cancelled")
+    ),
+    jobPostingsRemaining: v.number(), // -1 for unlimited
+    startDate: v.number(),
+    endDate: v.optional(v.number()), // null for free plan
+    autoRenew: v.optional(v.boolean()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"]),
+
+  // Payment Transactions
+  transactions: defineTable({
+    userId: v.id("users"),
+    reference: v.string(), // Paystack reference
+    plan: v.string(),
+    amount: v.number(),
+    currency: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("success"),
+      v.literal("failed")
+    ),
+    paystackData: v.optional(v.any()),
+    createdAt: v.number(),
+    verifiedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_reference", ["reference"])
+    .index("by_status", ["status"]),
+
+  // Candidate Service Orders
+  serviceOrders: defineTable({
+    userId: v.id("users"),
+    serviceType: v.union(
+      v.literal("ats_cv"),
+      v.literal("cv_revamp"),
+      v.literal("job_search_support"),
+      v.literal("career_coaching")
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("in_progress"),
+      v.literal("completed"),
+      v.literal("cancelled")
+    ),
+    amount: v.number(),
+    currency: v.string(),
+    paymentReference: v.optional(v.string()),
+    
+    // Customer inputs
+    requirements: v.optional(v.string()), // Notes, preferences, goals
+    uploadedFileStorageId: v.optional(v.string()), // CV or other documents
+    uploadedFileName: v.optional(v.string()),
+    
+    // Admin deliverables
+    deliverables: v.optional(v.string()), // Notes about what was delivered
+    deliverableFileStorageId: v.optional(v.string()), // Revised CV, materials
+    deliverableFileName: v.optional(v.string()),
+    
+    assignedTo: v.optional(v.id("users")), // Admin/staff member
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_service_type", ["serviceType"])
+    .index("by_assigned_to", ["assignedTo"]),
 });

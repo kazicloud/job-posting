@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSignUp } from "@clerk/nextjs";
+import { useSignUp, useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Briefcase, Building2, Users, Eye, EyeOff, ArrowLeft, Code, TrendingUp, DollarSign, Wrench, Heart, GraduationCap, Coffee, Sprout, HardHat, Truck, Palette, Headphones, Rocket, Building, Landmark, Castle, HandHeart, UserCheck, CheckCircle, XCircle } from "lucide-react";
@@ -63,8 +63,16 @@ const employerTypes = [
 
 export default function SignUpPage() {
   const { isLoaded, signUp, setActive } = useSignUp();
+  const { isSignedIn, user } = useUser();
   const router = useRouter();
   const { username, selectedRoles, setUsername, toggleRole, reset } = useSignUpStore();
+
+  // Redirect if already signed in
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.push("/dashboard");
+    }
+  }, [isLoaded, isSignedIn, router]);
   
   const [step, setStep] = useState(0);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -170,7 +178,7 @@ export default function SignUpPage() {
   const handleOAuthSignUp = async (provider: "oauth_google" | "oauth_linkedin_oidc" | "oauth_facebook") => {
     if (!isLoaded || !signUp) return;
 
-    console.log("Starting OAuth for:", provider);
+    console.log("Starting OAuth signup for:", provider);
     setSsoLoading(true);
 
     try {
@@ -186,24 +194,26 @@ export default function SignUpPage() {
       sessionStorage.setItem('pendingSignupData', JSON.stringify(signupData));
       console.log("Saved signup data:", signupData);
 
-      // Use Clerk's OAuth with proper callback handling
-      // The key is to NOT set redirectUrlComplete - let it come back to our callback
+      // Force signup mode - this will fail if account exists
       await signUp.authenticateWithRedirect({
         strategy: provider,
         redirectUrl: "/sso-callback",
         redirectUrlComplete: "/sso-callback",
       });
     } catch (err: any) {
-      console.error("OAuth error:", err);
+      console.error("OAuth signup error:", err);
       setSsoLoading(false);
       
-      // More specific error handling
       const errorMessage = err.errors?.[0]?.message || err.message || "";
       
       if (errorMessage.includes("already signed in")) {
-        setError("You're already signed in. Please sign out first to create a new account.");
-      } else if (errorMessage.includes("Identifier already exists")) {
-        setError("An account with this email already exists. Please sign in instead.");
+        // Clear session and redirect to sign-in
+        sessionStorage.removeItem('pendingSignupData');
+        router.push("/sign-in?message=already_signed_in");
+      } else if (errorMessage.includes("Identifier already exists") || errorMessage.includes("already exists")) {
+        // Account exists, redirect to sign-in with OAuth
+        sessionStorage.removeItem('pendingSignupData');
+        router.push("/sign-in?message=account_exists_oauth");
       } else {
         setError(errorMessage || "OAuth sign up failed. Please try again.");
       }

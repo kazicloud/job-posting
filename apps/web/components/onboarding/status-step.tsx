@@ -19,6 +19,8 @@ export function StatusStep({ onDataChange, initialData }: StatusStepProps) {
   const [formData, setFormData] = useState({
     currentStatus: initialData?.currentStatus || "",
     yearsOfExperience: initialData?.yearsOfExperience || 0,
+    availability: initialData?.availability || "",
+    noticePeriod: initialData?.noticePeriod || "",
     _cvStorageId: initialData?._cvStorageId || null,
     _cvFileName: initialData?._cvFileName || null,
   });
@@ -38,6 +40,8 @@ export function StatusStep({ onDataChange, initialData }: StatusStepProps) {
       setFormData({
         currentStatus: initialData.currentStatus || "",
         yearsOfExperience: mappedYears,
+        availability: initialData.availability || "",
+        noticePeriod: initialData.noticePeriod || "",
         _cvStorageId: initialData._cvStorageId || null,
         _cvFileName: initialData._cvFileName || null,
       });

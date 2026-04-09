@@ -134,10 +134,25 @@ export default function OnboardingPage() {
     
     if (convexUser?._id) {
       try {
+        // Get signup data from sessionStorage
+        const signupDataStr = sessionStorage.getItem("signupData");
+        const signupData = signupDataStr ? JSON.parse(signupDataStr) : null;
+        
+        // Include signup data in completion
+        const completeData = {
+          ...formData,
+          _signupData: signupData,
+        };
+        
         await completeOnboardingMutation({
           userId: convexUser._id,
-          data: formData,
+          data: completeData,
         });
+        
+        // Clear signup data after successful completion
+        if (signupDataStr) {
+          sessionStorage.removeItem("signupData");
+        }
         
         // Redirect to dashboard
         router.push("/dashboard");

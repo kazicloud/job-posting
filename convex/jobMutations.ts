@@ -1,5 +1,6 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 export const create = mutation({
   args: {
@@ -58,6 +59,7 @@ export const create = mutation({
       status: (args.status as any) || "draft",
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      expiresAt: args.status === "published" ? Date.now() + (30 * 24 * 60 * 60 * 1000) : undefined, // 30 days
     });
     return jobId;
   },
@@ -74,10 +76,23 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { 
-      status: args.status,
-      updatedAt: Date.now(),
-    });
+    const job = await ctx.db.get(args.id);
+    if (!job) throw new Error("Job not found");
+
+    // Check subscription if publishing from draft
+    if (args.status === "published" && job.status === "draft") {
+      // Set expiry date
+      await ctx.db.patch(args.id, { 
+        status: args.status,
+        updatedAt: Date.now(),
+        expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000),
+      });
+    } else {
+      await ctx.db.patch(args.id, { 
+        status: args.status,
+        updatedAt: Date.now(),
+      });
+    }
   },
 });
 

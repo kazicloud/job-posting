@@ -1,140 +1,96 @@
-import { query } from "./_generated/server";
-import { v } from "convex/values";
+import { v } from 'convex/values'
+import { mutation, query } from './_generated/server'
 
-export const list = query({
+// Set job expiry when publishing
+export const publishJobWithExpiry = mutation({
   args: {
-    paginationOpts: v.optional(v.object({
-      numItems: v.number(),
-      cursor: v.union(v.string(), v.null()),
-    })),
-    sortBy: v.optional(v.union(
-      v.literal("newest"),
-      v.literal("oldest"),
-      v.literal("alphabetical"),
-      v.literal("views"),
-      v.literal("applications")
-    )),
+    jobId: v.id('jobs'),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return { page: [], continueCursor: null, isDone: true };
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Not authenticated')
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
+    const job = await ctx.db.get(args.jobId)
+    if (!job) throw new Error('Job not found')
 
-    if (!user) return { page: [], continueCursor: null, isDone: true };
+    // Set expiry to 30 days from now
+    const expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days
 
-    const sortBy = args.sortBy || "newest";
-    
-    // Fetch all jobs for this employer
-    const allJobs = await ctx.db
-      .query("jobs")
-      .withIndex("by_employer", (q) => q.eq("employerId", user._id))
-      .collect();
-    
-    // For views or applications sorting, fetch analytics
-    if (sortBy === "views" || sortBy === "applications") {
-      const jobsWithStats = await Promise.all(
-        allJobs.map(async (job) => {
-          if (sortBy === "views") {
-            const viewCount = await ctx.db
-              .query("jobViews")
-              .withIndex("by_job", (q) => q.eq("jobId", job._id))
-              .collect()
-              .then(views => views.length);
-            return { ...job, statValue: viewCount };
-          } else {
-            const applicationCount = await ctx.db
-              .query("applications")
-              .withIndex("by_job", (q) => q.eq("jobId", job._id))
-              .collect()
-              .then(apps => apps.length);
-            return { ...job, statValue: applicationCount };
-          }
-        })
-      );
-      
-      const sorted = jobsWithStats.sort((a, b) => b.statValue - a.statValue);
-      
-      // Manual pagination
-      const cursor = args.paginationOpts?.cursor;
-      const numItems = args.paginationOpts?.numItems || 10;
-      const startIndex = cursor ? parseInt(cursor) : 0;
-      const page = sorted.slice(startIndex, startIndex + numItems);
-      const isDone = startIndex + numItems >= sorted.length;
-      const continueCursor = isDone ? null : String(startIndex + numItems);
-      
-      return { page, continueCursor, isDone };
-    }
-    
-    // For alphabetical sorting
-    if (sortBy === "alphabetical") {
-      const sorted = allJobs.sort((a, b) => a.title.localeCompare(b.title));
-      
-      // Manual pagination
-      const cursor = args.paginationOpts?.cursor;
-      const numItems = args.paginationOpts?.numItems || 10;
-      const startIndex = cursor ? parseInt(cursor) : 0;
-      const page = sorted.slice(startIndex, startIndex + numItems);
-      const isDone = startIndex + numItems >= sorted.length;
-      const continueCursor = isDone ? null : String(startIndex + numItems);
-      
-      return { page, continueCursor, isDone };
-    }
+    await ctx.db.patch(args.jobId, {
+      status: 'published',
+      expiresAt,
+      updatedAt: Date.now(),
+    })
 
-    // For newest/oldest, use native ordering
-    const result = await ctx.db
-      .query("jobs")
-      .withIndex("by_employer", (q) => q.eq("employerId", user._id))
-      .order(sortBy === "oldest" ? "asc" : "desc")
-      .paginate(args.paginationOpts || { numItems: 10, cursor: null });
-
-    return result;
+    return { success: true, expiresAt }
   },
-});
+})
 
-export const listAll = query({
+// Expire jobs that have passed their expiry date
+export const expireOldJobs = mutation({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("jobs").collect();
-  },
-});
-
-export const get = query({
-  args: { id: v.id("jobs") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
-  },
-});
-
-export const getPublic = query({
-  args: { id: v.id("jobs") },
-  handler: async (ctx, args) => {
-    const job = await ctx.db.get(args.id);
-    if (!job || job.status !== "published") return null;
-    return job;
-  },
-});
-
-export const getWithApplicationCount = query({
-  args: { id: v.id("jobs") },
-  handler: async (ctx, args) => {
-    const job = await ctx.db.get(args.id);
-    if (!job) return null;
-
-    const applicationCount = await ctx.db
-      .query("applications")
-      .withIndex("by_job", (q) => q.eq("jobId", args.id))
+    const now = Date.now()
+    
+    // Find all published jobs that have expired
+    const expiredJobs = await ctx.db
+      .query('jobs')
+      .filter((q) => 
+        q.and(
+          q.eq(q.field('status'), 'published'),
+          q.lt(q.field('expiresAt'), now)
+        )
+      )
       .collect()
-      .then((apps) => apps.length);
 
-    return { ...job, applicationCount };
+    // Update their status to expired
+    for (const job of expiredJobs) {
+      await ctx.db.patch(job._id, {
+        status: 'expired',
+        updatedAt: now,
+      })
+    }
+
+    return { expiredCount: expiredJobs.length }
   },
-});
+})
 
-// List jobs by employer
+// Get jobs expiring soon (for notifications)
+export const getJobsExpiringSoon = query({
+  args: {
+    daysAhead: v.optional(v.number()), // Default 3 days
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
+      .first()
+
+    if (!user) return []
+
+    const daysAhead = args.daysAhead || 3
+    const futureTime = Date.now() + (daysAhead * 24 * 60 * 60 * 1000)
+
+    const jobs = await ctx.db
+      .query('jobs')
+      .withIndex('by_employer', (q) => q.eq('employerId', user._id))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('status'), 'published'),
+          q.lt(q.field('expiresAt'), futureTime),
+          q.gt(q.field('expiresAt'), Date.now())
+        )
+      )
+      .collect()
+
+    return jobs
+  },
+})
+
+
 export const listByEmployer = query({
   args: { employerId: v.id("users") },
   handler: async (ctx, args) => {
@@ -146,119 +102,133 @@ export const listByEmployer = query({
   },
 });
 
-// List all published jobs (for job seekers)
-export const listPublished = query({
-  args: {
-    paginationOpts: v.optional(v.object({
-      numItems: v.number(),
-      cursor: v.union(v.string(), v.null()),
-    })),
-    sortBy: v.optional(v.union(
-      v.literal("newest"),
-      v.literal("oldest"),
-      v.literal("salary-high"),
-      v.literal("salary-low")
-    )),
-  },
-  handler: async (ctx, args) => {
-    const sortBy = args.sortBy || "newest";
-    
-    // For salary sorting, fetch all and sort manually
-    if (sortBy === "salary-high" || sortBy === "salary-low") {
-      const allJobs = await ctx.db
-        .query("jobs")
-        .withIndex("by_status", (q) => q.eq("status", "published"))
-        .collect();
-      
-      const sorted = allJobs.sort((a, b) => {
-        const aMax = a.salaryMax || 0;
-        const bMax = b.salaryMax || 0;
-        return sortBy === "salary-high" ? bMax - aMax : aMax - bMax;
-      });
-      
-      // Manual pagination
-      const cursor = args.paginationOpts?.cursor;
-      const numItems = args.paginationOpts?.numItems || 10;
-      const startIndex = cursor ? parseInt(cursor) : 0;
-      const page = sorted.slice(startIndex, startIndex + numItems);
-      const isDone = startIndex + numItems >= sorted.length;
-      const continueCursor = isDone ? null : String(startIndex + numItems);
-      
-      return { page, continueCursor, isDone };
-    }
-    
-    // For newest/oldest, use native ordering
-    return await ctx.db
-      .query("jobs")
-      .withIndex("by_status", (q) => q.eq("status", "published"))
-      .order(sortBy === "oldest" ? "asc" : "desc")
-      .paginate(args.paginationOpts || { numItems: 10, cursor: null });
-  },
-});
 
-// List jobs in user's interested field (Tab 1: "For You")
-export const listJobsInUserField = query({
+export const list = query({
   args: {
-    paginationOpts: v.optional(v.object({
+    paginationOpts: v.object({
       numItems: v.number(),
       cursor: v.union(v.string(), v.null()),
-    })),
+    }),
+    sortBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return { page: [], continueCursor: null, isDone: true };
+    if (!identity) return { page: [], continueCursor: null };
 
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!user) return { page: [], continueCursor: null, isDone: true };
+    if (!user) return { page: [], continueCursor: null };
 
-    // Get user profile to find interested fields
-    const profile = await ctx.db
-      .query("jobSeekerProfiles")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .first();
-
-    const interestedFields = profile?.interestedFields || [];
-    if (interestedFields.length === 0) {
-      // No fields set - return empty (encourage profile completion)
-      return { page: [], continueCursor: null, isDone: true };
-    }
-
-    // Get all published jobs
-    const allPublishedJobs = await ctx.db
+    const jobs = await ctx.db
       .query("jobs")
-      .withIndex("by_status", (q) => q.eq("status", "published"))
+      .withIndex("by_employer", (q) => q.eq("employerId", user._id))
       .order("desc")
       .collect();
 
-    // Filter by department matching interested fields
-    const filteredJobs = allPublishedJobs.filter(job => {
-      if (!job.department) return false;
-      
-      const jobDept = job.department.toLowerCase().trim();
-      return interestedFields.some(field => {
-        const f = field.toLowerCase().trim();
-        return jobDept.includes(f) || f.includes(jobDept);
-      });
-    });
-
-    // Manual pagination (since we filtered in memory)
-    const numItems = args.paginationOpts?.numItems || 20;
-    const cursorIndex = args.paginationOpts?.cursor 
-      ? parseInt(args.paginationOpts.cursor) 
-      : 0;
-    
-    const page = filteredJobs.slice(cursorIndex, cursorIndex + numItems);
-    const hasMore = cursorIndex + numItems < filteredJobs.length;
-    const continueCursor = hasMore ? (cursorIndex + numItems).toString() : null;
-
-    return {
-      page,
-      continueCursor,
-      isDone: !hasMore,
-    };
+    return { page: jobs, continueCursor: null };
   },
 });
+
+
+// Get latest published jobs (public, no auth required)
+export const getLatestPublished = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 6
+    
+    const jobs = await ctx.db
+      .query('jobs')
+      .filter((q) => q.eq(q.field('status'), 'published'))
+      .order('desc')
+      .take(limit)
+    
+    return jobs
+  },
+})
+
+// Get single job (authenticated)
+export const get = query({
+  args: { id: v.id("jobs") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+// Get single job with application count
+export const getWithApplicationCount = query({
+  args: { id: v.id("jobs") },
+  handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.id);
+    if (!job) return null;
+    
+    const applicationCount = await ctx.db
+      .query("applications")
+      .filter((q) => q.eq(q.field("jobId"), args.id))
+      .collect()
+      .then((apps) => apps.length);
+    
+    return { ...job, applicationCount };
+  },
+});
+
+// Get single published job (public, no auth required)
+export const getPublic = query({
+  args: { id: v.id("jobs") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+// List published jobs with pagination (public)
+export const listPublished = query({
+  args: {
+    paginationOpts: v.object({
+      numItems: v.number(),
+      cursor: v.union(v.string(), v.null()),
+    }),
+    sortBy: v.optional(v.union(
+      v.literal("newest"), 
+      v.literal("oldest"),
+      v.literal("salary-high"),
+      v.literal("salary-low")
+    )),
+  },
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("jobs")
+      .filter((q) => q.eq(q.field("status"), "published"))
+      .order(args.sortBy === "oldest" ? "asc" : "desc")
+      .paginate(args.paginationOpts);
+    
+    return result;
+  },
+});
+
+// Re-publish expired jobs (admin utility)
+export const republishExpiredJobs = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const expiredJobs = await ctx.db
+      .query('jobs')
+      .filter((q) => q.eq(q.field('status'), 'expired'))
+      .collect()
+
+    const now = Date.now()
+    const expiresAt = now + (30 * 24 * 60 * 60 * 1000) // 30 days from now
+
+    for (const job of expiredJobs) {
+      await ctx.db.patch(job._id, {
+        status: 'published',
+        expiresAt,
+        updatedAt: now,
+      })
+    }
+
+    return { republished: expiredJobs.length }
+  },
+})

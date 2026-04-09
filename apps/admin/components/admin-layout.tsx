@@ -11,7 +11,9 @@ import {
   Briefcase, 
   FileText,
   Settings,
-  LogOut
+  LogOut,
+  Headphones,
+  CreditCard
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -24,6 +26,8 @@ const navigation = [
   { name: "Job Seekers", href: "/job-seekers", icon: Users },
   { name: "Jobs", href: "/jobs", icon: Briefcase },
   { name: "Applications", href: "/applications", icon: FileText },
+  { name: "Subscriptions", href: "/subscriptions", icon: CreditCard },
+  { name: "Services", href: "/services", icon: Headphones },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
