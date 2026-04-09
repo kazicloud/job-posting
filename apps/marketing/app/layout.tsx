@@ -15,7 +15,6 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://kazicloud.com'),
   title: {
     default: 'KaziCloud - Connect Talent with Opportunity',
     template: '%s | KaziCloud',
