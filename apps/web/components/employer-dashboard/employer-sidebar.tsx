@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Briefcase, Users, BarChart3, Settings, ChevronLeft, ChevronRight, X, Building2 } from "lucide-react";
+import { Home, Briefcase, Users, BarChart3, Settings, ChevronLeft, ChevronRight, X, Building2, CreditCard } from "lucide-react";
 import { useSidebar } from "./employer-dashboard-layout";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/employer-dashboard", label: "Overview", icon: Home },
   { href: "/employer-dashboard/jobs", label: "Jobs", icon: Briefcase },
   { href: "/employer-dashboard/applications", label: "Applications", icon: Users },
+  { href: "/employer-dashboard/billing", label: "Billing", icon: CreditCard },
   { href: "/employer-dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/employer-dashboard/settings", label: "Settings", icon: Settings },
 ];

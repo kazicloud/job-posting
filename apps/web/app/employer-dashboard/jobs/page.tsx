@@ -25,7 +25,7 @@ export default function EmployerJobsPage() {
   const isLoading = result === undefined;
 
   const loadMore = () => {
-    if (result && !result.isDone) {
+    if (result && result.continueCursor !== null) {
       setPaginationOpts({ numItems: 10, cursor: result.continueCursor });
     }
   };
@@ -215,7 +215,7 @@ export default function EmployerJobsPage() {
                 />
               ))}
               
-              {result && !result.isDone && (
+              {result && result.continueCursor !== null && (
                 <div className="flex justify-center pt-6">
                   <button
                     onClick={loadMore}
@@ -248,7 +248,7 @@ function JobCard({
   type: string;
   salary: string;
   postedDate: string;
-  status: "published" | "draft" | "closed" | "archived";
+  status: "published" | "draft" | "closed" | "archived" | "expired";
 }) {
   // Fetch real analytics for this job
   const analytics = useQuery(api.analytics.getJobAnalytics, { jobId: jobId as any });

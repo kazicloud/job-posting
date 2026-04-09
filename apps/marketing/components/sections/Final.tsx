@@ -1,0 +1,127 @@
+'use client'
+
+export default function Final() {
+  return (
+    <section className="relative overflow-hidden bg-gradient-to-br from-neutral-secondary via-white to-neutral-secondary">
+      <div className="container-custom">
+        <div className="grid lg:grid-cols-2 gap-0 min-h-[600px]">
+          {/* Left - Success Stories Collage */}
+          <div className="relative py-16 lg:py-24">
+            <div className="relative h-full">
+              {/* Main large image */}
+              <div className="absolute top-0 left-0 w-64 h-80 border-4 border-white shadow-xl overflow-hidden">
+                <img
+                  src="/images/cta/success-1.jpg"
+                  alt="Success story"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+
+              {/* Floating stat card */}
+              <div className="absolute top-32 left-48 bg-white rounded-lg p-6 shadow-2xl rounded-lg border border-border z-10">
+                <div className="text-4xl font-bold text-brand-orange mb-1">12K+</div>
+                <div className="text-sm text-text-muted">Jobs filled</div>
+              </div>
+
+              {/* Second image */}
+              <div className="absolute bottom-32 left-12 w-56 h-64 border-4 border-white shadow-xl overflow-hidden">
+                <img
+                  src="/images/cta/success-2.avif"
+                  alt="Success story"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+
+              {/* Floating stat card 2 */}
+              <div className="absolute bottom-16 right-0 bg-brand-orange text-white p-6 shadow-2xl rounded-lg">
+                <div className="text-4xl font-bold mb-1">94%</div>
+                <div className="text-sm opacity-90">Success rate</div>
+              </div>
+
+              {/* Decorative elements */}
+              <div className="absolute bottom-8 right-12 w-32 h-28 bg-brand-orange/10 rounded-lg shadow-xl" />
+            </div>
+          </div>
+
+          {/* Right - Dual CTA */}
+          <div className="flex items-center py-16 lg:py-24 lg:pl-16">
+            <div className="w-full">
+              <div className="w-16 h-1 bg-brand-orange mb-6" />
+              
+              <h2 className="text-5xl lg:text-6xl font-bold text-text-primary mb-6 leading-tight">
+                Ready to make
+                <br />
+                your next move?
+              </h2>
+              
+              <p className="text-base text-text-secondary mb-12 max-w-lg">
+                Join thousands of professionals and companies who have found success through KaziCloud.
+              </p>
+
+              {/* Dual CTAs */}
+              <div className="space-y-4 mb-12">
+                <a
+                  href="/signup?type=jobseeker"
+                  className="group flex items-center justify-between px-8 py-5 rounded-lg bg-text-primary text-white hover:bg-brand-orange transition-colors"
+                >
+                  <div>
+                    <div className="font-bold text-lg">I'm looking for work</div>
+                    <div className="text-sm opacity-90">Find your next opportunity</div>
+                  </div>
+                  <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </a>
+
+                <a
+                  href="/signup?type=employer"
+                  className="group flex items-center justify-between px-8 py-5 border-2 border-text-primary text-text-primary hover:bg-text-primary hover:text-white transition-colors"
+                >
+                  <div>
+                    <div className="font-bold text-lg">I'm hiring</div>
+                    <div className="text-sm opacity-75">Find top talent for your team</div>
+                  </div>
+                  <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </a>
+              </div>
+
+              {/* Trust indicators */}
+              <div className="flex items-center gap-8 text-sm text-text-muted">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-brand-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Free to join
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-brand-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  No credit card
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-brand-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Cancel anytime
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Background decorative elements */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-orange/5 rounded-full translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-orange/5 rounded-full -translate-x-1/2 translate-y-1/2" />
+    </section>
+  )
+}

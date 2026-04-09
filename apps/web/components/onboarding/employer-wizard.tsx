@@ -197,7 +197,7 @@ function CompanyInfoStep({ data, onNext }: any) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (websiteCheck?.valid === false) {
+    if (formData.website && websiteCheck?.valid === false) {
       alert("Please enter a valid website URL");
       return;
     }
@@ -577,6 +577,19 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate mandatory fields for Kenya-based companies
+    if (isKenyaBased) {
+      if (!formData.kraPin) {
+        alert("KRA PIN is required");
+        return;
+      }
+      if (!formData._incorporationCertStorageId && !formData._businessPermitStorageId) {
+        alert("Please upload either Certificate of Incorporation, Business Registration Certificate, or Business Permit");
+        return;
+      }
+    }
+    
     onNext(formData);
   };
 
@@ -619,10 +632,11 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
 
           <div>
             <label className="block text-sm font-medium text-neutral-text mb-2">
-              KRA PIN (Optional)
+              KRA PIN *
             </label>
             <input
               type="text"
+              required
               value={formData.kraPin || ""}
               onChange={(e) => handleKraPinChange(e.target.value.toUpperCase())}
               placeholder="e.g., A000000000X"
@@ -637,7 +651,7 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
 
           <div>
             <label className="block text-sm font-medium text-neutral-text mb-2">
-              Certificate of Incorporation (Optional)
+              Certificate of Incorporation *
             </label>
             <input
               type="file"
@@ -649,6 +663,29 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
               disabled={uploading}
               className="w-full px-4 py-2.5 border border-neutral-border rounded-md"
             />
+            <p className="text-xs text-neutral-text-muted mt-1">
+              Upload Certificate of Incorporation or Business Registration Certificate
+            </p>
+            {uploading && <p className="text-xs text-brand-orange mt-1">Uploading...</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-text mb-2">
+              Business Permit (Optional - if no incorporation cert)
+            </label>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileUpload(file, "businessPermitStorageId");
+              }}
+              disabled={uploading}
+              className="w-full px-4 py-2.5 border border-neutral-border rounded-md"
+            />
+            <p className="text-xs text-neutral-text-muted mt-1">
+              Alternative to incorporation certificate
+            </p>
             {uploading && <p className="text-xs text-brand-orange mt-1">Uploading...</p>}
           </div>
         </>

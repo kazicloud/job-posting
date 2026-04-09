@@ -7,10 +7,11 @@ export const searchJobs = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const limit = args.limit || 10;
+    const limit = Math.min(args.limit || 10, 20); // Cap at 20 results
     const searchQuery = args.query.toLowerCase().trim();
     
-    if (!searchQuery) return [];
+    // Minimum query length to prevent excessive queries
+    if (!searchQuery || searchQuery.length < 2) return [];
 
     // Get all published jobs
     const allJobs = await ctx.db

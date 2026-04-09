@@ -132,7 +132,7 @@ export const calculateCompleteness = mutation({
     };
 
     // Basic info (30%)
-    if (user.fullName && user.phone && user.location) score += weights.basicInfo;
+    if (user.fullName && user.phone && user.county) score += weights.basicInfo;
 
     // Experience (25%)
     const experience = await ctx.db

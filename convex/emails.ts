@@ -313,10 +313,10 @@ export const notifyAdminNewEmployer = internalAction({
             <p class="info-value">${employer.phone}</p>
           </div>
           ` : ''}
-          ${employer.location ? `
+          ${employer.county ? `
           <div class="info-row">
             <p class="info-label">Location</p>
-            <p class="info-value">${employer.location}</p>
+            <p class="info-value">${employer.county}</p>
           </div>
           ` : ''}
           <div class="info-row">

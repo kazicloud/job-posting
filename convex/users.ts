@@ -1,6 +1,20 @@
 import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Get current authenticated user
+export const getCurrentUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    return await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+  },
+});
+
 // Get user by Clerk ID
 export const getUserByClerkId = query({
   args: { clerkId: v.string() },
