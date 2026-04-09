@@ -1,11 +1,48 @@
 import { MapPin, Clock } from 'lucide-react'
-import { fetchQuery } from 'convex/nextjs'
-import { api } from '../../../../convex/_generated/api'
 
 const categories = ['All', 'Remote', 'Hybrid', 'On-site']
 
-export default async function JobShowcase() {
-  const jobs = await fetchQuery(api.jobs.getLatestPublished, { limit: 6 }) || []
+const mockJobs = [
+  {
+    _id: '1',
+    _creationTime: Date.now(),
+    title: 'Senior Software Engineer',
+    companyName: 'TechCorp',
+    location: 'Nairobi, Kenya',
+    workplaceType: 'Hybrid',
+    salaryMin: 150000,
+    salaryMax: 200000,
+    currency: 'KES',
+    requiredSkills: ['React', 'TypeScript', 'Node.js'],
+  },
+  {
+    _id: '2',
+    _creationTime: Date.now(),
+    title: 'Product Designer',
+    companyName: 'DesignHub',
+    location: 'Remote',
+    workplaceType: 'Remote',
+    salaryMin: 120000,
+    salaryMax: 180000,
+    currency: 'KES',
+    requiredSkills: ['Figma', 'UI/UX', 'Prototyping'],
+  },
+  {
+    _id: '3',
+    _creationTime: Date.now(),
+    title: 'Data Analyst',
+    companyName: 'DataCo',
+    location: 'Mombasa, Kenya',
+    workplaceType: 'On-site',
+    salaryMin: 100000,
+    salaryMax: 150000,
+    currency: 'KES',
+    requiredSkills: ['Python', 'SQL', 'Tableau'],
+  },
+]
+
+export default function JobShowcase() {
+  const jobs = mockJobs
 
   return (
     <section className="section-padding bg-neutral-secondary">
