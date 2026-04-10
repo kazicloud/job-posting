@@ -147,7 +147,24 @@ export const getLatestPublished = query({
       .order('desc')
       .take(limit)
     
-    return jobs
+    // Fetch employer profiles for logos
+    const jobsWithEmployers = await Promise.all(
+      jobs.map(async (job) => {
+        const employerProfile = await ctx.db
+          .query("employerProfiles")
+          .withIndex("by_user", (q) => q.eq("userId", job.employerId))
+          .first()
+        
+        return {
+          ...job,
+          employerProfile: employerProfile ? {
+            companyLogo: employerProfile.companyLogo,
+          } : null,
+        }
+      })
+    )
+    
+    return jobsWithEmployers
   },
 })
 
@@ -205,7 +222,27 @@ export const listPublished = query({
       .order(args.sortBy === "oldest" ? "asc" : "desc")
       .paginate(args.paginationOpts);
     
-    return result;
+    // Fetch employer profiles for logos
+    const jobsWithEmployers = await Promise.all(
+      result.page.map(async (job) => {
+        const employerProfile = await ctx.db
+          .query("employerProfiles")
+          .withIndex("by_user", (q) => q.eq("userId", job.employerId))
+          .first()
+        
+        return {
+          ...job,
+          employerProfile: employerProfile ? {
+            companyLogo: employerProfile.companyLogo,
+          } : null,
+        }
+      })
+    )
+    
+    return {
+      ...result,
+      page: jobsWithEmployers,
+    };
   },
 });
 

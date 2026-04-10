@@ -1,48 +1,13 @@
+'use client'
+
 import { MapPin, Clock } from 'lucide-react'
+import { useQuery } from 'convex/react'
+import { api } from '../../../../convex/_generated/api'
 
 const categories = ['All', 'Remote', 'Hybrid', 'On-site']
 
-const mockJobs = [
-  {
-    _id: '1',
-    _creationTime: Date.now(),
-    title: 'Senior Software Engineer',
-    companyName: 'TechCorp',
-    location: 'Nairobi, Kenya',
-    workplaceType: 'Hybrid',
-    salaryMin: 150000,
-    salaryMax: 200000,
-    currency: 'KES',
-    requiredSkills: ['React', 'TypeScript', 'Node.js'],
-  },
-  {
-    _id: '2',
-    _creationTime: Date.now(),
-    title: 'Product Designer',
-    companyName: 'DesignHub',
-    location: 'Remote',
-    workplaceType: 'Remote',
-    salaryMin: 120000,
-    salaryMax: 180000,
-    currency: 'KES',
-    requiredSkills: ['Figma', 'UI/UX', 'Prototyping'],
-  },
-  {
-    _id: '3',
-    _creationTime: Date.now(),
-    title: 'Data Analyst',
-    companyName: 'DataCo',
-    location: 'Mombasa, Kenya',
-    workplaceType: 'On-site',
-    salaryMin: 100000,
-    salaryMax: 150000,
-    currency: 'KES',
-    requiredSkills: ['Python', 'SQL', 'Tableau'],
-  },
-]
-
 export default function JobShowcase() {
-  const jobs = mockJobs
+  const jobs = useQuery(api.jobs.getLatestPublished, { limit: 6 }) || []
 
   return (
     <section className="section-padding bg-neutral-secondary">
@@ -94,8 +59,16 @@ export default function JobShowcase() {
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-brand-orange/10 to-brand-orange/5 rounded-xl flex items-center justify-center text-text-primary font-bold text-lg">
-                    {job.companyName?.charAt(0) || 'J'}
+                  <div className="w-12 h-12 bg-gradient-to-br from-brand-orange/10 to-brand-orange/5 rounded-xl flex items-center justify-center text-text-primary font-bold text-lg overflow-hidden">
+                    {job.employerProfile?.companyLogo ? (
+                      <img 
+                        src={job.employerProfile.companyLogo} 
+                        alt={job.companyName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      job.companyName?.charAt(0) || 'J'
+                    )}
                   </div>
                   <div className="flex items-center gap-1 text-xs text-text-muted">
                     <Clock className="w-4 h-4" />

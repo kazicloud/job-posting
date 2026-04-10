@@ -7,6 +7,7 @@ import { Menu, X, ChevronDown } from 'lucide-react'
 const navigation = [
   { name: 'For Job Seekers', href: '/job-seekers' },
   { name: 'For Employers', href: '/employers' },
+  { name: 'Browse Jobs', href: '/jobs' },
 ]
 
 const pagesDropdown = [

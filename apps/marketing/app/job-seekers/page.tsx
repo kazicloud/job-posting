@@ -119,6 +119,13 @@ export default function JobSeekersPage() {
                 <p className="text-base text-white/90 mb-8">
                   From a quick CV download to our premium Career Success Program, our services are designed to get you noticed, prepared, and hired for the roles you want.
                 </p>
+                <a
+                  href="/jobs"
+                  className="inline-flex items-center gap-2 px-8 py-4 bg-white text-brand-orange font-semibold rounded-lg hover:bg-white/90 transition-colors shadow-lg"
+                >
+                  Explore Opportunities
+                  <span className="text-xl">→</span>
+                </a>
               </div>
               <div className="relative">
                 <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-white/10 backdrop-blur-sm rounded-2xl -z-10" />
