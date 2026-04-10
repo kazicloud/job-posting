@@ -141,9 +141,14 @@ export default function SignUpPage() {
   };
 
   const handleFieldToggle = (field: string) => {
-    setSelectedFields(prev => 
-      prev.includes(field) ? prev.filter(f => f !== field) : [...prev, field]
-    );
+    setSelectedFields(prev => {
+      if (prev.includes(field)) {
+        return prev.filter(f => f !== field);
+      } else if (prev.length < 3) {
+        return [...prev, field];
+      }
+      return prev;
+    });
   };
 
   const handleStep1Continue = () => {
@@ -427,22 +432,26 @@ export default function SignUpPage() {
                     Great to meet you, {username}!
                   </h1>
                   <p className="text-neutral-text-secondary mb-6">
-                    What fields are you interested in?
+                    What fields are you interested in? (Choose up to 3)
                   </p>
 
                   <div className="grid grid-cols-2 gap-3 mb-6">
                     {jobSeekerFields.map((field) => {
                       const Icon = field.icon;
                       const isSelected = selectedFields.includes(field.value);
+                      const isDisabled = !isSelected && selectedFields.length >= 3;
                       
                       return (
                         <button
                           key={field.value}
                           type="button"
                           onClick={() => handleFieldToggle(field.value)}
+                          disabled={isDisabled}
                           className={`p-3 border-2 rounded-lg transition-all text-left ${
                             isSelected
                               ? "border-brand-orange bg-brand-orange/5"
+                              : isDisabled
+                              ? "border-neutral-border opacity-50 cursor-not-allowed"
                               : "border-neutral-border hover:border-brand-orange/50"
                           }`}
                         >
@@ -753,7 +762,7 @@ export default function SignUpPage() {
                     required
                   />
                   <label htmlFor="terms" className="text-sm text-neutral-text-secondary">
-                    * I agree to the{" "}
+                    <span className="text-red-500">*</span> I agree to the{" "}
                     <Link href="/terms" className="text-neutral-text underline">
                       Terms of Service
                     </Link>{" "}

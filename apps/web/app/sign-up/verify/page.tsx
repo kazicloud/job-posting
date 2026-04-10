@@ -96,10 +96,12 @@ function VerifyContent() {
     <div className="min-h-screen flex items-center justify-center p-8 bg-neutral-bg-secondary">
       <div className="w-full max-w-md bg-white rounded-2xl p-8 shadow-sm">
         <div className="mb-8">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 bg-brand-orange rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">K</span>
-            </div>
+          <div className="flex items-center gap-3 mb-6">
+            <img 
+              src="/images/kazicloud-logo.jpg" 
+              alt="Kazicloud" 
+              className="h-10 w-10 rounded-lg"
+            />
             <span className="text-xl font-semibold text-neutral-text">Kazicloud</span>
           </div>
 
