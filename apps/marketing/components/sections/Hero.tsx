@@ -1,89 +1,14 @@
-'use client'
-
-import { useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Search, Loader2 } from 'lucide-react'
-import { useJobSearch } from '../../hooks/useJobSearch'
+import HeroCanvas from './HeroCanvas'
+import HeroSearch from './HeroSearch'
+import { ConvexClientProvider } from '@/providers/ConvexClientProvider'
 
 const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'http://localhost:3000'
 
 export default function Hero() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { query, setQuery, results, isSearching, hasQuery } = useJobSearch()
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    const params = new URLSearchParams()
-    if (query) params.append('title', query)
-    window.location.href = `${WEB_APP_URL}/jobs?${params.toString()}`
-  }
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-
-    const particles: Array<{
-      x: number
-      y: number
-      vx: number
-      vy: number
-      radius: number
-    }> = []
-
-    for (let i = 0; i < 50; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        radius: Math.random() * 2 + 1,
-      })
-    }
-
-    function animate() {
-      if (!ctx || !canvas) return
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      particles.forEach((p) => {
-        p.x += p.vx
-        p.y += p.vy
-
-        if (p.x < 0 || p.x > canvas.width) p.vx *= -1
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1
-
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
-        ctx.fillStyle = 'rgba(220, 132, 44, 0.1)'
-        ctx.fill()
-      })
-
-      requestAnimationFrame(animate)
-    }
-
-    animate()
-
-    const handleResize = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-brand-orange/10 to-white">
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 pointer-events-none"
-        style={{ opacity: 0.4 }}
-      />
+      <HeroCanvas />
 
       <div className="container-custom relative z-10 py-32">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -118,58 +43,9 @@ export default function Hero() {
             </p>
 
             {/* Search Bar */}
-            <form onSubmit={handleSearch} className="max-w-2xl relative">
-              <div className="bg-white shadow-xl rounded-lg border border-border p-2 flex gap-2">
-                <div className="flex-1 flex items-center gap-3 px-4 py-3">
-                  {isSearching ? (
-                    <Loader2 className="w-5 h-5 text-text-muted flex-shrink-0 animate-spin" />
-                  ) : (
-                    <Search className="w-5 h-5 text-text-muted flex-shrink-0" />
-                  )}
-                  <input
-                    type="text"
-                    placeholder="Search jobs by title or keyword..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="flex-1 outline-none text-text-primary placeholder:text-text-muted"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="px-8 py-3 rounded-lg bg-brand-orange text-white font-medium hover:bg-text-primary transition-colors"
-                >
-                  Search
-                </button>
-              </div>
-              
-              {/* Search Results Dropdown */}
-              {hasQuery && results.length > 0 && (
-                <div className="absolute top-full mt-2 w-full bg-white shadow-xl rounded-lg border border-border max-h-96 overflow-y-auto z-50">
-                  {results.map((job: any) => (
-                    <a
-                      key={job._id}
-                      href={`${WEB_APP_URL}/jobs/${job._id}`}
-                      className="block p-4 hover:bg-neutral-secondary border-b border-border last:border-0"
-                    >
-                      <div className="flex items-start gap-3">
-                        {job.employerProfile?.companyLogo && (
-                          <img
-                            src={job.employerProfile.companyLogo}
-                            alt={job.companyName}
-                            className="w-10 h-10 rounded object-cover"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-text-primary truncate">{job.title}</h4>
-                          <p className="text-sm text-text-secondary">{job.companyName}</p>
-                          <p className="text-xs text-text-muted mt-1">{job.location} • {job.employmentType}</p>
-                        </div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </form>
+            <ConvexClientProvider>
+              <HeroSearch />
+            </ConvexClientProvider>
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Link

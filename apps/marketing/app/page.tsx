@@ -7,6 +7,7 @@ import Proof from '@/components/sections/Proof'
 import Final from '@/components/sections/Final'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
+import { ConvexClientProvider } from '@/providers/ConvexClientProvider'
 
 export default function HomePage() {
   return (
@@ -16,7 +17,9 @@ export default function HomePage() {
         <Hero />
         <LogoBelt />
         <Features />
-        <JobShowcase />
+        <ConvexClientProvider>
+          <JobShowcase />
+        </ConvexClientProvider>
         <Process />
         <Proof />
         <Final />
