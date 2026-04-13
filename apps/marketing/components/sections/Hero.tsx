@@ -7,7 +7,9 @@ const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'http://localhost:300
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-brand-orange/10 to-white pt-20 sm:pt-24">
+    <section className="relative min-h-screen flex items-center overflow-hidden pt-20 sm:pt-24">
+      <div className="absolute inset-0" style={{ backgroundImage: 'url(/images/home/hero-logo.png)', backgroundRepeat: 'repeat', backgroundSize: 'auto', filter: 'blur(2px)' }} />
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-orange/10 to-white" />
       <HeroCanvas />
 
       <div className="container-custom relative z-10 py-16 sm:py-24 lg:py-32 pb-4 sm:pb-24 lg:pb-32">
@@ -226,7 +228,7 @@ export default function Hero() {
                     
                     {/* More visible corner curl */}
                     <div className="absolute bottom-0 right-0 w-12 h-12 overflow-hidden">
-                      <div className="absolute bottom-0 right-0 w-12 h-12 bg-gradient-to-br from-brand-orange/20 to-gray-300 transform rotate-45 origin-bottom-right shadow-inner"></div>
+                      <div className="absolute bottom-0 right-0 w-12 h-12 bg-gradient-to-br from-brand-orange to-gray-300 transform rotate-45 origin-bottom-right shadow-inner"></div>
                     </div>
                     
                     <div className="flex items-center gap-3 mb-3">

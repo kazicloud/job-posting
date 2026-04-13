@@ -92,21 +92,23 @@ export default function Features() {
 
         {/* Mobile: Single card with swipe */}
         <div className="md:hidden">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl h-[400px] sm:h-[450px]">
-            <img
-              src={features[activeIndex].image}
-              alt={features[activeIndex].title}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              <h3 className="text-xl sm:text-2xl font-bold mb-2">{features[activeIndex].title}</h3>
-              <p className="text-sm sm:text-base text-white/90">{features[activeIndex].description}</p>
+          {features[activeIndex] && (
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl h-[400px] sm:h-[450px]">
+              <img
+                src={features[activeIndex].image}
+                alt={features[activeIndex].title}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                <h3 className="text-xl sm:text-2xl font-bold mb-2">{features[activeIndex].title}</h3>
+                <p className="text-sm sm:text-base text-white/90">{features[activeIndex].description}</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Navigation dots */}

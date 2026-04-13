@@ -26,13 +26,13 @@ export default function Process() {
   ]
 
   return (
-    <section id="how-it-works" className="section-padding bg-white">
+    <section id="how-it-works" className="section-padding bg-text-primary">
       <div className="container-custom">
         <div className="max-w-3xl mb-12 sm:mb-20">
           <span className="text-xs sm:text-sm font-mono text-brand-orange tracking-wider uppercase">
             How It Works
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 leading-tight">
+          <h2 className="text-white text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 leading-tight">
             From application
             <br />
             to offer letter
