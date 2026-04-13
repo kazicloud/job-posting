@@ -54,7 +54,7 @@ export default function Features() {
                 Elevate Best Business
               </h2>
               <p className="text-sm sm:text-base text-text-secondary leading-relaxed">
-                At KaziCloud, we understand that key to business success lies in having the right people on your team. That's why we're committed to connecting you with top-tier talent.
+                At Kazicloud, we understand that key to business success lies in having the right people on your team. That's why we're committed to connecting you with top-tier talent.
               </p>
             </div>
 

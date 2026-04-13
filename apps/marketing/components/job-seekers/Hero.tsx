@@ -24,7 +24,7 @@ export default function JobSeekersHero() {
       <div className="container-custom relative">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-block rounded-lg px-4 py-2 bg-brand-orange/10 text-brand-orange text-sm font-medium mb-6">
-            50,000+ professionals found jobs through KaziCloud
+            50,000+ professionals found jobs through Kazicloud
           </div>
 
           <h1 className="text-6xl lg:text-7xl font-bold text-text-primary mb-6 leading-tight">

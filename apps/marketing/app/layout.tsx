@@ -16,14 +16,14 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: {
-    default: 'KaziCloud - Connect Talent with Opportunity',
-    template: '%s | KaziCloud',
+    default: 'Kazicloud - Connect Talent with Opportunity',
+    template: '%s | Kazicloud',
   },
   description: 'The modern job platform connecting talented professionals with forward-thinking companies. Find your next opportunity or hire top talent.',
   keywords: ['jobs', 'careers', 'hiring', 'recruitment', 'talent', 'employment', 'job board'],
-  authors: [{ name: 'KaziCloud' }],
-  creator: 'KaziCloud',
-  publisher: 'KaziCloud',
+  authors: [{ name: 'Kazicloud' }],
+  creator: 'Kazicloud',
+  publisher: 'Kazicloud',
   formatDetection: {
     email: false,
     address: false,
@@ -33,21 +33,21 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://kazicloud.com',
-    siteName: 'KaziCloud',
-    title: 'KaziCloud - Connect Talent with Opportunity',
+    siteName: 'Kazicloud',
+    title: 'Kazicloud - Connect Talent with Opportunity',
     description: 'The modern job platform connecting talented professionals with forward-thinking companies.',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'KaziCloud',
+        alt: 'Kazicloud',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'KaziCloud - Connect Talent with Opportunity',
+    title: 'Kazicloud - Connect Talent with Opportunity',
     description: 'The modern job platform connecting talented professionals with forward-thinking companies.',
     images: ['/og-image.png'],
     creator: '@kazicloud',

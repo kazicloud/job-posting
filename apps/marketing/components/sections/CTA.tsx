@@ -30,7 +30,7 @@ export default function CTA() {
             transition={{ delay: 0.1 }}
             className="text-xl mb-10 opacity-90"
           >
-            Join thousands of professionals who have found their dream jobs through KaziCloud
+            Join thousands of professionals who have found their dream jobs through Kazicloud
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}

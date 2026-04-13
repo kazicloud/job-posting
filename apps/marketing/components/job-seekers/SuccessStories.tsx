@@ -16,7 +16,7 @@ export default function SuccessStories() {
         company: 'DesignCo',
         salary: '$85K',
       },
-      quote: 'KaziCloud helped me find a role that valued my skills. The salary transparency feature gave me confidence to negotiate.',
+      quote: 'Kazicloud helped me find a role that valued my skills. The salary transparency feature gave me confidence to negotiate.',
       timeframe: '3 weeks',
     },
     {
@@ -63,7 +63,7 @@ export default function SuccessStories() {
             Real people, real results
           </h2>
           <p className="text-xl text-text-secondary max-w-2xl mx-auto">
-            See how professionals transformed their careers through KaziCloud
+            See how professionals transformed their careers through Kazicloud
           </p>
         </div>
 

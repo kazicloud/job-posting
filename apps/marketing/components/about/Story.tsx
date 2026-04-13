@@ -20,7 +20,7 @@ export default function Story() {
 
           <div className="space-y-4 text-sm text-text-secondary leading-relaxed">
             <p>
-              KaziCloud was born from frustration. Our founders spent months navigating broken job boards, fake listings, and endless applications that went nowhere.
+              Kazicloud was born from frustration. Our founders spent months navigating broken job boards, fake listings, and endless applications that went nowhere.
             </p>
 
             <p>

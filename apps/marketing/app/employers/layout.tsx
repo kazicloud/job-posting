@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'For Employers - Hire Top Talent Faster | KaziCloud',
-  description: 'Access 50,000+ pre-screened candidates. Post jobs, get matched with qualified talent, and hire 50% faster with KaziCloud.',
+  title: 'For Employers - Hire Top Talent Faster | Kazicloud',
+  description: 'Access 50,000+ pre-screened candidates. Post jobs, get matched with qualified talent, and hire 50% faster with Kazicloud.',
 }
 
 export default function EmployersLayout({

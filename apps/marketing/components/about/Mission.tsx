@@ -14,7 +14,7 @@ export default function Mission() {
               We believe finding work shouldn't be complicated. Every professional deserves access to opportunities that match their skills and ambitions.
             </p>
             <p className="text-sm text-text-secondary leading-relaxed">
-              That's why we built KaziCloud—a platform that cuts through the noise, verifies every opportunity, and connects people with jobs they'll actually love.
+              That's why we built Kazicloud—a platform that cuts through the noise, verifies every opportunity, and connects people with jobs they'll actually love.
             </p>
           </div>
 

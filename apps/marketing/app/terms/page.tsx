@@ -30,13 +30,13 @@ export default function TermsPage() {
         <section id="acceptance">
           <h2>Acceptance of Terms</h2>
           <p>
-            By accessing or using KaziCloud, you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, do not use our services.
+            By accessing or using Kazicloud, you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, do not use our services.
           </p>
         </section>
 
         <section id="eligibility">
           <h2>Eligibility</h2>
-          <p>You must be at least 18 years old to use KaziCloud. By using our platform, you represent that:</p>
+          <p>You must be at least 18 years old to use Kazicloud. By using our platform, you represent that:</p>
           <ul>
             <li>You are at least 18 years of age</li>
             <li>You have the legal capacity to enter into binding contracts</li>
@@ -169,7 +169,7 @@ export default function TermsPage() {
         <section id="disclaimers">
           <h2>Disclaimers</h2>
           <p>
-            KaziCloud is provided "as is" and "as available" without warranties of any kind, either express or implied.
+            Kazicloud is provided "as is" and "as available" without warranties of any kind, either express or implied.
           </p>
           <p>We do not guarantee:</p>
           <ul>
@@ -186,7 +186,7 @@ export default function TermsPage() {
         <section id="limitation">
           <h2>Limitation of Liability</h2>
           <p>
-            To the maximum extent permitted by law, KaziCloud shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the platform.
+            To the maximum extent permitted by law, Kazicloud shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the platform.
           </p>
           <p>
             Our total liability shall not exceed the amount you paid us in the 12 months preceding the claim.

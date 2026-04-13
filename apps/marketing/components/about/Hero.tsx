@@ -14,7 +14,7 @@ export default function AboutHero() {
       <div className="container-custom relative z-10">
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-block rounded-lg px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-xs font-medium mb-4">
-            About KaziCloud
+            About Kazicloud
           </div>
 
           <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight">
@@ -22,7 +22,7 @@ export default function AboutHero() {
           </h1>
 
           <p className="text-base text-white/90 leading-relaxed">
-            KaziCloud connects talented professionals with companies that value their skills. 
+            Kazicloud connects talented professionals with companies that value their skills. 
             No gimmicks, no gatekeepers—just real opportunities.
           </p>
         </div>

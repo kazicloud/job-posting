@@ -8,8 +8,8 @@ export default function FAQ() {
 
   const faqs = [
     {
-      question: 'Is KaziCloud free for job seekers?',
-      answer: 'Yes! KaziCloud is completely free for job seekers. Create your profile, browse jobs, and apply to unlimited positions at no cost.',
+      question: 'Is Kazicloud free for job seekers?',
+      answer: 'Yes! Kazicloud is completely free for job seekers. Create your profile, browse jobs, and apply to unlimited positions at no cost.',
     },
     {
       question: 'How does the matching algorithm work?',
@@ -21,11 +21,11 @@ export default function FAQ() {
     },
     {
       question: 'Are all employers verified?',
-      answer: 'Yes. Every company on KaziCloud undergoes verification. We check business registration, contact information, and legitimacy before approving job postings.',
+      answer: 'Yes. Every company on Kazicloud undergoes verification. We check business registration, contact information, and legitimacy before approving job postings.',
     },
     {
       question: 'Can I apply to jobs without a resume?',
-      answer: 'Your KaziCloud profile serves as your resume. However, you can also upload a traditional resume if preferred. Many employers accept profile-only applications.',
+      answer: 'Your Kazicloud profile serves as your resume. However, you can also upload a traditional resume if preferred. Many employers accept profile-only applications.',
     },
     {
       question: 'Do employers see my current employer?',
@@ -50,7 +50,7 @@ export default function FAQ() {
               Frequently asked questions
             </h2>
             <p className="text-xl text-text-secondary">
-              Everything you need to know about finding jobs on KaziCloud
+              Everything you need to know about finding jobs on Kazicloud
             </p>
           </div>
 

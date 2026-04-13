@@ -36,7 +36,7 @@ export default function Testimonials() {
             Trusted by hiring teams
           </h2>
           <p className="text-xl text-text-secondary max-w-2xl mx-auto">
-            See what companies say about hiring through KaziCloud
+            See what companies say about hiring through Kazicloud
           </p>
         </div>
 
