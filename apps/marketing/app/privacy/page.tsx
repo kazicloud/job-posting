@@ -26,10 +26,10 @@ export default function PrivacyPage() {
         <section id="introduction">
           <h2>Introduction</h2>
           <p>
-            KaziCloud ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform.
+            Kazicloud ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform.
           </p>
           <p>
-            By using KaziCloud, you agree to the collection and use of information in accordance with this policy.
+            By using Kazicloud, you agree to the collection and use of information in accordance with this policy.
           </p>
         </section>
 
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
             We may update this Privacy Policy from time to time. We will notify you of significant changes by email or through the platform.
           </p>
           <p>
-            Continued use of KaziCloud after changes constitutes acceptance of the updated policy.
+            Continued use of Kazicloud after changes constitutes acceptance of the updated policy.
           </p>
         </section>
 

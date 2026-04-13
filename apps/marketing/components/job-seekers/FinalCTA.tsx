@@ -18,7 +18,7 @@ export default function FinalCTA() {
           </h2>
           
           <p className="text-xl text-white/80 mb-12 max-w-2xl mx-auto">
-            Join 50,000+ professionals who have transformed their careers through KaziCloud
+            Join 50,000+ professionals who have transformed their careers through Kazicloud
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">

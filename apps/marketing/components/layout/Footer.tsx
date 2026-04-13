@@ -35,18 +35,18 @@ export default function Footer() {
             <Link href="/" className="flex items-center space-x-3 mb-6">
               <img 
                 src="/images/kazicloud-logo.jpg" 
-                alt="KaziCloud" 
+                alt="Kazicloud" 
                 className="h-10 w-10 rounded-lg"
               />
               <span className="font-bold text-xl tracking-tight text-white">
-                KaziCloud
+                Kazicloud
               </span>
             </Link>
             <p className="text-white/80 mb-6 max-w-sm">
               The professional recruitment platform connecting talent with opportunity.
             </p>
             <div className="text-sm text-white/60">
-              © {new Date().getFullYear()} KaziCloud. All rights reserved.
+              © {new Date().getFullYear()} Kazicloud. All rights reserved.
             </div>
           </div>
 

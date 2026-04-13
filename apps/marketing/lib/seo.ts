@@ -68,7 +68,7 @@ export function generateOrganizationSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'KaziCloud',
+    name: 'Kazicloud',
     url: 'https://kazicloud.com',
     logo: 'https://kazicloud.com/logo.png',
     description: 'The modern job platform connecting talented professionals with forward-thinking companies.',
@@ -89,7 +89,7 @@ export function generateWebsiteSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'KaziCloud',
+    name: 'Kazicloud',
     url: 'https://kazicloud.com',
     description: 'The modern job platform connecting talented professionals with forward-thinking companies.',
     potentialAction: {

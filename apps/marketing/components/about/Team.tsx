@@ -12,7 +12,7 @@ export default function Team() {
       name: 'Sarah Mwangi',
       role: 'Co-Founder & CTO',
       image: '/images/team/sarah.jpg',
-      bio: 'Built matching algorithms at a Fortune 500 before starting KaziCloud.',
+      bio: 'Built matching algorithms at a Fortune 500 before starting Kazicloud.',
     },
     {
       name: 'James Kamau',

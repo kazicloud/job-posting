@@ -61,7 +61,7 @@ export default function Final() {
               </h2>
               
               <p className="text-sm sm:text-base text-text-secondary mb-8 sm:mb-12 max-w-lg">
-                Join thousands of professionals and companies who have found success through KaziCloud.
+                Join thousands of professionals and companies who have found success through Kazicloud.
               </p>
 
               {/* Dual CTAs */}

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | KaziCloud',
-  description: 'Terms and conditions for using the KaziCloud platform.',
+  title: 'Terms of Service | Kazicloud',
+  description: 'Terms and conditions for using the Kazicloud platform.',
 }
 
 export default function TermsLayout({

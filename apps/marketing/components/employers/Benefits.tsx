@@ -39,7 +39,7 @@ export default function Benefits() {
       <div className="container-custom">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-text-primary mb-3">
-            Why companies choose KaziCloud
+            Why companies choose Kazicloud
           </h2>
           <p className="text-lg text-text-secondary">
             Everything you need to find and hire top talent
