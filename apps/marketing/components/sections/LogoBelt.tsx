@@ -19,7 +19,7 @@ export default function LogoBelt() {
   ]
 
   return (
-    <section className="py-16 bg-neutral-secondary border-y border-border overflow-hidden">
+    <section className="py-12 sm:py-16 bg-neutral-secondary border-y border-border overflow-hidden">
       <div className="container-custom mb-8">
         <p className="text-center text-sm text-text-muted uppercase tracking-wider">
           Trusted by leading companies in Kenya

@@ -28,22 +28,22 @@ export default function Process() {
   return (
     <section id="how-it-works" className="section-padding bg-white">
       <div className="container-custom">
-        <div className="max-w-3xl mb-20">
-          <span className="text-sm font-mono text-brand-orange tracking-wider uppercase">
+        <div className="max-w-3xl mb-12 sm:mb-20">
+          <span className="text-xs sm:text-sm font-mono text-brand-orange tracking-wider uppercase">
             How It Works
           </span>
-          <h2 className="text-5xl font-bold mt-4 leading-tight">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 leading-tight">
             From application
             <br />
             to offer letter
           </h2>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-px bg-border">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-px lg:bg-border">
           {steps.map((step) => (
-            <div key={step.number} className="bg-white rounded-lg p-12">
+            <div key={step.number} className="bg-white rounded-lg p-6 sm:p-8 lg:p-12 border border-border lg:border-0">
               {/* Image */}
-              <div className="aspect-[4/3] bg-neutral-secondary mb-8 overflow-hidden">
+              <div className="aspect-[4/3] bg-neutral-secondary mb-6 sm:mb-8 overflow-hidden rounded-lg">
                 <img
                   src={step.image}
                   alt={step.title}
@@ -54,9 +54,9 @@ export default function Process() {
                 />
               </div>
 
-              <div className="text-sm font-mono text-text-muted mb-8">{step.number}</div>
-              <h3 className="text-2xl font-bold mb-4">{step.title}</h3>
-              <p className="text-text-secondary leading-relaxed mb-8">
+              <div className="text-xs sm:text-sm font-mono text-text-muted mb-4 sm:mb-8">{step.number}</div>
+              <h3 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">{step.title}</h3>
+              <p className="text-sm sm:text-base text-text-secondary leading-relaxed mb-6 sm:mb-8">
                 {step.description}
               </p>
               <div className="space-y-3">

@@ -38,13 +38,14 @@ export default function Features() {
   return (
     <section className="section-padding bg-white overflow-hidden">
       <div className="container-custom">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-text-primary mb-3">
+        <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+          <h2 className="text-3xl sm:text-4xl font-bold text-text-primary mb-3">
             Powerful hiring tools
           </h2>
         </div>
 
-        <div className="relative h-[600px] flex items-center justify-center">
+        {/* Desktop: Carousel layout */}
+        <div className="hidden md:block relative h-[600px] flex items-center justify-center">
           <div className="flex items-center justify-center gap-6">
             {features.map((feature, index) => {
               const isActive = index === activeIndex
@@ -89,8 +90,27 @@ export default function Features() {
           </div>
         </div>
 
+        {/* Mobile: Single card with swipe */}
+        <div className="md:hidden">
+          <div className="relative rounded-2xl overflow-hidden shadow-2xl h-[400px] sm:h-[450px]">
+            <img
+              src={features[activeIndex].image}
+              alt={features[activeIndex].title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+              <h3 className="text-xl sm:text-2xl font-bold mb-2">{features[activeIndex].title}</h3>
+              <p className="text-sm sm:text-base text-white/90">{features[activeIndex].description}</p>
+            </div>
+          </div>
+        </div>
+
         {/* Navigation dots */}
-        <div className="flex justify-center gap-2 mt-8">
+        <div className="flex justify-center gap-2 mt-6 sm:mt-8">
           {features.map((_, index) => (
             <button
               key={index}
