@@ -16,27 +16,27 @@ export default function HeroSearch() {
   }
 
   return (
-    <form onSubmit={handleSearch} className="max-w-2xl relative">
-      <div className="bg-white shadow-xl rounded-lg border border-border p-2 flex gap-2">
-        <div className="flex-1 flex items-center gap-3 px-4 py-3">
+    <form onSubmit={handleSearch} className="w-full max-w-2xl relative">
+      <div className="bg-white shadow-xl rounded-lg border border-border p-1.5 sm:p-2 flex gap-2">
+        <div className="flex-1 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3">
           {isSearching ? (
-            <Loader2 className="w-5 h-5 text-text-muted flex-shrink-0 animate-spin" />
+            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0 animate-spin" />
           ) : (
-            <Search className="w-5 h-5 text-text-muted flex-shrink-0" />
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
           )}
           <input
             type="text"
-            placeholder="Search jobs by title or keyword..."
+            placeholder="Search jobs..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 outline-none text-text-primary placeholder:text-text-muted"
+            className="flex-1 outline-none text-sm sm:text-base text-text-primary placeholder:text-text-muted"
           />
         </div>
         <button
           type="submit"
-          className="px-8 py-3 rounded-lg bg-brand-orange text-white font-medium hover:bg-text-primary transition-colors"
+          className="px-3 sm:px-4 py-2 sm:py-3 rounded-lg bg-brand-orange text-white hover:bg-text-primary transition-colors flex-shrink-0"
         >
-          Search
+          <Search className="w-5 h-5" />
         </button>
       </div>
       

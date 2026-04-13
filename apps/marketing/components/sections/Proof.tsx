@@ -65,15 +65,19 @@ export default function Proof() {
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-orange/5 rounded-full translate-x-1/2 translate-y-1/2" />
 
       <div className="container-custom relative">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left - Testimonials Arc */}
-          <div>
-            <div className="w-16 h-1 bg-brand-orange mb-4" />
-            <h2 className="text-5xl font-bold text-text-primary mb-12">
-              What people are saying
-            </h2>
+        {/* Header - Always on top */}
+        <div className="mb-8 lg:mb-0">
+          <div className="w-12 sm:w-16 h-1 bg-brand-orange mb-3 sm:mb-4" />
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-text-primary mb-8 lg:mb-12">
+            What people are saying
+          </h2>
+        </div>
 
-            <div className="relative h-[420px] w-full max-w-[400px]">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+          {/* Left - Testimonials Arc (Desktop only) */}
+          <div className="order-2 lg:order-1">
+            {/* Desktop: Arc Layout */}
+            <div className="hidden lg:block relative h-[420px] w-full max-w-[400px]">
               {/* Arc Path */}
               <svg className="absolute left-0 top-0 w-[250px] h-[420px] z-0" viewBox="0 0 250 420">
                 <path
@@ -142,23 +146,53 @@ export default function Proof() {
                 )
               })}
             </div>
+
+            {/* Mobile: Avatar Dots */}
+            <div className="lg:hidden flex items-center justify-center gap-3">
+              {testimonials.map((testimonial, idx) => (
+                <button
+                  key={testimonial.name}
+                  onClick={() => setActiveIndex(idx)}
+                  className={`transition-all duration-300 ${
+                    idx === activeIndex 
+                      ? 'w-12 h-12 border-2 border-brand-orange' 
+                      : 'w-10 h-10 border-2 border-neutral-border opacity-60'
+                  } rounded-full overflow-hidden bg-neutral-secondary`}
+                >
+                  <img
+                    src={testimonial.image}
+                    alt={testimonial.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      if (e.currentTarget.parentElement) {
+                        e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-text-primary text-xs font-bold">${testimonial.avatar}</div>`;
+                      }
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Right - Active Testimonial */}
-          <div className="relative">
+          <div className="relative order-1 lg:order-2">
             {currentTestimonial && (
-              <div className="bg-neutral-secondary p-12 relative">
-                <div className="text-6xl text-brand-orange font-serif mb-4">"</div>
-                <p className="text-text-secondary text-lg leading-relaxed mb-6 italic">
+              <div className="bg-neutral-secondary p-6 sm:p-8 lg:p-12 relative">
+                <div className="text-4xl sm:text-5xl lg:text-6xl text-brand-orange font-serif mb-3 sm:mb-4">"</div>
+                <p className="text-text-secondary text-sm sm:text-base lg:text-lg leading-relaxed mb-4 sm:mb-6 italic">
                   {currentTestimonial.text}
                 </p>
-                <div className="flex items-center gap-1 mb-4">
+                <div className="flex items-center gap-1 mb-3 sm:mb-4">
                   {[...Array(currentTestimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 fill-brand-orange text-brand-orange" />
+                    <Star key={i} className="w-4 h-4 sm:w-5 sm:h-5 fill-brand-orange text-brand-orange" />
                   ))}
                 </div>
-                <div className="text-sm text-text-muted">
-                  {currentTestimonial.company}
+                <div>
+                  <div className="font-semibold text-text-primary text-sm sm:text-base">{currentTestimonial.name}</div>
+                  <div className="text-xs sm:text-sm text-text-muted">
+                    {currentTestimonial.role && `${currentTestimonial.role}, `}{currentTestimonial.company}
+                  </div>
                 </div>
               </div>
             )}

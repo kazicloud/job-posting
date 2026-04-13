@@ -13,21 +13,21 @@ export default function JobShowcase() {
     <section className="section-padding bg-neutral-secondary">
       <div className="container-custom">
         {/* Header */}
-        <div className="flex items-end justify-between mb-12">
-          <div className="flex-1 text-center">
-            <span className="text-sm font-mono text-brand-orange tracking-wider uppercase">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 sm:gap-4 mb-8 sm:mb-12">
+          <div className="flex-1 text-center sm:text-left">
+            <span className="text-xs sm:text-sm font-mono text-brand-orange tracking-wider uppercase">
               Latest Opportunities
             </span>
-            <h2 className="text-5xl font-bold mt-4 leading-tight">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-3 sm:mt-4 leading-tight">
               Find your next role
             </h2>
           </div>
           <a
             href={`${process.env.NEXT_PUBLIC_WEB_APP_URL}/jobs`}
-            className="text-text-primary font-medium hover:text-brand-orange transition-colors inline-flex items-center gap-2"
+            className="text-text-primary font-medium hover:text-brand-orange transition-colors inline-flex items-center justify-center sm:justify-start gap-2 text-sm sm:text-base"
           >
             View All Jobs
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
           </a>

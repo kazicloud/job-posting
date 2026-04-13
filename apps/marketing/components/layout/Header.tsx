@@ -48,7 +48,7 @@ export default function Header() {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-white/95 backdrop-blur-sm border-b border-border' : 'bg-transparent'
+        scrolled ? 'bg-white border-b border-border' : 'bg-transparent'
       }`}
     >
       <nav className="container-custom">
@@ -57,11 +57,11 @@ export default function Header() {
           <Link href="/" className="flex items-center space-x-3 group">
             <img 
               src="/images/kazicloud-logo.jpg" 
-              alt="KaziCloud" 
+              alt="Kazicloud" 
               className="h-10 w-10 rounded-lg"
             />
             <span className="font-bold text-xl tracking-tight">
-              KaziCloud
+              Kazicloud
             </span>
           </Link>
 
@@ -138,13 +138,21 @@ export default function Header() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white rounded-lg border-t border-border">
-          <div className="container-custom py-6 space-y-4">
+        <>
+          {/* Backdrop */}
+          <div 
+            className="md:hidden fixed inset-0 bg-black/20 z-[60] mt-20"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          
+          {/* Menu */}
+          <div className="md:hidden fixed left-0 right-0 top-20 bottom-0 bg-white z-[70] overflow-y-auto shadow-lg border-t border-border">
+            <div className="container-custom py-6 space-y-4">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
-                className="block text-text-secondary hover:text-text-primary font-medium transition-colors"
+                className="block text-text-secondary hover:text-text-primary font-medium transition-colors py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {item.name}
@@ -152,28 +160,24 @@ export default function Header() {
             ))}
             
             {/* Pages in Mobile */}
-            <div>
+            <div className="relative z-10">
               <button
                 onClick={() => setIsPagesOpen(!isPagesOpen)}
-                className="flex items-center gap-1 text-text-secondary hover:text-text-primary font-medium w-full"
+                className="flex items-center gap-1 text-text-secondary hover:text-text-primary font-medium w-full py-2"
               >
                 Pages
                 <ChevronDown className={`w-4 h-4 transition-transform ${isPagesOpen ? 'rotate-180' : ''}`} />
               </button>
               {isPagesOpen && (
-                <div className="ml-4 mt-2 space-y-2">
+                <div className="ml-4 mt-2 space-y-2 relative z-10">
                   {pagesDropdown.map((page) => (
-                    <Link
+                    <a
                       key={page.href}
                       href={page.href}
-                      className="block text-sm text-text-secondary hover:text-text-primary transition-colors"
-                      onClick={() => {
-                        setMobileMenuOpen(false)
-                        setIsPagesOpen(false)
-                      }}
+                      className="block text-sm text-text-secondary hover:text-text-primary transition-colors py-2 cursor-pointer"
                     >
                       {page.name}
-                    </Link>
+                    </a>
                   ))}
                 </div>
               )}
@@ -189,14 +193,15 @@ export default function Header() {
               </a>
               <a
                 href={`${WEB_APP_URL}/sign-up`}
-                className="block text-center px-6 py-3 rounded-lg bg-text-primary text-white font-medium"
+                className="block text-center px-6 py-3 rounded-lg bg-brand-orange text-white font-medium"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Get Started
               </a>
             </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   )
