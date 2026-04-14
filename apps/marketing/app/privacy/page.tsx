@@ -110,7 +110,7 @@ export default function PrivacyPage() {
             <li><strong>Object:</strong> Object to certain processing of your data</li>
           </ul>
           <p>
-            To exercise these rights, contact us at privacy@kazicloud.com.
+            To exercise these rights, contact us at info@kazicloud.co.ke.
           </p>
         </section>
 
@@ -140,7 +140,7 @@ export default function PrivacyPage() {
             If you have questions about this Privacy Policy, contact us at:
           </p>
           <ul>
-            <li>Email: privacy@kazicloud.com</li>
+            <li>Email: info@kazicloud.co.ke</li>
             <li>Address: Westlands, Nairobi, Kenya</li>
           </ul>
         </section>

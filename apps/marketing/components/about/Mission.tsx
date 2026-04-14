@@ -21,7 +21,7 @@ export default function Mission() {
           <div className="relative">
             <div className="aspect-[4/3] bg-white rounded-xl border border-border overflow-hidden shadow-lg">
               <img
-                src="/images/about/mission.webp"
+                src="/images/about/team1.jpeg"
                 alt="Our mission"
                 className="w-full h-full object-cover"
                 onError={(e) => {
