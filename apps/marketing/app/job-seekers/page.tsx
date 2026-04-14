@@ -12,13 +12,17 @@ export default function JobSeekersPage() {
       price: '$1',
       priceKes: 'KES ~150',
       badge: 'Instant & Affordable',
-      bestFor: 'Candidates who want a fast, automated CV ready to apply immediately',
+      bestFor: 'Candidates seeking a fast, professionally formatted CV tailored for local and international job opportunities—including remote roles.',
       features: [
-        'Automated, ATS-friendly CV',
-        'Highlights achievements',
-        'Ready to apply immediately',
+        'Choose Your Preferred CV Format:',
+        'Professional CV (Kenya & Africa) – Ideal for local and regional opportunities',
+        'US Resume – Achievement-driven and concise for American employers',
+        'Canadian Resume – Structured and accomplishment-focused for Canadian job applications',
+        'UK CV – Professional and detailed for roles across the United Kingdom',
+        'ATS-friendly, recruiter-approved CV',
+        'Country-specific formatting and standards',
       ],
-      outcome: 'Beat the bots and appear in recruiter searches quickly',
+      outcome: 'Apply confidently across borders and increase your chances of securing interviews—locally and internationally',
       cta: 'Download Now',
       icon: Download,
       popular: false,
@@ -44,15 +48,16 @@ export default function JobSeekersPage() {
       id: 3,
       title: 'Job Search Support',
       price: 'KSh 5,000',
-      priceKes: '/month',
-      badge: 'Up to 5 matching jobs',
-      bestFor: 'Busy professionals seeking targeted job opportunities',
+      priceKes: '',
+      badge: 'Hands-free job search',
+      bestFor: 'Busy professionals seeking targeted job opportunities and hands-free job search support',
       features: [
-        'Curate roles that match your skills and career goals',
-        'Share your CV with our recruiter network',
-        'Save time by focusing only on relevant opportunities',
+        'We actively identify and curate roles that match your skills, experience, and career goals',
+        'We position and market you to relevant hiring managers and opportunities',
+        'We guide and support your application strategy to improve interview conversion rates',
+        '(Registration Fee) + 50% of 1st Month Salary (Success Fee)',
       ],
-      outcome: 'Targeted applications that increase your chances of interviews',
+      outcome: 'You secure employment faster through guided, structured job placement support',
       cta: 'Start Job Search Support',
       icon: Target,
       popular: false,
@@ -144,7 +149,7 @@ export default function JobSeekersPage() {
                 return (
                   <div
                     key={service.id}
-                    className={`bg-white rounded-lg border p-8 relative ${
+                    className={`bg-white rounded-lg border p-8 relative flex flex-col ${
                       service.popular ? 'border-brand-orange shadow-lg' : 'border-border'
                     }`}
                   >
@@ -173,7 +178,7 @@ export default function JobSeekersPage() {
                       <strong>Best for:</strong> {service.bestFor}
                     </p>
 
-                    <div className="mb-6">
+                    <div className="mb-6 flex-grow">
                       <p className="text-sm font-medium text-text-primary mb-3">What you get:</p>
                       <ul className="space-y-2">
                         {service.features.map((feature, index) => (
@@ -190,7 +195,7 @@ export default function JobSeekersPage() {
                       <p className="text-sm text-text-secondary">{service.outcome}</p>
                     </div>
 
-                    <button className="w-full py-3 rounded-lg bg-brand-orange text-white font-medium hover:bg-text-primary transition-colors">
+                    <button className="w-full py-3 rounded-lg bg-brand-orange text-white font-medium hover:bg-text-primary transition-colors mt-auto">
                       <a href={`${process.env.NEXT_PUBLIC_WEB_APP_URL}/dashboard/help`} className="block">
                         {service.cta}
                       </a>
