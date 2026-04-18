@@ -148,7 +148,7 @@ export default function CareerHelpPage() {
 
       // Initialize Paystack payment
       const handler = window.PaystackPop.setup({
-        key: 'pk_test_f34970dbb35679727cf5d1e4386c06cbb797cc75',
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
         email: user?.primaryEmailAddress?.emailAddress || 'user@example.com',
         amount: selectedService.amount * 100, // Convert to kobo (all amounts are now in KES)
         currency: 'KES',
