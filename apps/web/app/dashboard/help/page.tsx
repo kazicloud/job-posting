@@ -148,7 +148,7 @@ export default function CareerHelpPage() {
 
       // Initialize Paystack payment
       const handler = window.PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY_LIVE,
         email: user?.primaryEmailAddress?.emailAddress || 'user@example.com',
         amount: selectedService.amount * 100, // Convert to kobo (all amounts are now in KES)
         currency: 'KES',
@@ -159,33 +159,45 @@ export default function CareerHelpPage() {
           originalCurrency: selectedService.currency,
         },
         callback: function(response: any) {
-          // Upload file if provided
-          let uploadPromise: Promise<{ storageId: any; fileName: string; } | null> = Promise.resolve(null);
-          
-          if (uploadedFile) {
-            uploadPromise = generateUploadUrl()
-              .then(async (uploadUrl) => {
-                const result = await fetch(uploadUrl, {
-                  method: "POST",
-                  headers: { "Content-Type": uploadedFile.type },
-                  body: uploadedFile,
-                });
-                const { storageId } = await result.json();
-                return { storageId, fileName: uploadedFile.name };
-              });
-          }
+          // Verify payment first
+          fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference: response.reference }),
+          })
+            .then(res => res.json())
+            .then(verificationData => {
+              if (!verificationData.verified) {
+                throw new Error('Payment verification failed');
+              }
+              
+              // Upload file if provided
+              let uploadPromise: Promise<{ storageId: any; fileName: string; } | null> = Promise.resolve(null);
+              
+              if (uploadedFile) {
+                uploadPromise = generateUploadUrl()
+                  .then(async (uploadUrl) => {
+                    const result = await fetch(uploadUrl, {
+                      method: "POST",
+                      headers: { "Content-Type": uploadedFile.type },
+                      body: uploadedFile,
+                    });
+                    const { storageId } = await result.json();
+                    return { storageId, fileName: uploadedFile.name };
+                  });
+              }
 
-          uploadPromise
-            .then((fileData) => {
-              // Create service order in Convex - always store as KES
-              return createServiceOrder({
-                serviceType: selectedService.type as any,
-                amount: selectedService.amount,
-                currency: "KES",
-                paymentReference: response.reference,
-                requirements: requirements || undefined,
-                uploadedFileStorageId: fileData?.storageId,
-                uploadedFileName: fileData?.fileName,
+              return uploadPromise.then((fileData) => {
+                // Create service order in Convex - always store as KES
+                return createServiceOrder({
+                  serviceType: selectedService.type as any,
+                  amount: selectedService.amount,
+                  currency: "KES",
+                  paymentReference: response.reference,
+                  requirements: requirements || undefined,
+                  uploadedFileStorageId: fileData?.storageId,
+                  uploadedFileName: fileData?.fileName,
+                });
               });
             })
             .then((orderId) => {
