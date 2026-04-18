@@ -14,11 +14,7 @@ export default function JobSeekersPage() {
       badge: 'Instant & Affordable',
       bestFor: 'Candidates seeking a fast, professionally formatted CV tailored for local and international job opportunities—including remote roles.',
       features: [
-        'Choose Your Preferred CV Format:',
-        'Professional CV (Kenya & Africa) – Ideal for local and regional opportunities',
-        'US Resume – Achievement-driven and concise for American employers',
-        'Canadian Resume – Structured and accomplishment-focused for Canadian job applications',
-        'UK CV – Professional and detailed for roles across the United Kingdom',
+        'Supported Formats: Kenya, US, UK, Canada, Australia, EU (Europass), and International Remote.',
         'ATS-friendly, recruiter-approved CV',
         'Country-specific formatting and standards',
       ],

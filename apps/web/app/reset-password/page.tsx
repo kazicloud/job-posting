@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSignIn } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const { signIn, setActive } = useSignIn();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -139,5 +139,20 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-neutral-bg-secondary">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-brand-orange border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-neutral-text-secondary">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
