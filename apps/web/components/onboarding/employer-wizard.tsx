@@ -553,10 +553,10 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
     setFormData({ ...formData, registrationNumber: upperValue });
     
     // Validate Kenyan business registration format
-    const regNumberRegex = /^(CPR|PVT|BN)\/\d{4}\/\d{6}$|^C\.\d{6}$/;
+    const regNumberRegex = /^(PVT-\d{8}|C\.\d{6})$/;
     
     if (upperValue && !regNumberRegex.test(upperValue)) {
-      setRegNumberError("Invalid format. Use CPR/YYYY/NNNNNN, PVT/YYYY/NNNNNN, BN/YYYY/NNNNNN, or C.NNNNNN");
+      setRegNumberError("Invalid format. Use PVT-XXXXXXXX or C.XXXXXX");
     } else {
       setRegNumberError("");
     }
@@ -566,10 +566,10 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
     setFormData({ ...formData, kraPin: value });
     
     // Validate KRA PIN format if provided
-    const kraPinRegex = /^[A-Z]\d{9}[A-Z]$/;
+    const kraPinRegex = /^P\d{9}[A-Z]$/;
     
     if (value && !kraPinRegex.test(value)) {
-      setKraPinError("Invalid format. KRA PIN should be like A000000000X (letter + 9 digits + letter)");
+      setKraPinError("Invalid format. KRA PIN should be like P051234567M (P + 9 digits + letter)");
     } else {
       setKraPinError("");
     }
@@ -615,7 +615,7 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
               required
               value={formData.registrationNumber || ""}
               onChange={(e) => handleRegNumberChange(e.target.value)}
-              placeholder="e.g., CPR/2010/000000 or PVT/2010/000000"
+              placeholder="e.g., PVT-12345678 or C.123456"
               className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
                 regNumberError ? "border-red-500" : "border-neutral-border"
               }`}
@@ -639,7 +639,7 @@ function VerificationStep({ isKenyaBased, data, onNext, onBack }: any) {
               required
               value={formData.kraPin || ""}
               onChange={(e) => handleKraPinChange(e.target.value.toUpperCase())}
-              placeholder="e.g., A000000000X"
+              placeholder="e.g., P051234567M"
               className={`w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${
                 kraPinError ? "border-red-500" : "border-neutral-border"
               }`}

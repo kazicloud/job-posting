@@ -763,13 +763,13 @@ export default function SignUpPage() {
                   />
                   <label htmlFor="terms" className="text-sm text-neutral-text-secondary">
                     <span className="text-red-500">*</span> I agree to the{" "}
-                    <Link href="/terms" className="text-neutral-text underline">
+                    <a href={`${process.env.NEXT_PUBLIC_MARKETING_URL || 'http://localhost:3002'}/terms`} target="_blank" rel="noopener noreferrer" className="text-neutral-text underline">
                       Terms of Service
-                    </Link>{" "}
+                    </a>{" "}
                     and{" "}
-                    <Link href="/privacy" className="text-neutral-text underline">
+                    <a href={`${process.env.NEXT_PUBLIC_MARKETING_URL || 'http://localhost:3002'}/privacy`} target="_blank" rel="noopener noreferrer" className="text-neutral-text underline">
                       Privacy Policy
-                    </Link>
+                    </a>
                   </label>
                 </div>
 
