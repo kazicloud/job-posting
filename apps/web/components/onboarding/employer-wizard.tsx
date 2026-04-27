@@ -55,13 +55,9 @@ const VERIFICATION_CONFIG: Record<
     regLabel: string;
     regPlaceholder: string;
     regHint: string;
-    regRegex?: RegExp;
-    regErrorMsg?: string;
     taxLabel: string;
     taxPlaceholder: string;
     taxHint: string;
-    taxRegex?: RegExp;
-    taxErrorMsg?: string;
     certLabel: string;
     certHint: string;
   }
@@ -70,13 +66,9 @@ const VERIFICATION_CONFIG: Record<
     regLabel: "Business Registration Number (BRS) *",
     regPlaceholder: "e.g., PVT-12345678 or C.123456",
     regHint: "We'll verify this with Kenya Business Registration Service",
-    regRegex: /^(PVT-\d{8}|C\.\d{6})$/,
-    regErrorMsg: "Invalid format. Use PVT-XXXXXXXX or C.XXXXXX",
     taxLabel: "KRA PIN *",
     taxPlaceholder: "e.g., P051234567M",
     taxHint: "Kenya Revenue Authority Personal Identification Number",
-    taxRegex: /^P\d{9}[A-Z]$/,
-    taxErrorMsg: "Invalid KRA PIN. Format: P + 9 digits + letter (e.g., P051234567M)",
     certLabel: "Certificate of Incorporation *",
     certHint: "Upload Certificate of Incorporation or Business Registration Certificate",
   },
@@ -87,8 +79,6 @@ const VERIFICATION_CONFIG: Record<
     taxLabel: "RRA Tax Identification Number (TIN) *",
     taxPlaceholder: "e.g., 123456789",
     taxHint: "9-digit TIN issued by Rwanda Revenue Authority",
-    taxRegex: /^\d{9}$/,
-    taxErrorMsg: "RRA TIN must be exactly 9 digits",
     certLabel: "Certificate of Incorporation *",
     certHint: "Upload your RDB Certificate of Incorporation",
   },
@@ -99,8 +89,6 @@ const VERIFICATION_CONFIG: Record<
     taxLabel: "TRA Tax Identification Number (TIN) *",
     taxPlaceholder: "e.g., 100123456",
     taxHint: "9-digit TIN issued by Tanzania Revenue Authority",
-    taxRegex: /^\d{9}$/,
-    taxErrorMsg: "TRA TIN must be exactly 9 digits",
     certLabel: "Certificate of Incorporation *",
     certHint: "Upload your BRELA Certificate of Incorporation",
   },
@@ -111,8 +99,6 @@ const VERIFICATION_CONFIG: Record<
     taxLabel: "URA Tax Identification Number (TIN) *",
     taxPlaceholder: "e.g., 1000012345",
     taxHint: "10-digit TIN issued by Uganda Revenue Authority",
-    taxRegex: /^\d{10}$/,
-    taxErrorMsg: "URA TIN must be exactly 10 digits",
     certLabel: "Certificate of Incorporation *",
     certHint: "Upload your URSB Certificate of Incorporation",
   },
@@ -403,8 +389,8 @@ function CompanyInfoStep({ data, country, onNext, onBack }: any) {
               : "border-neutral-border"
           }`}
         />
-        {websiteCheck?.message && (
-          <p className={`text-xs mt-1 ${websiteCheck.valid ? "text-green-600" : "text-red-600"}`}>
+        {websiteCheck?.valid === false && (
+          <p className="text-xs mt-1 text-red-600">
             {websiteCheck.message}
           </p>
         )}
@@ -442,8 +428,8 @@ function CompanyInfoStep({ data, country, onNext, onBack }: any) {
               : "border-neutral-border"
           }`}
         />
-        {descriptionCheck?.message && (
-          <p className={`text-xs mt-1 ${descriptionCheck.valid ? "text-green-600" : "text-red-600"}`}>
+        {descriptionCheck?.valid === false && (
+          <p className="text-xs mt-1 text-red-600">
             {descriptionCheck.message}
           </p>
         )}
@@ -468,12 +454,8 @@ function CompanyInfoStep({ data, country, onNext, onBack }: any) {
               : "border-neutral-border"
           }`}
         />
-        {yearCheck?.message && (
-          <p
-            className={`text-xs mt-1 ${
-              yearCheck.warning ? "text-yellow-600" : yearCheck.valid ? "text-green-600" : "text-red-600"
-            }`}
-          >
+        {yearCheck?.valid === false && (
+          <p className="text-xs mt-1 text-red-600">
             {yearCheck.message}
           </p>
         )}
@@ -595,8 +577,8 @@ function ContactPersonStep({ data, country, onNext, onBack }: any) {
               : "border-neutral-border"
           }`}
         />
-        {phoneCheck?.message && (
-          <p className={`text-xs mt-1 ${phoneCheck.valid ? "text-green-600" : "text-red-600"}`}>
+        {phoneCheck?.valid === false && (
+          <p className="text-xs mt-1 text-red-600">
             {phoneCheck.message}
           </p>
         )}
@@ -619,8 +601,8 @@ function ContactPersonStep({ data, country, onNext, onBack }: any) {
               : "border-neutral-border"
           }`}
         />
-        {linkedInCheck?.message && (
-          <p className={`text-xs mt-1 ${linkedInCheck.valid ? "text-green-600" : "text-red-600"}`}>
+        {linkedInCheck?.valid === false && (
+          <p className="text-xs mt-1 text-red-600">
             {linkedInCheck.message}
           </p>
         )}
@@ -677,21 +659,13 @@ function VerificationStep({ country, data, onNext, onBack }: any) {
   const handleRegNumberChange = (value: string) => {
     const upper = value.toUpperCase();
     setFormData((prev: any) => ({ ...prev, registrationNumber: upper }));
-    if (config.regRegex && upper && !config.regRegex.test(upper)) {
-      setRegError(config.regErrorMsg ?? "Invalid registration number format");
-    } else {
-      setRegError("");
-    }
+    setRegError("");
   };
 
   const handleTaxIdChange = (value: string) => {
     const normalized = country.isKenya ? value.toUpperCase() : value;
     setFormData((prev: any) => ({ ...prev, taxId: normalized }));
-    if (config.taxRegex && normalized && !config.taxRegex.test(normalized)) {
-      setTaxError(config.taxErrorMsg ?? "Invalid tax identification number");
-    } else {
-      setTaxError("");
-    }
+    setTaxError("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -700,12 +674,10 @@ function VerificationStep({ country, data, onNext, onBack }: any) {
       alert(`${config.regLabel.replace(" *", "")} is required`);
       return;
     }
-    if (regError) { alert(regError); return; }
     if (!formData.taxId) {
       alert(`${config.taxLabel.replace(" *", "")} is required`);
       return;
     }
-    if (taxError) { alert(taxError); return; }
     if (!formData._incorporationCertStorageId) {
       alert("Please upload your Certificate of Incorporation");
       return;
