@@ -77,7 +77,7 @@ export const completeEmployerOnboarding = mutation({
       
       isKenyaBased: data.company.isKenyaBased,
       headquarters: data.company.headquarters,
-      country: data.company.isKenyaBased ? "Kenya" : data.company.country,
+      country: data.company.country || (data.company.isKenyaBased ? "Kenya" : undefined),
       
       contactPersonName: data.contact.fullName,
       contactPersonTitle: data.contact.jobTitle,
