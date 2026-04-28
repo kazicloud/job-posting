@@ -6,10 +6,11 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft, Building2, MapPin, Globe, Calendar, Users, Briefcase, 
   FileText, CheckCircle, XCircle, Mail, Phone, Linkedin, ExternalLink,
-  Shield, AlertCircle
+  Shield, AlertCircle, Trash2, Clock, Pencil
 } from "lucide-react";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { RejectionModal } from "../../../../components/rejection-modal";
+import { DeleteUserModal } from "../../../../components/delete-user-modal";
 import { useState } from "react";
 
 export default function EmployerDetailPage() {
@@ -19,11 +20,18 @@ export default function EmployerDetailPage() {
   
   const data = useQuery(api.admin.getEmployerDetails, { userId: employerId });
   const verifyEmployer = useMutation(api.admin.verifyEmployer);
+  const deleteUser = useMutation(api.admin.deleteUser);
   const notifyVerified = useAction(api.emails.notifyEmployerVerified);
   const notifyRejected = useAction(api.emails.notifyEmployerRejected);
+  const notifyDeleted = useAction(api.emails.notifyUserDeleted);
   
+  const changeRequests = useQuery(api.profileChangeRequests.getChangeRequestsForUser, { userId: employerId });
+  const resolveChangeRequest = useMutation(api.profileChangeRequests.resolveChangeRequest);
+
   const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
 
   const handleVerify = async (verified: boolean) => {
     if (!verified) {
@@ -59,6 +67,28 @@ export default function EmployerDetailPage() {
     } catch (error) {
       console.error("Failed to reject employer:", error);
       alert("Failed to update verification status");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteUser = async (reason: string) => {
+    setIsProcessing(true);
+    setShowDeleteModal(false);
+
+    const email = data?.user?.email;
+    const fullName = data?.user?.fullName || "User";
+
+    try {
+      await deleteUser({ userId: employerId, reason });
+      if (email) {
+        await notifyDeleted({ email, fullName, reason });
+      }
+      alert("User account deleted and notification email sent.");
+      router.push("/employers");
+    } catch (error) {
+      console.error("Failed to delete user:", error);
+      alert("Failed to delete user account");
     } finally {
       setIsProcessing(false);
     }
@@ -248,6 +278,14 @@ export default function EmployerDetailPage() {
             >
               {isProcessing ? "Processing..." : user.verified ? "Revoke Verification" : "Verify Employer"}
             </button>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              disabled={isProcessing}
+              className="px-4 py-2 rounded-lg font-medium border border-red-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
           </div>
         </div>
       </div>
@@ -258,6 +296,16 @@ export default function EmployerDetailPage() {
         companyName={profile?.companyName || "this company"}
         onClose={() => setShowRejectionModal(false)}
         onConfirm={handleReject}
+      />
+
+      {/* Delete User Modal */}
+      <DeleteUserModal
+        isOpen={showDeleteModal}
+        userName={user.fullName || profile?.companyName || "Unknown"}
+        userEmail={user.email}
+        userType="employer"
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteUser}
       />
 
       {/* Stats Overview */}
@@ -552,6 +600,76 @@ export default function EmployerDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Profile Change Requests */}
+          {changeRequests && changeRequests.length > 0 && (
+            <div className="bg-white rounded-lg border border-neutral-border p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Pencil className="w-5 h-5 text-brand-orange" />
+                <h3 className="text-lg font-semibold text-neutral-text">Profile Edit Requests</h3>
+              </div>
+              <div className="space-y-4">
+                {changeRequests.map((req: any) => (
+                  <div key={req._id} className={`p-4 rounded-lg border ${
+                    req.status === "pending" ? "border-yellow-200 bg-yellow-50" :
+                    req.status === "approved" ? "border-green-200 bg-green-50" :
+                    "border-red-200 bg-red-50"
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                        req.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                        req.status === "approved" ? "bg-green-100 text-green-800" :
+                        "bg-red-100 text-red-800"
+                      }`}>
+                        {req.status === "pending" && <Clock className="w-3 h-3" />}
+                        {req.status === "approved" && <CheckCircle className="w-3 h-3" />}
+                        {req.status === "rejected" && <XCircle className="w-3 h-3" />}
+                        {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                      </span>
+                      <span className="text-xs text-neutral-text-muted">
+                        {new Date(req._creationTime).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-neutral-text mb-3">{req.reason}</p>
+                    {req.status === "pending" && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            setProcessingRequestId(req._id);
+                            try {
+                              await resolveChangeRequest({ requestId: req._id, status: "approved" });
+                            } catch (e) { console.error(e); }
+                            setProcessingRequestId(null);
+                          }}
+                          disabled={processingRequestId === req._id}
+                          className="flex-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const note = prompt("Reason for rejection (optional):");
+                            setProcessingRequestId(req._id);
+                            try {
+                              await resolveChangeRequest({ requestId: req._id, status: "rejected", adminNote: note || undefined });
+                            } catch (e) { console.error(e); }
+                            setProcessingRequestId(null);
+                          }}
+                          disabled={processingRequestId === req._id}
+                          className="flex-1 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                    {req.adminNote && (
+                      <p className="text-xs text-neutral-text-muted mt-2 italic">Admin: {req.adminNote}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Account Info */}
           <div className="bg-white rounded-lg border border-neutral-border p-6">

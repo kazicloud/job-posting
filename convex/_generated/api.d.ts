@@ -32,6 +32,7 @@ import type * as matching from "../matching.js";
 import type * as metamapVerification from "../metamapVerification.js";
 import type * as onboarding from "../onboarding.js";
 import type * as profile from "../profile.js";
+import type * as profileChangeRequests from "../profileChangeRequests.js";
 import type * as profileMutations from "../profileMutations.js";
 import type * as profileQueries from "../profileQueries.js";
 import type * as profiles from "../profiles.js";
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   metamapVerification: typeof metamapVerification;
   onboarding: typeof onboarding;
   profile: typeof profile;
+  profileChangeRequests: typeof profileChangeRequests;
   profileMutations: typeof profileMutations;
   profileQueries: typeof profileQueries;
   profiles: typeof profiles;

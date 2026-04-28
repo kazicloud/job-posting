@@ -1,13 +1,15 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft, User, MapPin, Mail, Phone, Calendar, Briefcase, 
-  FileText, CheckCircle, Globe, Award, Languages, Target, Clock
+  FileText, CheckCircle, Globe, Award, Languages, Target, Clock, Trash2
 } from "lucide-react";
 import { Id } from "../../../../../../convex/_generated/dataModel";
+import { DeleteUserModal } from "../../../../components/delete-user-modal";
+import { useState } from "react";
 
 export default function JobSeekerDetailPage() {
   const params = useParams();
@@ -15,6 +17,33 @@ export default function JobSeekerDetailPage() {
   const jobSeekerId = params.id as Id<"users">;
   
   const data = useQuery(api.admin.getJobSeekerDetails, { userId: jobSeekerId });
+  const deleteUser = useMutation(api.admin.deleteUser);
+  const notifyDeleted = useAction(api.emails.notifyUserDeleted);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleDeleteUser = async (reason: string) => {
+    setIsProcessing(true);
+    setShowDeleteModal(false);
+
+    const email = data?.user?.email;
+    const fullName = data?.user?.fullName || "User";
+
+    try {
+      await deleteUser({ userId: jobSeekerId, reason });
+      if (email) {
+        await notifyDeleted({ email, fullName, reason });
+      }
+      alert("User account deleted and notification email sent.");
+      router.push("/job-seekers");
+    } catch (error) {
+      console.error("Failed to delete user:", error);
+      alert("Failed to delete user account");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   if (!data) {
     return (
@@ -101,14 +130,34 @@ export default function JobSeekerDetailPage() {
             </h2>
             <p className="text-neutral-text-secondary">{profile?.headline || "No headline provided"}</p>
           </div>
-          {profile?.openToWork && (
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 text-green-700 font-medium">
-              <CheckCircle className="w-5 h-5" />
-              Open to Work
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {profile?.openToWork && (
+              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 text-green-700 font-medium">
+                <CheckCircle className="w-5 h-5" />
+                Open to Work
+              </span>
+            )}
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              disabled={isProcessing}
+              className="px-4 py-2 rounded-lg font-medium border border-red-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Delete User Modal */}
+      <DeleteUserModal
+        isOpen={showDeleteModal}
+        userName={user.fullName || "Unknown"}
+        userEmail={user.email}
+        userType="job_seeker"
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteUser}
+      />
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

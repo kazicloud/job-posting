@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSignIn, useUser } from "@clerk/nextjs";
+import { useState } from "react";
+import { useSignIn, useUser, useClerk } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Shield, Mail } from "lucide-react";
+import { Eye, EyeOff, Shield, Mail, AlertTriangle } from "lucide-react";
 
 export default function AdminSignInPage() {
   const { isLoaded, signIn, setActive } = useSignIn();
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
+  const { signOut } = useClerk();
+  const isAdmin = useQuery(api.admin.isAdmin);
   const router = useRouter();
   
   const [formData, setFormData] = useState({
@@ -17,15 +21,92 @@ export default function AdminSignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [code, setCode] = useState("");
   const [verificationFactor, setVerificationFactor] = useState<"first" | "second">("first");
 
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      router.push("/dashboard");
-    }
-  }, [isLoaded, isSignedIn, router]);
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await signOut({ redirectUrl: "/sign-in" });
+  };
+
+  // Wait until both Clerk and the isAdmin query have resolved
+  if (!isLoaded || (isSignedIn && isAdmin === undefined)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-bg-secondary">
+        <div className="w-8 h-8 border-4 border-brand-orange border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Signed in as a confirmed admin
+  if (isSignedIn && isAdmin === true && !signingOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-bg-secondary p-4">
+        <div className="w-full max-w-md bg-white rounded-lg shadow-sm border border-neutral-border p-8">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-brand-orange/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-8 h-8 text-brand-orange" />
+            </div>
+            <h1 className="text-2xl font-bold text-neutral-text mb-2">Already Signed In</h1>
+            <p className="text-neutral-text-secondary mb-1">Signed in as admin</p>
+            <p className="font-medium text-neutral-text">{user?.primaryEmailAddress?.emailAddress}</p>
+          </div>
+          <div className="space-y-3">
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="w-full py-3 bg-brand-orange text-white font-medium rounded-lg hover:bg-brand-orange/90 transition-colors"
+            >
+              Go to Dashboard
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="w-full py-3 border border-neutral-border text-neutral-text font-medium rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+            >
+              Sign Out & Use Different Account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Signed in but NOT an admin (job seeker / employer on wrong app)
+  if (isSignedIn && isAdmin === false && !signingOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-bg-secondary p-4">
+        <div className="w-full max-w-md bg-white rounded-lg shadow-sm border border-neutral-border p-8">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-neutral-text mb-2">Wrong Account</h1>
+            <p className="text-neutral-text-secondary mb-1">
+              You're signed in as a regular user. This portal is for administrators only.
+            </p>
+            <p className="mt-2 text-sm font-medium text-neutral-text">
+              {user?.primaryEmailAddress?.emailAddress}
+            </p>
+          </div>
+          <div className="space-y-3">
+            <button
+              onClick={handleSignOut}
+              className="w-full py-3 bg-brand-orange text-white font-medium rounded-lg hover:bg-brand-orange/90 transition-colors"
+            >
+              Sign Out & Sign In as Admin
+            </button>
+            <a
+              href={process.env.NEXT_PUBLIC_WEB_URL || "https://kazicloud.co.ke"}
+              className="block w-full py-3 border border-neutral-border text-neutral-text font-medium rounded-lg hover:bg-neutral-bg-secondary transition-colors text-center"
+            >
+              Go to Kazicloud
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

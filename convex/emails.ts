@@ -516,3 +516,145 @@ export const notifyEmployerRejected = action({
     }
   },
 });
+
+// Notify a user that their account has been deleted by an admin
+export const notifyUserDeleted = action({
+  args: {
+    email: v.string(),
+    fullName: v.string(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const contactName = args.fullName || "there";
+
+    const content = `
+      <div class="email-content">
+        <p class="greeting">Dear ${contactName},</p>
+        
+        <h2 class="title">Account Removal Notice</h2>
+        
+        <p class="text">
+          We are writing to inform you that your account on <strong>Kazicloud Platform</strong> has been removed by our administration team.
+        </p>
+
+        <div class="info-card" style="background-color: #FEF2F2; border-left-color: #FCA5A5;">
+          <h3 style="margin-top: 0; font-size: 16px; color: #0f172a;">Reason for Removal</h3>
+          <p style="margin: 0; color: #475569;">${args.reason}</p>
+        </div>
+
+        <p class="text">
+          As a result of this action, your profile and all associated data have been permanently removed from our platform.
+        </p>
+
+        <div style="margin: 24px 0;">
+          <h3 style="font-size: 16px; color: #0f172a; margin: 0 0 12px 0;">What This Means</h3>
+          <ul style="margin: 0; padding-left: 20px; color: #475569;">
+            <li style="margin: 8px 0;">Your account and profile information have been deleted</li>
+            <li style="margin: 8px 0;">Any active applications or job postings have been removed</li>
+            <li style="margin: 8px 0;">You will no longer be able to sign in with your previous credentials</li>
+          </ul>
+        </div>
+
+        <p class="text">
+          If you believe this was done in error or have questions regarding this decision, please do not hesitate to reach out to our support team.
+        </p>
+
+        <div class="button-container">
+          <a href="mailto:support@kazicloud.co.ke" class="button">Contact Support</a>
+        </div>
+
+        <p class="footer-note">
+          We appreciate the time you spent on our platform. If you have any concerns, contact us at <a href="mailto:support@kazicloud.co.ke" style="color: #DC842C; text-decoration: none;">support@kazicloud.co.ke</a>.
+        </p>
+      </div>
+    `;
+
+    try {
+      const result = await resend.emails.send({
+        from: "Kazicloud <noreply@kazicloud.co.ke>",
+        to: [args.email],
+        subject: "Your Kazicloud Account Has Been Removed",
+        html: getEmailTemplate(content),
+      });
+
+      console.log("User deletion email sent:", result);
+      return { success: true, emailId: result.data?.id };
+    } catch (error) {
+      console.error("Error sending deletion email:", error);
+      return { success: false, error: "Failed to send email" };
+    }
+  },
+});
+
+// Notify admin that an employer wants to edit their profile
+export const notifyAdminProfileChangeRequest = action({
+  args: {
+    employerName: v.string(),
+    companyName: v.string(),
+    employerEmail: v.string(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+
+    const content = `
+      <div class="email-content">
+        <p class="greeting">Hello Admin,</p>
+        
+        <h2 class="title">Profile Change Request</h2>
+        
+        <p class="text">
+          An employer has submitted a request to edit their company profile on Kazicloud.
+        </p>
+
+        <div class="info-card">
+          <div class="info-row">
+            <p class="info-label">Employer</p>
+            <p class="info-value">${args.employerName}</p>
+          </div>
+          <div class="info-row">
+            <p class="info-label">Company</p>
+            <p class="info-value">${args.companyName}</p>
+          </div>
+          <div class="info-row">
+            <p class="info-label">Email</p>
+            <p class="info-value">${args.employerEmail}</p>
+          </div>
+          <div class="info-row">
+            <p class="info-label">Reason for Change</p>
+            <p class="info-value">${args.reason}</p>
+          </div>
+        </div>
+
+        <div class="button-container">
+          <a href="${adminUrl}/employers" class="button">Review in Admin Panel</a>
+        </div>
+
+        <p class="footer-note">
+          Please review and approve or reject this request from the admin dashboard.
+        </p>
+      </div>
+    `;
+
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL || "kazicloudcareers@gmail.com";
+      const result = await resend.emails.send({
+        from: "Kazicloud <noreply@kazicloud.co.ke>",
+        to: [adminEmail],
+        subject: `Profile Change Request: ${args.companyName}`,
+        html: getEmailTemplate(content),
+      });
+
+      return { success: true, emailId: result.data?.id };
+    } catch (error) {
+      console.error("Error sending change request email:", error);
+      return { success: false, error: "Failed to send email" };
+    }
+  },
+});

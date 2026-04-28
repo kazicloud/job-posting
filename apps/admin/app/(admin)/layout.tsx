@@ -12,7 +12,6 @@ import { Shield } from "lucide-react";
 export default function AdminGroupLayout({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn } = useUser();
   const isAdmin = useQuery(api.admin.isAdmin);
-  const currentUser = useQuery(api.admin.getCurrentUser);
   const router = useRouter();
 
   useEffect(() => {
@@ -41,24 +40,8 @@ export default function AdminGroupLayout({ children }: { children: ReactNode }) 
           </div>
           <h1 className="text-2xl font-bold text-neutral-text mb-2">Access Denied</h1>
           <p className="text-neutral-text-secondary mb-6">
-            You don't have permission to access the admin panel. Please contact an administrator if you believe this is an error.
+            You don&apos;t have permission to access the admin panel. Please contact an administrator if you believe this is an error.
           </p>
-          
-          {/* Debug Info */}
-          {currentUser && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg text-left text-xs">
-              <p className="font-mono mb-2"><strong>Debug Info:</strong></p>
-              <p className="font-mono">Identity Email: {currentUser.identity?.email || "N/A"}</p>
-              <p className="font-mono">User Found: {currentUser.user ? "Yes" : "No"}</p>
-              {currentUser.user && (
-                <>
-                  <p className="font-mono">User Email: {currentUser.user.email}</p>
-                  <p className="font-mono">Roles: {JSON.stringify(currentUser.user.roles)}</p>
-                  <p className="font-mono">Primary Role: {currentUser.user.primaryRole}</p>
-                </>
-              )}
-            </div>
-          )}
           
           <button
             onClick={() => router.push("/sign-in")}
