@@ -79,9 +79,8 @@ export const updateStatus = mutation({
     const job = await ctx.db.get(args.id);
     if (!job) throw new Error("Job not found");
 
-    // Check subscription if publishing from draft
-    if (args.status === "published" && job.status === "draft") {
-      // Set expiry date
+    // Always set a fresh 30-day expiry whenever publishing, regardless of previous status
+    if (args.status === "published") {
       await ctx.db.patch(args.id, { 
         status: args.status,
         updatedAt: Date.now(),
@@ -174,8 +173,13 @@ export const publish = mutation({
     id: v.id("jobs"),
   },
   handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.id);
+    if (!job) throw new Error("Job not found");
     await ctx.db.patch(args.id, {
       status: "published",
+      updatedAt: Date.now(),
+      // Always reset expiry to 30 days from now when publishing
+      expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
     });
   },
 });

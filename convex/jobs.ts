@@ -32,13 +32,15 @@ export const expireOldJobs = mutation({
   handler: async (ctx) => {
     const now = Date.now()
     
-    // Find all published jobs that have expired
+    // Find all published jobs that have an explicit expiresAt in the past
+    // Note: jobs without expiresAt set should NOT be expired by this cron
     const expiredJobs = await ctx.db
       .query('jobs')
       .filter((q) => 
         q.and(
           q.eq(q.field('status'), 'published'),
-          q.lt(q.field('expiresAt'), now)
+          q.gt(q.field('expiresAt'), 0),        // expiresAt must be set (not undefined/null)
+          q.lt(q.field('expiresAt'), now)        // and must be in the past
         )
       )
       .collect()

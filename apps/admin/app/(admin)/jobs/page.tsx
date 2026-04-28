@@ -1,10 +1,11 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useState } from "react";
-import { Search, Eye, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Search, Eye, ChevronLeft, ChevronRight, FileText, Upload } from "lucide-react";
 import { useDebounce } from "../../../hooks/useDebounce";
+import { Id } from "../../../../../convex/_generated/dataModel";
 
 export default function JobsPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft" | "closed" | "archived">("all");
@@ -12,6 +13,9 @@ export default function JobsPage() {
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const [publishingJobId, setPublishingJobId] = useState<string | null>(null);
+
+  const forcePublishJob = useMutation(api.admin.forcePublishJob);
 
   const data = useQuery(api.admin.getAllJobs, {
     status: statusFilter,
@@ -59,6 +63,8 @@ export default function JobsPage() {
         return "bg-red-50 text-red-700";
       case "archived":
         return "bg-neutral-bg-secondary text-neutral-text-muted";
+      case "expired":
+        return "bg-orange-50 text-orange-700";
       default:
         return "bg-gray-50 text-gray-700";
     }
@@ -198,9 +204,31 @@ export default function JobsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <button className="p-2 text-neutral-text-secondary hover:bg-neutral-bg-secondary rounded-lg transition-colors">
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button className="p-2 text-neutral-text-secondary hover:bg-neutral-bg-secondary rounded-lg transition-colors">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        {(job.status === "draft" || job.status === "expired" || job.status === "closed") && (
+                          <button
+                            title="Force publish (30-day expiry)"
+                            disabled={publishingJobId === job._id}
+                            onClick={async () => {
+                              setPublishingJobId(job._id);
+                              try {
+                                await forcePublishJob({ jobId: job._id as Id<"jobs"> });
+                              } catch (e) {
+                                console.error(e);
+                                alert("Failed to publish job");
+                              } finally {
+                                setPublishingJobId(null);
+                              }
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Upload className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

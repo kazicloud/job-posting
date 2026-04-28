@@ -737,3 +737,39 @@ export const deleteUser = mutation({
     };
   },
 });
+
+// Force-publish a job regardless of employer verification status
+// Always sets a fresh 30-day expiry so the cron never immediately expires it
+export const forcePublishJob = mutation({
+  args: {
+    jobId: v.id("jobs"),
+    durationDays: v.optional(v.number()), // default 30
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!admin || !(admin.roles?.includes("admin") || admin.primaryRole === "admin")) {
+      throw new Error("Admin access required");
+    }
+
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Job not found");
+
+    const days = args.durationDays ?? 30;
+    const expiresAt = Date.now() + days * 24 * 60 * 60 * 1000;
+
+    await ctx.db.patch(args.jobId, {
+      status: "published",
+      updatedAt: Date.now(),
+      expiresAt,
+    });
+
+    return { success: true, expiresAt };
+  },
+});
