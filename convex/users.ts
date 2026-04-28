@@ -1,6 +1,98 @@
 import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Delete user and all related data by Clerk ID (internal only — called from webhook)
+export const deleteByClerkId = internalMutation({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) return;
+
+    // Clean up all related records that reference this user via by_user index
+    const relatedTables = [
+      "jobSeekerProfiles",
+      "employerProfiles",
+      "employerOnboardingProgress",
+      "recruiterProfiles",
+      "workExperience",
+      "education",
+      "skills",
+      "certifications",
+      "languages",
+      "jobViews",
+      "savedJobs",
+      "onboardingProgress",
+      "subscriptions",
+      "transactions",
+      "serviceOrders",
+    ] as const;
+
+    for (const table of relatedTables) {
+      const records = await ctx.db
+        .query(table)
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect();
+      for (const record of records) {
+        await ctx.db.delete(record._id);
+      }
+    }
+
+    // Delete the user record itself
+    await ctx.db.delete(user._id);
+  },
+});
+
+// Self-delete: authenticated user deletes their own account
+export const deleteMyAccount = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    const relatedTables = [
+      "jobSeekerProfiles",
+      "employerProfiles",
+      "employerOnboardingProgress",
+      "recruiterProfiles",
+      "workExperience",
+      "education",
+      "skills",
+      "certifications",
+      "languages",
+      "jobViews",
+      "savedJobs",
+      "onboardingProgress",
+      "subscriptions",
+      "transactions",
+      "serviceOrders",
+    ] as const;
+
+    for (const table of relatedTables) {
+      const records = await ctx.db
+        .query(table)
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect();
+      for (const record of records) {
+        await ctx.db.delete(record._id);
+      }
+    }
+
+    await ctx.db.delete(user._id);
+    return { success: true };
+  },
+});
+
 // Get current authenticated user
 export const getCurrentUser = query({
   args: {},
@@ -65,12 +157,25 @@ export const createFromClerk = internalMutation({
     imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
+    // Primary check: by clerkId
+    const existingByClerkId = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
       .first();
 
-    if (existing) return existing._id;
+    if (existingByClerkId) return existingByClerkId._id;
+
+    // Fallback: if a record with the same email already exists (e.g. manually created),
+    // stamp the real clerkId onto it instead of creating a duplicate.
+    const existingByEmail = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+
+    if (existingByEmail) {
+      await ctx.db.patch(existingByEmail._id, { clerkId: args.clerkId });
+      return existingByEmail._id;
+    }
 
     return await ctx.db.insert("users", {
       clerkId: args.clerkId,
@@ -100,10 +205,23 @@ export const createFromSignup = mutation({
     })),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
+    // Primary check: by clerkId
+    let existing = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
       .first();
+
+    // Fallback: avoid duplicate if email already exists with a different clerkId
+    if (!existing) {
+      existing = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", args.email))
+        .first();
+      // Stamp the real clerkId if found via email
+      if (existing) {
+        await ctx.db.patch(existing._id, { clerkId: args.clerkId });
+      }
+    }
 
     if (existing) {
       // Update user with signup data

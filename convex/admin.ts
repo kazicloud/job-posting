@@ -12,7 +12,82 @@ export const isAdmin = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    return user?.roles?.includes("admin") || false;
+    if (!user) return false;
+
+    // Check both fields — admin may have been set via primaryRole or roles array
+    return user.roles?.includes("admin") || user.primaryRole === "admin";
+  },
+});
+
+// Promote a user to admin by email — updates ALL records with that email
+// to ensure the right one is hit regardless of which clerkId is active.
+export const setAdminRole = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const allUsers = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .collect();
+
+    if (allUsers.length === 0) throw new Error(`No user found with email: ${args.email}`);
+
+    const updatedIds: string[] = [];
+    for (const user of allUsers) {
+      const roles = user.roles ?? [];
+      if (!roles.includes("admin")) roles.push("admin");
+      await ctx.db.patch(user._id, { roles, primaryRole: "admin" });
+      updatedIds.push(user._id);
+    }
+
+    return {
+      success: true,
+      recordsUpdated: updatedIds.length,
+      email: args.email,
+      note: updatedIds.length > 1
+        ? `WARNING: ${updatedIds.length} duplicate records found for this email. Run admin:deduplicateUserByEmail to clean up.`
+        : "OK",
+    };
+  },
+});
+
+// Deduplicates all Convex user records sharing the same email.
+// Keeps the record whose clerkId is provided (the real Clerk user ID),
+// copies admin role onto it, then deletes all others.
+export const deduplicateUserByEmail = mutation({
+  args: { email: v.string(), keepClerkId: v.string() },
+  handler: async (ctx, args) => {
+    const allUsers = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .collect();
+
+    if (allUsers.length <= 1) return { success: true, message: "No duplicates found" };
+
+    const keeper = allUsers.find((u) => u.clerkId === args.keepClerkId);
+    if (!keeper) throw new Error(`No record found with clerkId: ${args.keepClerkId}`);
+
+    // Merge roles from all duplicate records into the keeper
+    const mergedRoles = new Set<string>(keeper.roles ?? []);
+    for (const u of allUsers) {
+      for (const r of u.roles ?? []) mergedRoles.add(r);
+    }
+    const roles = Array.from(mergedRoles);
+
+    await ctx.db.patch(keeper._id, {
+      roles,
+      primaryRole: roles.includes("admin") ? "admin" : keeper.primaryRole,
+    });
+
+    // Delete all duplicate records (not the keeper)
+    const deleted: string[] = [];
+    for (const u of allUsers) {
+      if (u._id !== keeper._id) {
+        await ctx.db.delete(u._id);
+        deleted.push(u._id);
+      }
+    }
+
+    return { success: true, keptId: keeper._id, deletedIds: deleted };
   },
 });
 
@@ -54,14 +129,14 @@ export const getDashboardStats = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!user?.roles?.includes("admin")) throw new Error("Unauthorized");
+    if (!user?.roles?.includes("admin") && user?.primaryRole !== "admin") throw new Error("Unauthorized");
 
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
 
     const allUsers = await ctx.db.query("users").collect();
-    const jobSeekers = allUsers.filter(u => u.roles.includes("job_seeker"));
-    const employers = allUsers.filter(u => u.roles.includes("employer"));
+    const jobSeekers = allUsers.filter(u => u.roles?.includes("job_seeker") || u.primaryRole === "job_seeker");
+    const employers = allUsers.filter(u => u.roles?.includes("employer") || u.primaryRole === "employer");
 
     return {
       jobSeekers: {
@@ -109,10 +184,10 @@ export const getAllEmployers = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!user?.roles?.includes("admin")) throw new Error("Unauthorized");
+    if (!user?.roles?.includes("admin") && user?.primaryRole !== "admin") throw new Error("Unauthorized");
 
     let allUsers = await ctx.db.query("users").collect();
-    let employers = allUsers.filter(u => u.roles.includes("employer"));
+    let employers = allUsers.filter(u => u.roles?.includes("employer") || u.primaryRole === "employer");
 
     // Sort by newest first
     employers.sort((a, b) => b._creationTime - a._creationTime);
@@ -133,16 +208,30 @@ export const getAllEmployers = query({
             website: profile.website,
             headquarters: profile.headquarters,
             industry: profile.companyIndustries?.[0] || null,
+            verificationStatus: profile.verificationStatus,
           } : null,
         };
       })
     );
 
-    // Apply search filter
+    // Apply status filter
     let filteredEmployers = employersWithProfiles;
+    if (args.status && args.status !== "all") {
+      if (args.status === "verified") {
+        filteredEmployers = filteredEmployers.filter(
+          (emp) => emp.profile?.verificationStatus === "verified"
+        );
+      } else if (args.status === "pending") {
+        filteredEmployers = filteredEmployers.filter(
+          (emp) => emp.profile?.verificationStatus !== "verified"
+        );
+      }
+    }
+
+    // Apply search filter
     if (args.search && args.search.trim() !== "") {
       const searchLower = args.search.toLowerCase();
-      filteredEmployers = employersWithProfiles.filter((emp) =>
+      filteredEmployers = filteredEmployers.filter((emp) =>
         emp.fullName?.toLowerCase().includes(searchLower) ||
         emp.email.toLowerCase().includes(searchLower) ||
         emp.profile?.companyName?.toLowerCase().includes(searchLower)
@@ -156,9 +245,13 @@ export const getAllEmployers = query({
     const end = start + args.pageSize;
     const paginatedEmployers = filteredEmployers.slice(start, end);
 
-    // Calculate stats from all filtered employers
-    const verifiedCount = filteredEmployers.filter((e) => e.verified).length;
-    const pendingCount = filteredEmployers.filter((e) => !e.verified).length;
+    // Calculate stats based on verificationStatus (source of truth)
+    const verifiedCount = employersWithProfiles.filter(
+      (e) => e.profile?.verificationStatus === "verified"
+    ).length;
+    const pendingCount = employersWithProfiles.filter(
+      (e) => e.profile?.verificationStatus !== "verified"
+    ).length;
 
     return {
       employers: paginatedEmployers,
@@ -193,10 +286,10 @@ export const getAllJobSeekers = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!user?.roles?.includes("admin")) throw new Error("Unauthorized");
+    if (!user?.roles?.includes("admin") && user?.primaryRole !== "admin") throw new Error("Unauthorized");
 
     let allUsers = await ctx.db.query("users").collect();
-    let jobSeekers = allUsers.filter(u => u.roles.includes("job_seeker"));
+    let jobSeekers = allUsers.filter(u => u.roles?.includes("job_seeker") || u.primaryRole === "job_seeker");
 
     // Sort by newest first
     jobSeekers.sort((a, b) => b._creationTime - a._creationTime);
@@ -272,7 +365,7 @@ export const getAllJobs = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!user?.roles?.includes("admin")) throw new Error("Unauthorized");
+    if (!user?.roles?.includes("admin") && user?.primaryRole !== "admin") throw new Error("Unauthorized");
 
     let allJobs = await ctx.db.query("jobs").collect();
 
@@ -343,7 +436,7 @@ export const getAllApplications = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!user?.roles?.includes("admin")) throw new Error("Unauthorized");
+    if (!user?.roles?.includes("admin") && user?.primaryRole !== "admin") throw new Error("Unauthorized");
 
     let allApplications = await ctx.db.query("applications").collect();
 
@@ -410,13 +503,33 @@ export const verifyEmployer = mutation({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!admin?.roles?.includes("admin")) throw new Error("Unauthorized");
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") throw new Error("Unauthorized");
 
+    // Update the boolean on users for quick access
     await ctx.db.patch(args.userId, {
       verified: args.verified,
     });
 
-    // Return data needed for email notification
+    // Update verificationStatus on employerProfiles — this is what the employer
+    // dashboard reads to gate posting jobs and show status banners
+    const profile = await ctx.db
+      .query("employerProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (profile) {
+      const profileUpdate: any = {
+        verificationStatus: args.verified ? "verified" : "rejected",
+      };
+      if (args.verified) {
+        profileUpdate.verifiedAt = Date.now();
+      }
+      if (!args.verified && args.rejectionReason) {
+        profileUpdate.rejectionReason = args.rejectionReason;
+      }
+      await ctx.db.patch(profile._id, profileUpdate);
+    }
+
     return {
       userId: args.userId,
       verified: args.verified,
@@ -436,7 +549,7 @@ export const getEmployerDetails = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!admin?.roles?.includes("admin")) throw new Error("Unauthorized");
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") throw new Error("Unauthorized");
 
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
@@ -486,7 +599,7 @@ export const getJobSeekerDetails = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!admin?.roles?.includes("admin")) throw new Error("Unauthorized");
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") throw new Error("Unauthorized");
 
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
@@ -534,7 +647,7 @@ export const getApplicationDetails = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    if (!admin?.roles?.includes("admin")) throw new Error("Unauthorized");
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") throw new Error("Unauthorized");
 
     const application = await ctx.db.get(args.applicationId);
     if (!application) throw new Error("Application not found");
@@ -561,6 +674,66 @@ export const getApplicationDetails = query({
       jobSeekerProfile,
       employer,
       notes,
+    };
+  },
+});
+
+// Delete a user account (admin only). Cascades to all related data.
+export const deleteUser = mutation({
+  args: {
+    userId: v.id("users"),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") throw new Error("Unauthorized");
+
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("User not found");
+
+    // Cascade delete all related records
+    const relatedTables = [
+      "jobSeekerProfiles",
+      "employerProfiles",
+      "employerOnboardingProgress",
+      "recruiterProfiles",
+      "workExperience",
+      "education",
+      "skills",
+      "certifications",
+      "languages",
+      "jobViews",
+      "savedJobs",
+      "onboardingProgress",
+      "subscriptions",
+      "transactions",
+      "serviceOrders",
+    ] as const;
+
+    for (const table of relatedTables) {
+      const records = await ctx.db
+        .query(table)
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect();
+      for (const record of records) {
+        await ctx.db.delete(record._id);
+      }
+    }
+
+    // Delete the user record
+    await ctx.db.delete(args.userId);
+
+    return {
+      success: true,
+      deletedEmail: user.email,
+      deletedName: user.fullName,
     };
   },
 });

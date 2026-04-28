@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { DeleteAccountSection } from "@/components/settings/delete-account-section";
 
 export default function SettingsPage() {
   return (
@@ -89,17 +90,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Danger Zone */}
-          <section className="bg-white border border-red-200 rounded-lg p-6">
-            <h2 className="text-base font-semibold text-red-600 mb-2">
-              Danger Zone
-            </h2>
-            <p className="text-sm text-neutral-text-secondary mb-4">
-              Permanently delete your account and all associated data
-            </p>
-            <button className="px-4 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-md hover:bg-red-100 transition-colors">
-              Delete Account
-            </button>
-          </section>
+          <DeleteAccountSection />
         </div>
       </div>
     </DashboardLayout>

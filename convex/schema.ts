@@ -456,4 +456,20 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_service_type", ["serviceType"])
     .index("by_assigned_to", ["assignedTo"]),
+
+  // Employer profile change requests
+  profileChangeRequests: defineTable({
+    userId: v.id("users"),
+    reason: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    adminNote: v.optional(v.string()),
+    resolvedAt: v.optional(v.number()),
+    resolvedBy: v.optional(v.id("users")),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"]),
 });

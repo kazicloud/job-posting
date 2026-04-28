@@ -37,6 +37,14 @@ export const handleClerkWebhook = httpAction(async (ctx, request) => {
         imageUrl: image_url || '',
       });
       break;
+
+    case 'user.deleted':
+      if (id) {
+        await ctx.runMutation(internal.users.deleteByClerkId, {
+          clerkId: id,
+        });
+      }
+      break;
   }
 
   return new Response('OK', { status: 200 });
