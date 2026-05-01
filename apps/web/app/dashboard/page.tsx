@@ -150,6 +150,7 @@ export default function DashboardPage() {
                         <JobCard
                           key={job._id}
                           jobId={job._id}
+                          slug={job.slug}
                           company={job.companyName}
                           logo={job.companyName.charAt(0).toUpperCase()}
                           title={job.title}
@@ -347,9 +348,10 @@ function StatCardSkeleton() {
   );
 }
 
-function JobCard({ jobId, company, logo, title, location, type, salary, postedTime, matchScore }: any) {
+function JobCard({ jobId, slug, company, logo, title, location, type, salary, postedTime, matchScore }: any) {
+  const MARKETING_URL = process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com";
   return (
-    <Link href={`/dashboard/jobs/${jobId}`} className="block">
+    <Link href={slug ? `${MARKETING_URL}/job/${slug}` : `/dashboard/jobs/${jobId}`} target="_blank" rel="noopener noreferrer" className="block">
       <div className="flex gap-3 p-3 sm:p-4 border border-neutral-border rounded-lg hover:border-brand-orange/30 hover:bg-neutral-bg-secondary/50 transition-all cursor-pointer group">
         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-neutral-bg-secondary rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-white transition-colors">
           <span className="text-base sm:text-lg font-bold text-neutral-text">{logo}</span>

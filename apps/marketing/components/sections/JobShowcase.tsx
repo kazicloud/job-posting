@@ -117,7 +117,9 @@ export default function JobShowcase() {
 
                 {/* Apply Button */}
                 <a
-                  href={`${process.env.NEXT_PUBLIC_WEB_APP_URL}/jobs/${job._id}`}
+                  href={job.slug ? `/job/${job.slug}` : `/jobs`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="block w-full py-3 text-center bg-brand-orange text-white font-medium rounded-full hover:bg-brand-orange/90 transition-colors"
                 >
                   Apply Now

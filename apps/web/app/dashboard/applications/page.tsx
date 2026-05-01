@@ -341,7 +341,9 @@ function ApplicationCard({ application }: { application: any }) {
           <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-4 mb-2">
             <div className="flex-1 min-w-0">
               <Link
-                href={`/dashboard/jobs/${job._id}`}
+                href={job.slug ? `${process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com"}/job/${job.slug}` : `/dashboard/jobs/${job._id}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-base sm:text-lg font-semibold text-neutral-text mb-1 hover:text-brand-orange cursor-pointer block break-words"
               >
                 {job.title}
@@ -398,7 +400,9 @@ function ApplicationCard({ application }: { application: any }) {
           {/* Actions */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mt-3 sm:mt-4">
             <Link
-              href={`/dashboard/jobs/${job._id}`}
+              href={job.slug ? `${process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com"}/job/${job.slug}` : `/dashboard/jobs/${job._id}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-neutral-text border border-neutral-border rounded-md hover:bg-neutral-bg-secondary transition-colors"
             >
               <ExternalLink className="w-4 h-4" />

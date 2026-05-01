@@ -236,6 +236,7 @@ export default defineSchema({
     employerId: v.id("users"),
     companyName: v.string(),
     title: v.string(),
+    slug: v.optional(v.string()), // SEO-friendly URL slug, e.g. "software-engineer-at-safaricom-km4abc12"
     department: v.optional(v.string()),
     employmentType: v.string(),
     workplaceType: v.string(),
@@ -297,7 +298,8 @@ export default defineSchema({
     })),
   })
     .index("by_employer", ["employerId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_slug", ["slug"]),
 
   applications: defineTable({
     jobId: v.id("jobs"),

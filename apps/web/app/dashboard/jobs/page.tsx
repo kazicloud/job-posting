@@ -446,6 +446,7 @@ export default function JobsPage() {
                     company={job.companyName}
                     employerId={job.employerId}
                     title={job.title}
+                    slug={job.slug}
                     department={job.department}
                     requiredSkills={job.requiredSkills}
                     location={job.location}
@@ -490,6 +491,7 @@ function JobCard({
   company,
   employerId,
   title,
+  slug,
   department,
   requiredSkills,
   location,
@@ -506,6 +508,7 @@ function JobCard({
   company: string;
   employerId: string;
   title: string;
+  slug?: string;
   department?: string;
   requiredSkills?: string[];
   location: string;
@@ -615,7 +618,7 @@ function JobCard({
                 </div>
               )}
               <div className="hidden sm:flex items-center gap-2">
-                <ShareButton jobId={id as any} jobTitle={title} />
+                <ShareButton jobId={id as any} jobTitle={title} jobSlug={slug} />
                 <WishlistButton jobId={id as any} />
               </div>
             </div>
@@ -654,7 +657,7 @@ function JobCard({
 
           {/* Mobile Actions */}
           <div className="flex sm:hidden items-center gap-2 mb-4">
-            <ShareButton jobId={id as any} jobTitle={title} />
+            <ShareButton jobId={id as any} jobTitle={title} jobSlug={slug} />
             <WishlistButton jobId={id as any} />
           </div>
 
@@ -680,7 +683,9 @@ function JobCard({
 
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto">
               <Link
-                href={`/dashboard/jobs/${id}`}
+                href={slug ? `${process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com"}/job/${slug}` : `/dashboard/jobs/${id}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex-1 sm:flex-none px-4 sm:px-5 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-black/90 transition-colors flex items-center justify-center gap-2"
               >
                 <span>View job</span>

@@ -145,7 +145,7 @@ function WishlistJobCard({ job }: { job: any }) {
           </div>
 
           {/* Title and Company */}
-          <Link href={`/dashboard/jobs/${job._id}`}>
+          <Link href={job.slug ? `${process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com"}/job/${job.slug}` : `/dashboard/jobs/${job._id}`} target="_blank" rel="noopener noreferrer">
             <h3 className="text-xl font-semibold text-neutral-text hover:text-brand-orange mb-1">
               {job.title}
             </h3>
@@ -187,7 +187,9 @@ function WishlistJobCard({ job }: { job: any }) {
 
           {/* Action Button */}
           <Link
-            href={`/dashboard/jobs/${job._id}`}
+            href={job.slug ? `${process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com"}/job/${job.slug}` : `/dashboard/jobs/${job._id}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-block px-5 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-black/90 transition-colors"
           >
             View Details
