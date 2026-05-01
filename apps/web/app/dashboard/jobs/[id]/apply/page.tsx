@@ -11,12 +11,25 @@ import { useRouter } from "next/navigation";
 
 export default function ApplyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const jobId = id as Id<"jobs">;
   const router = useRouter();
-  
-  const job = useQuery(api.jobs.get, { id: jobId });
+
+  // The "id" param may be a URL slug (contains hyphens) or a raw Convex ID.
+  // Slugs always contain hyphens; Convex IDs are alphanumeric only.
+  const isSlug = id.includes("-");
+
+  // When a slug is given, resolve it to the actual job document first.
+  const jobBySlug = useQuery(
+    api.jobs.getPublicBySlug,
+    isSlug ? { slug: id } : "skip"
+  );
+
+  // Derive the real Convex ID — use the resolved ID for all downstream queries.
+  const resolvedId = isSlug ? jobBySlug?._id : id;
+  const jobId = resolvedId as Id<"jobs"> | undefined;
+
+  const job = useQuery(api.jobs.get, jobId ? { id: jobId } : "skip");
   const profile = useQuery(api.profile.getCurrentUserProfile);
-  const hasApplied = useQuery(api.applications.hasApplied, { jobId });
+  const hasApplied = useQuery(api.applications.hasApplied, jobId ? { jobId } : "skip");
   const apply = useAction(api.applications.applyWithDetails);
   
   const [currentStep, setCurrentStep] = useState(0);
@@ -223,6 +236,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   };
 
   const handleSubmit = async () => {
+    if (!jobId) return;
     setIsSubmitting(true);
     try {
       await apply({
@@ -240,7 +254,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
         })),
       });
       
-      router.push(`/dashboard/jobs/${jobId}?applied=true`);
+      router.push(`/dashboard/jobs/${job?.slug || jobId}?applied=true`);
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to submit application");
     } finally {
@@ -256,7 +270,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <Link
-                href={`/dashboard/jobs/${jobId}`}
+                href={`/dashboard/jobs/${job?.slug || jobId}`}
                 className="flex items-center gap-2 text-neutral-text-secondary hover:text-neutral-text text-sm sm:text-base"
               >
                 <ChevronLeft className="w-4 h-4" />

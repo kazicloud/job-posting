@@ -2,6 +2,21 @@ import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 
+/** Converts a job title + company name into a URL-friendly slug.
+ *  e.g. "Senior Software Engineer" + "Safaricom" + "km4abc12" 
+ *    → "senior-software-engineer-at-safaricom-km4abc12"
+ */
+function generateSlug(title: string, companyName: string, shortId: string): string {
+  const slugify = (str: string) =>
+    str
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")  // strip special chars
+      .trim()
+      .replace(/\s+/g, "-")           // spaces → hyphens
+      .replace(/-+/g, "-");           // collapse multiple hyphens
+  return `${slugify(title)}-at-${slugify(companyName)}-${shortId}`;
+}
+
 export const create = mutation({
   args: {
     employerId: v.id("users"),
@@ -59,9 +74,34 @@ export const create = mutation({
       status: (args.status as any) || "draft",
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      expiresAt: args.status === "published" ? Date.now() + (30 * 24 * 60 * 60 * 1000) : undefined, // 30 days
+      expiresAt: args.status === "published" ? Date.now() + (30 * 24 * 60 * 60 * 1000) : undefined,
     });
+    // Generate SEO slug from title + company + last 8 chars of the Convex ID
+    const shortId = jobId.slice(-8);
+    const slug = generateSlug(args.title, args.companyName, shortId);
+    await ctx.db.patch(jobId, { slug });
     return jobId;
+  },
+});
+
+/**
+ * One-time backfill: generates slugs for all jobs that don't have one yet.
+ * Run from the Convex dashboard → Functions → jobMutations:backfillSlugs → Run.
+ */
+export const backfillSlugs = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const jobs = await ctx.db.query("jobs").collect();
+    let patched = 0;
+    for (const job of jobs) {
+      if (!job.slug) {
+        const shortId = job._id.slice(-8);
+        const slug = generateSlug(job.title, job.companyName, shortId);
+        await ctx.db.patch(job._id, { slug });
+        patched++;
+      }
+    }
+    return { patched, total: jobs.length };
   },
 });
 

@@ -46,7 +46,9 @@ export default function HeroSearch() {
           {results.map((job: any) => (
             <a
               key={job._id}
-              href={`${WEB_APP_URL}/jobs/${job._id}`}
+              href={job.slug ? `/job/${job.slug}` : `/jobs`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="block p-4 hover:bg-neutral-secondary border-b border-border last:border-0"
             >
               <div className="flex items-start gap-3">

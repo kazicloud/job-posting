@@ -157,7 +157,12 @@ export function SearchDropdown({ isOpen, query, setQuery, onClose }: SearchDropd
               {searchResults.map((job) => (
                 <Link
                   key={job._id}
-                  href={`/dashboard/jobs/${job._id}`}
+                  href={job.slug
+                    ? `${process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com"}/job/${job.slug}`
+                    : `/dashboard/jobs/${job._id}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={() => {
                     saveSearch(query);
                     onClose();

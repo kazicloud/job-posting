@@ -203,6 +203,32 @@ export const getPublic = query({
   },
 });
 
+// Get single published job by SEO slug (public, no auth required)
+// Used by the marketing app's /job/[slug] page for shared job links
+export const getPublicBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    const job = await ctx.db
+      .query("jobs")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+    if (!job || job.status === "draft" || job.status === "archived") return null;
+
+    // Join employer profile so the public job page can show the company logo
+    const employerProfile = await ctx.db
+      .query("employerProfiles")
+      .filter((q) => q.eq(q.field("userId"), job.employerId))
+      .first();
+
+    return {
+      ...job,
+      employerProfile: employerProfile ? {
+        companyLogo: employerProfile.companyLogo,
+      } : null,
+    };
+  },
+});
+
 // List published jobs with pagination (public)
 export const listPublished = query({
   args: {

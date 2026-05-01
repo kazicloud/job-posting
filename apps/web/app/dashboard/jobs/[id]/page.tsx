@@ -173,7 +173,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     </div>
                   ) : (
                     <Link
-                      href={`/dashboard/jobs/${jobId}/apply`}
+                      href={job.slug ? `/dashboard/jobs/${job.slug}/apply` : `/dashboard/jobs/${jobId}/apply`}
                       className="flex items-center justify-center px-4 sm:px-6 py-2.5 sm:py-3 bg-brand-orange text-white font-semibold rounded-lg hover:bg-brand-orange/90 transition-all hover:shadow-lg hover:shadow-orange-200"
                     >
                       Apply Now
@@ -182,7 +182,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <ShareButton 
                       jobId={jobId} 
-                      jobTitle={job.title} 
+                      jobTitle={job.title}
+                      jobSlug={job.slug}
                       className="p-2 sm:p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     />
                     <WishlistButton jobId={jobId} className="p-2 sm:p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" />
@@ -556,7 +557,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   </div>
                 ) : (
                   <Link
-                    href={`/dashboard/jobs/${jobId}/apply`}
+                    href={job.slug ? `/dashboard/jobs/${job.slug}/apply` : `/dashboard/jobs/${jobId}/apply`}
                     className="block w-full py-2.5 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors text-center"
                   >
                     Apply Now

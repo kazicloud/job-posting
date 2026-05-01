@@ -488,9 +488,12 @@ function JobCard({ job }: any) {
           </div>
 
           <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-4 mb-3">
-            <h3 className="text-lg sm:text-xl font-semibold text-text-primary hover:text-brand-orange cursor-pointer leading-tight flex-1 break-words">
+            <Link
+              href={job.slug ? `/job/${job.slug}` : `/jobs`}
+              className="text-lg sm:text-xl font-semibold text-text-primary hover:text-brand-orange leading-tight flex-1 break-words"
+            >
               {job.title}
-            </h3>
+            </Link>
             <p className="text-base sm:text-xl font-semibold text-text-primary whitespace-nowrap flex-shrink-0">{salary}</p>
           </div>
 
@@ -530,10 +533,10 @@ function JobCard({ job }: any) {
             </div>
 
             <Link
-              href={`${WEB_APP_URL}/sign-up`}
+              href={job.slug ? `/job/${job.slug}` : `${WEB_APP_URL}/sign-up`}
               className="flex-1 sm:flex-none px-4 sm:px-5 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-black/90 transition-colors flex items-center justify-center gap-2"
             >
-              <span>Apply now</span>
+              <span>View & Apply</span>
               <span className="text-lg">→</span>
             </Link>
           </div>
