@@ -828,3 +828,88 @@ export const forcePublishJob = mutation({
     return { success: true, expiresAt };
   },
 });
+
+// ─── Admin: Post a job on behalf of a registered employer ────────────────────
+// Mirrors jobMutations.create but is admin-gated and stamps postedByAdmin=true.
+// The job is attributed to the employer (employerId) so it appears in their
+// dashboard and counts toward their stats — the admin is just the operator.
+export const adminPostJobOnBehalf = mutation({
+  args: {
+    // Who the job belongs to
+    employerId: v.id("users"),
+    // Core job fields
+    title: v.string(),
+    companyName: v.string(),
+    department: v.optional(v.string()),
+    employmentType: v.string(),
+    workplaceType: v.string(),
+    location: v.string(),
+    county: v.optional(v.string()),
+    description: v.string(),
+    responsibilities: v.string(),
+    requirements: v.string(),
+    requiredSkills: v.optional(v.array(v.string())),
+    preferredSkills: v.optional(v.array(v.string())),
+    niceToHave: v.optional(v.string()),
+    salaryDisclosure: v.string(),
+    salaryMin: v.optional(v.number()),
+    salaryMax: v.optional(v.number()),
+    currency: v.optional(v.string()),
+    benefits: v.optional(v.string()),
+    applicationDeadline: v.optional(v.string()),
+    positions: v.number(),
+    experienceLevel: v.string(),
+    status: v.union(v.literal("draft"), v.literal("published")),
+    // Admin-only fields
+    adminNote: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") {
+      throw new Error("Admin access required");
+    }
+
+    // Verify the target employer exists and is an employer
+    const employer = await ctx.db.get(args.employerId);
+    if (!employer) throw new Error("Employer not found");
+    if (!employer.roles?.includes("employer") && employer.primaryRole !== "employer") {
+      throw new Error("Target user is not an employer");
+    }
+
+    const { adminNote, ...jobFields } = args;
+
+    const jobId = await ctx.db.insert("jobs", {
+      ...jobFields,
+      postedByAdmin: true,
+      adminNote: adminNote ?? undefined,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      expiresAt:
+        args.status === "published"
+          ? Date.now() + 30 * 24 * 60 * 60 * 1000
+          : undefined,
+    });
+
+    // Generate SEO slug: "senior-software-engineer-at-safaricom-km4abc12"
+    const slugify = (str: string) =>
+      str
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-");
+
+    const shortId = jobId.slice(-8);
+    const slug = `${slugify(args.title)}-at-${slugify(args.companyName)}-${shortId}`;
+    await ctx.db.patch(jobId, { slug });
+
+    return { jobId, slug };
+  },
+});

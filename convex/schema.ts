@@ -263,6 +263,9 @@ export default defineSchema({
       v.literal("archived"),
       v.literal("expired")
     ),
+    // Admin-assisted posting
+    postedByAdmin: v.optional(v.boolean()),   // true when admin posted on behalf of employer
+    adminNote: v.optional(v.string()),         // internal note from admin about this posting
     createdAt: v.number(),
     updatedAt: v.number(),
     expiresAt: v.optional(v.number()), // Job expiry date (30 days from posting)

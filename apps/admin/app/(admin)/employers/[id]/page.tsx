@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { 
   ArrowLeft, Building2, MapPin, Globe, Calendar, Users, Briefcase, 
   FileText, CheckCircle, XCircle, Mail, Phone, Linkedin, ExternalLink,
@@ -299,6 +300,13 @@ export default function EmployerDetailPage() {
             >
               {isProcessing ? "Processing..." : user.verified ? "Revoke Verification" : "Verify Employer"}
             </button>
+            <Link
+              href={`/employers/${employerId}/post-job`}
+              className="px-4 py-2 rounded-lg font-medium bg-brand-orange text-white hover:bg-brand-orange/90 transition-colors flex items-center gap-2 shadow-sm shadow-brand-orange/20"
+            >
+              <Briefcase className="w-4 h-4" />
+              Post Job for Employer
+            </Link>
             <button
               onClick={() => setShowDeleteModal(true)}
               disabled={isProcessing}
@@ -518,9 +526,26 @@ export default function EmployerDetailPage() {
 
           {/* Recent Jobs */}
           <div className="bg-white rounded-lg border border-neutral-border p-6">
-            <h3 className="text-lg font-semibold text-neutral-text mb-4">Recent Job Postings</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-neutral-text">Recent Job Postings</h3>
+              <Link
+                href={`/employers/${employerId}/post-job`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-orange/10 text-brand-orange text-sm font-medium hover:bg-brand-orange/20 transition-colors"
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+                Post Job
+              </Link>
+            </div>
             {jobs.length === 0 ? (
-              <p className="text-neutral-text-secondary text-center py-8">No jobs posted yet</p>
+              <div className="text-center py-8">
+                <p className="text-neutral-text-secondary mb-3">No jobs posted yet</p>
+                <Link
+                  href={`/employers/${employerId}/post-job`}
+                  className="px-4 py-2 rounded-lg bg-brand-orange text-white text-sm font-medium hover:bg-brand-orange/90 transition-colors inline-block"
+                >
+                  Post their first job
+                </Link>
+              </div>
             ) : (
               <div className="space-y-3">
                 {jobs.slice(0, 5).map((job: any) => (
@@ -529,7 +554,14 @@ export default function EmployerDetailPage() {
                     className="flex items-center justify-between p-4 rounded-lg border border-neutral-border hover:bg-neutral-bg-secondary transition-colors"
                   >
                     <div>
-                      <h4 className="font-medium text-neutral-text">{job.title}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium text-neutral-text">{job.title}</h4>
+                        {job.postedByAdmin && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[10px] font-semibold tracking-wide">
+                            ADMIN
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-3 text-sm text-neutral-text-secondary mt-1">
                         <span>{job.location}</span>
                         <span>•</span>
