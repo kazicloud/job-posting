@@ -76,18 +76,18 @@ export default function JobSeekersPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white rounded-lg border border-neutral-border p-6">
           <p className="text-sm text-neutral-text-secondary mb-1">Total Job Seekers</p>
-          <p className="text-3xl font-bold text-neutral-text">{data?.pagination.total || 0}</p>
+          <p className="text-3xl font-bold text-neutral-text">{data?.stats.total ?? 0}</p>
         </div>
         <div className="bg-white rounded-lg border border-neutral-border p-6">
           <p className="text-sm text-neutral-text-secondary mb-1">With Complete Profiles</p>
           <p className="text-3xl font-bold text-blue-600">
-            {data?.jobSeekers.filter((js: any) => js.onboardingCompleted).length || 0}
+            {data?.stats.completedOnboarding ?? 0}
           </p>
         </div>
         <div className="bg-white rounded-lg border border-neutral-border p-6">
           <p className="text-sm text-neutral-text-secondary mb-1">Open to Work</p>
           <p className="text-3xl font-bold text-green-600">
-            {data?.jobSeekers.filter((js: any) => js.profile?.openToWork).length || 0}
+            {data?.stats.openToWork ?? 0}
           </p>
         </div>
       </div>

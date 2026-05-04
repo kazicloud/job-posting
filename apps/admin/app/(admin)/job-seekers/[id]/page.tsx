@@ -11,6 +11,27 @@ import { Id } from "../../../../../../convex/_generated/dataModel";
 import { DeleteUserModal } from "../../../../components/delete-user-modal";
 import { useState } from "react";
 
+function ResumeLink({ storageId }: { storageId: string }) {
+  const url = useQuery(api.serviceOrders.getFileUrl, { storageId });
+  if (!url) return (
+    <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gray-100 text-neutral-text-muted text-sm">
+      <FileText className="w-5 h-5" />
+      Resume loading...
+    </div>
+  );
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-brand-orange text-white hover:bg-brand-orange/90 transition-colors"
+    >
+      <FileText className="w-5 h-5" />
+      View Resume
+    </a>
+  );
+}
+
 export default function JobSeekerDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -94,7 +115,28 @@ export default function JobSeekerDetailPage() {
     );
   }
 
-  const { user, profile, applications, stats } = data;
+  if (data === null) {
+    return (
+      <div>
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-neutral-text-secondary hover:text-neutral-text mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Job Seekers
+        </button>
+        <div className="bg-white rounded-lg border border-neutral-border p-12 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-8 h-8 text-neutral-text-muted" />
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-text mb-2">Job Seeker Not Found</h3>
+          <p className="text-neutral-text-secondary">This profile may have been deleted or the link is invalid.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { user, profile, applications, stats, resumeStorageId } = data;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -393,6 +435,14 @@ export default function JobSeekerDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Resume */}
+          {resumeStorageId && (
+            <div className="bg-white rounded-lg border border-neutral-border p-6">
+              <h3 className="text-lg font-semibold text-neutral-text mb-4">Resume</h3>
+              <ResumeLink storageId={resumeStorageId} />
+            </div>
+          )}
+
           {/* Contact Information */}
           <div className="bg-white rounded-lg border border-neutral-border p-6">
             <h3 className="text-lg font-semibold text-neutral-text mb-4">Contact Information</h3>
@@ -469,22 +519,6 @@ export default function JobSeekerDetailPage() {
               )}
             </div>
           </div>
-
-          {/* Resume */}
-          {(profile?.resumeUrl || user.resumeStorageId) && (
-            <div className="bg-white rounded-lg border border-neutral-border p-6">
-              <h3 className="text-lg font-semibold text-neutral-text mb-4">Resume</h3>
-              <a
-                href={profile?.resumeUrl || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-brand-orange text-white hover:bg-brand-orange/90 transition-colors"
-              >
-                <FileText className="w-5 h-5" />
-                View Resume
-              </a>
-            </div>
-          )}
         </div>
       </div>
     </div>

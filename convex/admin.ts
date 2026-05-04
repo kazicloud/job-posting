@@ -1,4 +1,5 @@
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 export const isAdmin = query({
@@ -134,9 +135,19 @@ export const getDashboardStats = query({
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
 
-    const allUsers = await ctx.db.query("users").collect();
+    const [allUsers, allJobs, allApplications] = await Promise.all([
+      ctx.db.query("users").collect(),
+      ctx.db.query("jobs").collect(),
+      ctx.db.query("applications").collect(),
+    ]);
+
     const jobSeekers = allUsers.filter(u => u.roles?.includes("job_seeker") || u.primaryRole === "job_seeker");
     const employers = allUsers.filter(u => u.roles?.includes("employer") || u.primaryRole === "employer");
+
+    const activeJobStatuses = ["published"];
+    const inactiveJobStatuses = ["draft", "closed", "archived", "expired"];
+    const openAppStatuses = ["submitted", "under_review", "shortlisted", "interview"];
+    const closedAppStatuses = ["accepted", "rejected"];
 
     return {
       jobSeekers: {
@@ -150,19 +161,19 @@ export const getDashboardStats = query({
         inactive: employers.filter(u => !u.onboardingCompleted).length,
       },
       jobs: {
-        total: 0,
-        active: 0,
-        inactive: 0,
+        total: allJobs.length,
+        active: allJobs.filter(j => activeJobStatuses.includes(j.status)).length,
+        inactive: allJobs.filter(j => inactiveJobStatuses.includes(j.status)).length,
       },
       applications: {
-        total: 0,
-        active: 0,
-        closed: 0,
+        total: allApplications.length,
+        active: allApplications.filter(a => openAppStatuses.includes(a.status)).length,
+        closed: allApplications.filter(a => closedAppStatuses.includes(a.status)).length,
       },
       recentActivity: {
         newUsersToday: allUsers.filter(u => u._creationTime > oneDayAgo).length,
-        newJobsToday: 0,
-        newApplicationsToday: 0,
+        newJobsToday: allJobs.filter(j => j._creationTime > oneDayAgo).length,
+        newApplicationsToday: allApplications.filter(a => a._creationTime > oneDayAgo).length,
       },
     };
   },
@@ -330,6 +341,17 @@ export const getAllJobSeekers = query({
       );
     }
 
+    // Apply status filter
+    if (args.status && args.status !== "all") {
+      if (args.status === "active") {
+        filteredJobSeekers = filteredJobSeekers.filter((js) => js.onboardingCompleted);
+      } else if (args.status === "inactive") {
+        filteredJobSeekers = filteredJobSeekers.filter((js) => !js.onboardingCompleted);
+      } else if (args.status === "open_to_work") {
+        filteredJobSeekers = filteredJobSeekers.filter((js) => js.profile?.openToWork);
+      }
+    }
+
     // Calculate pagination
     const total = filteredJobSeekers.length;
     const totalPages = Math.ceil(total / args.pageSize);
@@ -337,13 +359,23 @@ export const getAllJobSeekers = query({
     const end = start + args.pageSize;
     const paginatedJobSeekers = filteredJobSeekers.slice(start, end);
 
+    // Global stats — always from full unfiltered set for the summary cards
+    const globalTotal = jobSeekersWithProfiles.length;
+    const globalCompleted = jobSeekersWithProfiles.filter((js) => js.onboardingCompleted).length;
+    const globalOpenToWork = jobSeekersWithProfiles.filter((js) => js.profile?.openToWork).length;
+
     return {
-      jobSeekers: jobSeekersWithProfiles,
+      jobSeekers: paginatedJobSeekers,
       pagination: {
         page: args.page,
         pageSize: args.pageSize,
         total,
         totalPages,
+      },
+      stats: {
+        total: globalTotal,
+        completedOnboarding: globalCompleted,
+        openToWork: globalOpenToWork,
       },
     };
   },
@@ -539,7 +571,7 @@ export const verifyEmployer = mutation({
 });
 
 export const getEmployerDetails = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.string() },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
@@ -551,17 +583,22 @@ export const getEmployerDetails = query({
 
     if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") throw new Error("Unauthorized");
 
-    const user = await ctx.db.get(args.userId);
-    if (!user) throw new Error("User not found");
+    let user: any;
+    try {
+      user = await ctx.db.get(args.userId as any);
+    } catch {
+      return null;
+    }
+    if (!user) return null;
 
     const profile = await ctx.db
       .query("employerProfiles")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
       .first();
 
     const jobs = await ctx.db
       .query("jobs")
-      .withIndex("by_employer", (q) => q.eq("employerId", args.userId))
+      .withIndex("by_employer", (q) => q.eq("employerId", user._id))
       .collect();
 
     const jobsWithApplications = await Promise.all(
@@ -589,7 +626,7 @@ export const getEmployerDetails = query({
 });
 
 export const getJobSeekerDetails = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.string() },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
@@ -601,17 +638,22 @@ export const getJobSeekerDetails = query({
 
     if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") throw new Error("Unauthorized");
 
-    const user = await ctx.db.get(args.userId);
-    if (!user) throw new Error("User not found");
+    let user: any;
+    try {
+      user = await ctx.db.get(args.userId as any);
+    } catch {
+      return null;
+    }
+    if (!user) return null;
 
     const profile = await ctx.db
       .query("jobSeekerProfiles")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
       .first();
 
     const applications = await ctx.db
       .query("applications")
-      .withIndex("by_job_seeker", (q) => q.eq("jobSeekerId", args.userId))
+      .withIndex("by_job_seeker", (q) => q.eq("jobSeekerId", user._id))
       .collect();
 
     const applicationsWithJobs = await Promise.all(
@@ -621,10 +663,16 @@ export const getJobSeekerDetails = query({
       })
     );
 
+    // Return the raw storage ID — the client resolves it to a URL via serviceOrders.getFileUrl
+    // onboarding.ts stores the raw storage ID in profile.resumeUrl; cvUpload.ts uses user.resumeStorageId
+    const resumeStorageId: string | null =
+      profile?.resumeUrl || (user as any).resumeStorageId || null;
+
     return {
       user,
       profile,
       applications: applicationsWithJobs,
+      resumeStorageId,
       stats: {
         totalApplications: applications.length,
         activeApplications: applications.filter((a) => 
@@ -729,6 +777,13 @@ export const deleteUser = mutation({
 
     // Delete the user record
     await ctx.db.delete(args.userId);
+
+    // Also delete the user from Clerk
+    if (user.clerkId) {
+      await ctx.scheduler.runAfter(0, internal.clerkActions.deleteClerkUser, {
+        clerkId: user.clerkId,
+      });
+    }
 
     return {
       success: true,

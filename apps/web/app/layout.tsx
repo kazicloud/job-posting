@@ -23,7 +23,7 @@ export default function RootLayout({
           colorPrimary: "#DC842C",
         },
       }}
-      signInFallbackRedirectUrl="/dashboard"
+      signInFallbackRedirectUrl="/sso-callback"
       signUpFallbackRedirectUrl="/sso-callback"
     >
       <html lang="en">

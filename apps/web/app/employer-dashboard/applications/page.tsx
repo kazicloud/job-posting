@@ -1,6 +1,7 @@
 "use client";
 
 import { EmployerDashboardLayout } from "@/components/employer-dashboard/employer-dashboard-layout";
+import { InterviewModal, InterviewDetails } from "@/components/employer-dashboard/interview-modal";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, Download, Star, MapPin, Briefcase, Calendar, FileText, ExternalLink, CheckCircle2, X, Mail, Phone, Users, ChevronDown, ArrowUpDown } from "lucide-react";
@@ -67,6 +68,14 @@ export default function EmployerApplicationsPage() {
 
   const updateStatus = useMutation(api.applications.updateStatus);
 
+  // Interview modal state
+  const [interviewModal, setInterviewModal] = useState<{
+    applicationId: Id<"applications">;
+    candidateName: string;
+    jobTitle: string;
+  } | null>(null);
+  const [isScheduling, setIsScheduling] = useState(false);
+
   const isLoading = result === undefined || employerJobs === undefined || (selectedJobId !== "all" && counts === undefined);
 
   const applications = result?.page || [];
@@ -102,6 +111,19 @@ export default function EmployerApplicationsPage() {
       await updateStatus({ applicationId, status });
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to update status");
+    }
+  };
+
+  const handleInterviewConfirm = async (details: InterviewDetails) => {
+    if (!interviewModal) return;
+    setIsScheduling(true);
+    try {
+      await updateStatus({ applicationId: interviewModal.applicationId, status: "interview", interviewDetails: details });
+      setInterviewModal(null);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to schedule interview");
+    } finally {
+      setIsScheduling(false);
     }
   };
 
@@ -487,6 +509,9 @@ export default function EmployerApplicationsPage() {
                         key={application._id}
                         application={application}
                         onStatusUpdate={handleStatusUpdate}
+                        onScheduleInterview={(id, candidateName, jobTitle) =>
+                          setInterviewModal({ applicationId: id, candidateName, jobTitle })
+                        }
                     />
                   ))}
                 </tbody>
@@ -506,6 +531,18 @@ export default function EmployerApplicationsPage() {
         </>
         )}
       </div>
+
+      {/* Interview Modal */}
+      {interviewModal && (
+        <InterviewModal
+          isOpen={true}
+          candidateName={interviewModal.candidateName}
+          jobTitle={interviewModal.jobTitle}
+          onClose={() => setInterviewModal(null)}
+          onConfirm={handleInterviewConfirm}
+          isLoading={isScheduling}
+        />
+      )}
     </EmployerDashboardLayout>
   );
 }
@@ -513,9 +550,11 @@ export default function EmployerApplicationsPage() {
 function ApplicationRow({
   application,
   onStatusUpdate,
+  onScheduleInterview,
 }: {
   application: any;
   onStatusUpdate: (id: Id<"applications">, status: string) => void;
+  onScheduleInterview: (id: Id<"applications">, candidateName: string, jobTitle: string) => void;
 }) {
   const jobSeeker = application.jobSeeker;
   const job = application.job;
@@ -655,7 +694,7 @@ function ApplicationRow({
           {application.status === "shortlisted" && (
             <>
               <button
-                onClick={() => onStatusUpdate(application._id, "interview")}
+                onClick={() => onScheduleInterview(application._id, application.jobSeeker?.name || "Candidate", application.job?.title || "Position")}
                 className="px-3 py-1.5 text-xs font-medium text-orange-600 border border-orange-600 rounded-md hover:bg-orange-50 transition-colors"
               >
                 Interview

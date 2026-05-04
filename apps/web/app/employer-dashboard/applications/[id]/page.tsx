@@ -1,6 +1,7 @@
 "use client";
 
 import { EmployerDashboardLayout } from "@/components/employer-dashboard/employer-dashboard-layout";
+import { InterviewModal, InterviewDetails } from "@/components/employer-dashboard/interview-modal";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
@@ -54,6 +55,8 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [note, setNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
 
   if (!application) {
     return (
@@ -90,6 +93,18 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
       alert(error instanceof Error ? error.message : "Failed to update status");
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleInterviewConfirm = async (details: InterviewDetails) => {
+    setIsScheduling(true);
+    try {
+      await updateStatus({ applicationId, status: "interview", interviewDetails: details });
+      setShowInterviewModal(false);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to schedule interview");
+    } finally {
+      setIsScheduling(false);
     }
   };
 
@@ -447,7 +462,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   )}
                   {application.status === "shortlisted" && (
                     <button
-                      onClick={() => handleStatusChange("interview")}
+                      onClick={() => setShowInterviewModal(true)}
                       disabled={isUpdating}
                       className="w-full px-3 sm:px-4 py-2 bg-brand-orange text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center justify-center gap-2"
                     >
@@ -534,6 +549,16 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
       </div>
+
+      {/* Interview Modal */}
+      <InterviewModal
+        isOpen={showInterviewModal}
+        candidateName={jobSeeker?.name || "Candidate"}
+        jobTitle={job?.title || "Position"}
+        onClose={() => setShowInterviewModal(false)}
+        onConfirm={handleInterviewConfirm}
+        isLoading={isScheduling}
+      />
     </EmployerDashboardLayout>
   );
 }

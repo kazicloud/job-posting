@@ -16,6 +16,7 @@ import type * as applications from "../applications.js";
 import type * as billing from "../billing.js";
 import type * as clearData from "../clearData.js";
 import type * as clerk from "../clerk.js";
+import type * as clerkActions from "../clerkActions.js";
 import type * as crons from "../crons.js";
 import type * as cvParser from "../cvParser.js";
 import type * as cvUpload from "../cvUpload.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   billing: typeof billing;
   clearData: typeof clearData;
   clerk: typeof clerk;
+  clerkActions: typeof clerkActions;
   crons: typeof crons;
   cvParser: typeof cvParser;
   cvUpload: typeof cvUpload;

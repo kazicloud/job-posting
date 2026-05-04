@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSignUp, useUser, useClerk } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Briefcase, Building2, Users, Eye, EyeOff, ArrowLeft, Code, TrendingUp, DollarSign, Wrench, Heart, GraduationCap, Coffee, Sprout, HardHat, Truck, Palette, Headphones, Rocket, Building, Landmark, Castle, HandHeart, UserCheck, CheckCircle, XCircle } from "lucide-react";
 import { useSignUpStore } from "@/store/signup-store";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 
 const testimonials = [
@@ -62,17 +62,56 @@ const employerTypes = [
 ];
 
 export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-brand-orange border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <SignUpContent />
+    </Suspense>
+  );
+}
+
+function SignUpContent() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const { isSignedIn, user } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { username, selectedRoles, setUsername, toggleRole, reset } = useSignUpStore();
 
-  // Redirect if already signed in
+  // Derive from the reactive searchParams hook — works correctly with
+  // client-side navigation from the SSO callback.
+  const isOAuthComplete = searchParams.get("oauth_complete") === "true";
+
+  const [infoMessage, setInfoMessage] = useState("");
+  const createFromSignup = useMutation(api.users.createFromSignup);
+
+  // Redirect if already signed in — but NOT when completing the OAuth wizard,
+  // because the user is intentionally signed-in-but-profiling.
   useEffect(() => {
-    if (isLoaded && isSignedIn) {
+    if (isLoaded && isSignedIn && !isOAuthComplete) {
       router.push("/dashboard");
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isOAuthComplete, router]);
+
+  // Pre-fill username from Clerk user when coming via oauth_complete flow.
+  useEffect(() => {
+    if (isOAuthComplete && user && !username) {
+      const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+      if (name) setUsername(name);
+    }
+  }, [isOAuthComplete, user, username, setUsername]);
+
+  // Show a contextual banner when the user arrived here from an OAuth
+  // sign-in attempt without an existing Kazicloud account.
+  useEffect(() => {
+    if (isOAuthComplete) {
+      setInfoMessage(
+        "Your Google account is linked. Just complete your profile below and we'll get you started."
+      );
+    }
+  }, [isOAuthComplete]);
   
   const [step, setStep] = useState(0);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -151,23 +190,78 @@ export default function SignUpPage() {
     });
   };
 
-  const handleStep1Continue = () => {
+  const handleStep1Continue = async () => {
     const isJobSeeker = selectedRoles.includes("job_seeker");
     const isEmployer = selectedRoles.includes("employer");
     
     if (isJobSeeker && selectedFields.length === 0) return;
     if (isEmployer && !companyInfo.companyType) return;
     
-    // Employers go to industry selection (step 1.5), job seekers go to account details (step 2)
     if (isEmployer) {
       setStep(1.5);
-    } else {
-      setStep(2);
+      return;
     }
+
+    // OAuth complete path: Clerk account already exists, skip email/password.
+    // Create the Convex profile now and go straight to onboarding.
+    if (isOAuthComplete && user) {
+      try {
+        setLoading(true);
+        setError("");
+        await createFromSignup({
+          clerkId: user.id,
+          email: user.primaryEmailAddress?.emailAddress || "",
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          roles: selectedRoles,
+          fields: selectedFields.length > 0 ? selectedFields : undefined,
+          otherFieldDescription: otherFieldDescription || undefined,
+          companyInfo: undefined,
+        });
+        router.push("/onboarding");
+      } catch (err: any) {
+        setError(err.message || "Something went wrong. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Normal path: go to account details (email/password).
+    setStep(2);
   };
 
-  const handleEmployerIndustryContinue = () => {
+  const handleEmployerIndustryContinue = async () => {
     if (companyInfo.companyIndustry.length === 0) return;
+
+    // OAuth complete path: create Convex profile and go to employer onboarding.
+    if (isOAuthComplete && user) {
+      try {
+        setLoading(true);
+        setError("");
+        await createFromSignup({
+          clerkId: user.id,
+          email: user.primaryEmailAddress?.emailAddress || "",
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          roles: selectedRoles,
+          fields: undefined,
+          otherFieldDescription: undefined,
+          companyInfo: {
+            companyName: companyInfo.companyName,
+            companyType: companyInfo.companyType,
+            companyIndustry: companyInfo.companyIndustry,
+          },
+        });
+        router.push("/employer-onboarding");
+      } catch (err: any) {
+        setError(err.message || "Something went wrong. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setStep(2);
   };
 
@@ -319,6 +413,12 @@ export default function SignUpPage() {
               </span>
             </div>
           </div>
+
+          {infoMessage && (
+            <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+              {infoMessage}
+            </div>
+          )}
 
           {/* Step 0: Username + Role Selection */}
           {step === 0 && (

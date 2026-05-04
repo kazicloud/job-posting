@@ -5,6 +5,7 @@ import { EmployerRejectedEmail } from "../emails/employer-rejected";
 import { NewServiceOrder } from "../emails/new-service-order";
 import { ServiceOrderConfirmation } from "../emails/service-order-confirmation";
 import { ServiceCompletedEmail } from "../emails/service-completed";
+import { ServiceStatusUpdateEmail } from "../emails/service-status-update";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -230,33 +231,27 @@ export const emailService = {
       }
     }
 
-    // For other status updates
-    const serviceNames = {
+    // For other status updates (in_progress, cancelled)
+    const serviceNames: Record<string, string> = {
       ats_cv: "ATS CV Review",
-      cv_revamp: "CV Revamp", 
+      cv_revamp: "CV Revamp",
       job_search_support: "Job Search Support",
-      career_coaching: "Career Coaching"
-    };
-
-    const statusMessages = {
-      in_progress: "Your service order is now being processed by our team.",
-      cancelled: "Your service order has been cancelled."
+      career_coaching: "Career Coaching",
     };
 
     try {
       const { data, error } = await resend.emails.send({
         from: "Kazicloud Platform <notifications@kazicloud.co.ke>",
         to: [customerEmail],
-        subject: `Service Update: ${serviceNames[serviceType as keyof typeof serviceNames]}`,
-        html: `
-          <h2>Service Order Update</h2>
-          <p>Hi ${customerName},</p>
-          <p><strong>Service:</strong> ${serviceNames[serviceType as keyof typeof serviceNames]}</p>
-          <p><strong>Status:</strong> ${status.replace('_', ' ').toUpperCase()}</p>
-          <p>${statusMessages[status as keyof typeof statusMessages]}</p>
-          ${deliverables ? `<p><strong>Deliverables:</strong><br>${deliverables}</p>` : ''}
-          <p>Best regards,<br>Kazicloud Team</p>
-        `,
+        subject: status === "in_progress"
+          ? `Your ${serviceNames[serviceType as keyof typeof serviceNames]} is now in progress`
+          : `Service Order Update: ${serviceNames[serviceType as keyof typeof serviceNames]}`,
+        react: ServiceStatusUpdateEmail({
+          customerName,
+          serviceType,
+          status: status as "in_progress" | "cancelled",
+          dashboardUrl: `${dashboardUrl}/dashboard/services`,
+        }),
       });
 
       if (error) {

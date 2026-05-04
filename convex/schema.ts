@@ -331,6 +331,17 @@ export default defineSchema({
       fileUrl: v.optional(v.string()),
     }))),
     
+    // Interview details (set when status changes to "interview")
+    interviewDetails: v.optional(v.object({
+      date: v.string(),
+      time: v.string(),
+      format: v.string(), // "in-person" | "virtual" | "phone"
+      location: v.optional(v.string()),
+      meetingLink: v.optional(v.string()),
+      interviewerName: v.optional(v.string()),
+      additionalNotes: v.optional(v.string()),
+    })),
+
     // Response tracking
     firstActionAt: v.optional(v.number()), // Timestamp when employer first changed status
   })
