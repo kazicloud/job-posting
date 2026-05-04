@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 
 export default function SSOCallback() {
   const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useClerk();
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   const createFromSignup = useMutation(api.users.createFromSignup);
@@ -20,7 +21,9 @@ export default function SSOCallback() {
   );
 
   useEffect(() => {
-    if (!isLoaded || isProcessing || !isSignedIn || !user) return;
+    // Wait for Clerk auth and Convex query to fully resolve before acting.
+    // existingUser is `undefined` while the query is loading; `null` when loaded but not found.
+    if (!isLoaded || isProcessing || !isSignedIn || !user || existingUser === undefined) return;
 
     const processSignup = async () => {
       setIsProcessing(true);
@@ -29,9 +32,13 @@ export default function SSOCallback() {
         // Get saved signup data
         const savedData = sessionStorage.getItem('pendingSignupData');
         
-        // Check if user already exists in our database
-        if (existingUser) {
-          console.log("Existing user found, redirecting to dashboard");
+        // A user with no roles is a webhook-created shell (Clerk fired user.created
+        // automatically during OAuth). They haven't gone through the wizard yet —
+        // treat them the same as a brand-new user.
+        const isFullyRegistered = existingUser && existingUser.roles && existingUser.roles.length > 0;
+
+        if (isFullyRegistered) {
+          console.log("Existing registered user found, redirecting to dashboard");
           sessionStorage.removeItem('pendingSignupData');
           
           const dashboard = existingUser.primaryRole === "employer" 
@@ -65,10 +72,14 @@ export default function SSOCallback() {
           const dashboard = isEmployer ? "/employer-onboarding" : "/onboarding";
           router.push(dashboard);
         } else {
-          console.log("No saved data, checking for existing profile");
-          // No saved data - user might be signing in, not signing up
-          // Redirect to dashboard or sign-up to complete profile
-          router.push("/sign-up");
+          // No pending signup data and no Convex profile means this user
+          // authenticated via Google from the sign-in page without an existing
+          // account. Keep them signed in (Clerk account already created) and
+          // redirect to sign-up with a flag so the wizard skips the
+          // email/password step — they'll provide role/field info and we'll
+          // create the Convex profile directly.
+          console.log("No saved data and no existing profile — redirecting to sign-up wizard");
+          router.push("/sign-up?oauth_complete=true");
         }
       } catch (error) {
         console.error("Profile creation error:", error);

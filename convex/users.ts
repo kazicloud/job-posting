@@ -1,4 +1,5 @@
 import { internalMutation, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // Delete user and all related data by Clerk ID (internal only — called from webhook)
@@ -89,6 +90,12 @@ export const deleteMyAccount = mutation({
     }
 
     await ctx.db.delete(user._id);
+    
+    // Also delete the user from Clerk so the account is fully removed
+    await ctx.scheduler.runAfter(0, internal.clerkActions.deleteClerkUser, {
+      clerkId: identity.subject,
+    });
+
     return { success: true };
   },
 });

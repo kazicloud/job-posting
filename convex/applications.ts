@@ -12,10 +12,10 @@ export const apply = action({
   handler: async (ctx: ActionCtx, args): Promise<Id<"applications">> => {
     const applicationId = await ctx.runMutation(internal.applications.applyInternal, args);
     
-    // Send email notification to employer
-    await ctx.runAction(internal.emails.notifyEmployerNewApplication, {
-      applicationId,
-    });
+    // Send email notification to employer (fire-and-forget)
+    await ctx.runAction(internal.emails.notifyEmployerNewApplication, { applicationId });
+    // Send confirmation email to job seeker (fire-and-forget)
+    await ctx.runAction(internal.emails.notifyJobSeekerApplicationReceived, { applicationId });
     
     return applicationId;
   },
@@ -75,10 +75,10 @@ export const applyWithDetails = action({
   handler: async (ctx: ActionCtx, args): Promise<Id<"applications">> => {
     const applicationId = await ctx.runMutation(internal.applications.applyWithDetailsInternal, args);
     
-    // Send email notification to employer
-    await ctx.runAction(internal.emails.notifyEmployerNewApplication, {
-      applicationId,
-    });
+    // Send email notification to employer (fire-and-forget)
+    await ctx.runAction(internal.emails.notifyEmployerNewApplication, { applicationId });
+    // Send confirmation email to job seeker (fire-and-forget)
+    await ctx.runAction(internal.emails.notifyJobSeekerApplicationReceived, { applicationId });
     
     return applicationId;
   },
@@ -313,6 +313,15 @@ export const updateStatus = mutation({
       v.literal("rejected"),
       v.literal("accepted")
     ),
+    interviewDetails: v.optional(v.object({
+      date: v.string(),
+      time: v.string(),
+      format: v.string(),
+      location: v.optional(v.string()),
+      meetingLink: v.optional(v.string()),
+      interviewerName: v.optional(v.string()),
+      additionalNotes: v.optional(v.string()),
+    })),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -337,17 +346,42 @@ export const updateStatus = mutation({
       throw new Error("Unauthorized");
     }
 
+    const previousStatus = application.status;
+
     // Update status and track first action time
     const updateData: any = {
       status: args.status,
     };
-    
+
     // Set firstActionAt if this is the first time employer is taking action
     if (!application.firstActionAt && application.status === "submitted") {
       updateData.firstActionAt = Date.now();
     }
-    
+
+    // Store interview details if provided
+    if (args.status === "interview" && args.interviewDetails) {
+      updateData.interviewDetails = args.interviewDetails;
+    }
+
     await ctx.db.patch(args.applicationId, updateData);
+
+    // Schedule job-seeker email notifications (fire-and-forget)
+    if (previousStatus !== args.status) {
+      if (args.status === "shortlisted") {
+        await ctx.scheduler.runAfter(0, internal.emails.notifyJobSeekerShortlisted, {
+          applicationId: args.applicationId,
+        });
+      } else if (args.status === "interview" && args.interviewDetails) {
+        await ctx.scheduler.runAfter(0, internal.emails.notifyJobSeekerInterview, {
+          applicationId: args.applicationId,
+          interviewDetails: args.interviewDetails,
+        });
+      } else if (args.status === "rejected") {
+        await ctx.scheduler.runAfter(0, internal.emails.notifyJobSeekerRejected, {
+          applicationId: args.applicationId,
+        });
+      }
+    }
 
     return { success: true };
   },
