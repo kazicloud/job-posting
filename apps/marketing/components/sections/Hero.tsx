@@ -3,7 +3,7 @@ import HeroCanvas from './HeroCanvas'
 import HeroSearch from './HeroSearch'
 import { ConvexClientProvider } from '@/providers/ConvexClientProvider'
 
-const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'http://localhost:3000'
+const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'https://app.kazicloud.com'
 
 export default function Hero() {
   return (
@@ -67,15 +67,17 @@ export default function Hero() {
             </ConvexClientProvider>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Link
+              <a
                 href={`${WEB_APP_URL}/sign-up`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="group relative px-6 sm:px-8 py-3 sm:py-4 rounded-lg bg-brand-orange text-white text-sm sm:text-base font-medium overflow-hidden text-center"
               >
                 <span className="relative z-10">Start Your Journey</span>
                 <div className="absolute inset-0 bg-brand-orange transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
-              </Link>
+              </a>
               <Link
-                href="/job-seekers"
+                href="/jobs"
                 className="px-6 sm:px-8 py-3 sm:py-4 rounded-lg border-2 border-text-primary text-text-primary text-sm sm:text-base font-medium hover:bg-text-primary hover:text-white transition-colors duration-300 text-center"
               >
                 Explore Opportunities

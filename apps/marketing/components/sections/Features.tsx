@@ -1,6 +1,6 @@
 'use client'
 
-const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'http://localhost:3000'
+const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'https://app.kazicloud.com'
 
 export default function Features() {
   return (
@@ -99,6 +99,8 @@ export default function Features() {
             <div className="pt-4">
               <a 
                 href={`${WEB_APP_URL}/sign-up`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-4 rounded-lg bg-text-primary hover:bg-brand-orange text-white font-medium transition-colors inline-flex items-center gap-2"
               >
                 JOIN OUR NETWORK
