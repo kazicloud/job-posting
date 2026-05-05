@@ -782,7 +782,7 @@ function SignUpContent() {
           {step === 2 && (
             <div>
               <button
-                onClick={() => setStep(1)}
+                onClick={() => setStep(selectedRoles.includes("employer") ? 1.5 : 1)}
                 className="flex items-center gap-2 text-neutral-text-secondary hover:text-neutral-text mb-6"
               >
                 <ArrowLeft className="w-4 h-4" />

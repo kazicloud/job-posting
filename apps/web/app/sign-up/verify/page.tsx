@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSignUpStore } from "@/store/signup-store";
+import { useMutation } from "convex/react";
+import { api } from "../../../../../convex/_generated/api";
 
 function VerifyContent() {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -11,6 +13,7 @@ function VerifyContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
   const { selectedRoles, reset } = useSignUpStore();
+  const createFromSignup = useMutation(api.users.createFromSignup);
 
   const [verificationCode, setVerificationCode] = useState("");
   const [error, setError] = useState("");
@@ -41,26 +44,29 @@ function VerifyContent() {
         
         // Get signup data from sessionStorage
         const signupData = sessionStorage.getItem("signupData");
-        let primaryRole = "job_seeker";
+        // Fall back to store state if sessionStorage was cleared
+        let primaryRole = selectedRoles[0] || "job_seeker";
         
         if (signupData) {
           const data = JSON.parse(signupData);
-          primaryRole = data.roles[0] || "job_seeker";
-          
-          // Call HTTP endpoint to save additional signup data
-          const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL!.replace('/.well-known/openid-configuration', '');
-          await fetch(`${convexUrl}/signup-data`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              clerkId: completeSignUp.createdUserId!,
-              roles: data.roles,
-              fields: data.fields,
-              otherFieldDescription: data.otherFieldDescription,
-              companyInfo: data.companyInfo,
-            }),
+          primaryRole = data.roles?.[0] || selectedRoles[0] || "job_seeker";
+
+          // Use createFromSignup directly instead of the HTTP endpoint.
+          // This avoids the race condition where updateSignupData runs before
+          // the Clerk webhook has had a chance to create the user in Convex.
+          // createFromSignup handles both cases: creates the user if they don't
+          // exist yet (with correct roles), or updates their roles if they do.
+          await createFromSignup({
+            clerkId: completeSignUp.createdUserId!,
+            email: data.email || "",
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
+            roles: data.roles || [],
+            fields: data.fields,
+            otherFieldDescription: data.otherFieldDescription,
+            companyInfo: data.companyInfo,
           });
-          
+
           sessionStorage.removeItem("signupData");
         }
         
