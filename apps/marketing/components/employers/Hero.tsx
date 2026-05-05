@@ -2,6 +2,8 @@
 
 import { ArrowRight, CheckCircle } from 'lucide-react'
 
+const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'https://app.kazicloud.com'
+
 export default function EmployersHero() {
   return (
     <section className="relative pt-32 pb-20 overflow-hidden">
@@ -38,15 +40,17 @@ export default function EmployersHero() {
 
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
               <a
-                href="/signup?type=employer"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-lg bg-brand-orange text-white font-bold text-lg hover:bg-text-primary transition-colors"
+                href={`${WEB_APP_URL}/sign-in`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-brand-orange text-white font-bold text-lg hover:bg-text-primary transition-colors"
               >
                 Post a Job
                 <ArrowRight className="w-5 h-5" />
               </a>
               <a
                 href="#how-it-works"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-lg border-2 border-text-primary text-text-primary font-bold text-lg hover:bg-text-primary hover:text-white transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-text-primary text-text-primary font-bold text-lg hover:bg-text-primary hover:text-white transition-colors"
               >
                 See How It Works
               </a>

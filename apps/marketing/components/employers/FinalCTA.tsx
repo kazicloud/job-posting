@@ -1,5 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 
+const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'https://app.kazicloud.com'
+  
 export default function FinalCTA() {
   return (
     <section className="section-padding bg-gradient-to-br from-text-primary to-text-primary/90 text-white relative overflow-hidden">
@@ -23,15 +25,17 @@ export default function FinalCTA() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <a
-              href="/signup?type=employer"
-              className="inline-flex items-center justify-center gap-2 px-10 py-5 rounded-lg bg-brand-orange text-white font-bold text-lg hover:bg-white hover:text-text-primary transition-colors"
+              href={`${WEB_APP_URL}/sign-in`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-brand-orange text-white font-bold text-lg hover:bg-white hover:text-text-primary transition-colors"
             >
               Post Your First Job
               <ArrowRight className="w-5 h-5" />
             </a>
             <a
               href="/contact"
-              className="inline-flex items-center justify-center gap-2 px-10 py-5 rounded-lg border-2 border-white text-white font-bold text-lg hover:bg-white hover:text-text-primary transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-white text-white font-bold text-lg hover:bg-white hover:text-text-primary transition-colors"
             >
               Talk to Sales
             </a>

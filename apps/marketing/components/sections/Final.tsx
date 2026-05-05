@@ -1,5 +1,7 @@
 'use client'
 
+const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'https://app.kazicloud.com'
+
 export default function Final() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-neutral-secondary via-white to-neutral-secondary">
@@ -67,7 +69,9 @@ export default function Final() {
               {/* Dual CTAs */}
               <div className="space-y-3 sm:space-y-4 mb-8 sm:mb-12">
                 <a
-                  href="/signup?type=jobseeker"
+                  href={`${WEB_APP_URL}/sign-up?role=job_seeker`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="group flex items-center justify-between px-6 sm:px-8 py-4 sm:py-5 rounded-lg bg-text-primary text-white hover:bg-brand-orange transition-colors"
                 >
                   <div>
@@ -80,7 +84,9 @@ export default function Final() {
                 </a>
 
                 <a
-                  href="/signup?type=employer"
+                  href={`${WEB_APP_URL}/sign-up?role=employer`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="group flex items-center justify-between px-6 sm:px-8 py-4 sm:py-5 border-2 border-text-primary text-text-primary hover:bg-text-primary hover:text-white transition-colors rounded-lg"
                 >
                   <div>

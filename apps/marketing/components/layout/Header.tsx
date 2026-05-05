@@ -17,7 +17,7 @@ const pagesDropdown = [
   { name: 'Terms of Service', href: '/terms' },
 ]
 
-const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'http://localhost:3000'
+const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'https://app.kazicloud.com'
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -113,12 +113,16 @@ export default function Header() {
           <div className="hidden md:flex items-center space-x-4">
             <a
               href={`${WEB_APP_URL}/sign-in`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-sm font-medium text-text-primary hover:text-brand-orange transition-colors"
             >
               Sign In
             </a>
             <a
               href={`${WEB_APP_URL}/sign-up`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="px-6 py-2.5 rounded-lg bg-brand-orange text-white text-sm font-medium hover:bg-brand-orange transition-colors"
             >
               Get Started
@@ -186,6 +190,8 @@ export default function Header() {
             <div className="pt-4 space-y-3 border-t border-border">
               <a
                 href={`${WEB_APP_URL}/sign-in`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block text-center px-6 py-3 rounded-lg border border-text-primary text-text-primary font-medium"
                 onClick={() => setMobileMenuOpen(false)}
               >
@@ -193,6 +199,8 @@ export default function Header() {
               </a>
               <a
                 href={`${WEB_APP_URL}/sign-up`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block text-center px-6 py-3 rounded-lg bg-brand-orange text-white font-medium"
                 onClick={() => setMobileMenuOpen(false)}
               >

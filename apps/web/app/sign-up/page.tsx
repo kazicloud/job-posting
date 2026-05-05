@@ -78,7 +78,7 @@ function SignUpContent() {
   const { isSignedIn, user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { username, selectedRoles, setUsername, toggleRole, reset } = useSignUpStore();
+  const { username, selectedRoles, setUsername, setSelectedRoles, toggleRole, reset } = useSignUpStore();
 
   // Derive from the reactive searchParams hook — works correctly with
   // client-side navigation from the SSO callback.
@@ -102,6 +102,15 @@ function SignUpContent() {
       if (name) setUsername(name);
     }
   }, [isOAuthComplete, user, username, setUsername]);
+
+  // Pre-select role from URL query param (?role=job_seeker or ?role=employer)
+  useEffect(() => {
+    const roleParam = searchParams.get("role");
+    if (roleParam === "job_seeker" || roleParam === "employer") {
+      setSelectedRoles([roleParam]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Show a contextual banner when the user arrived here from an OAuth
   // sign-in attempt without an existing Kazicloud account.

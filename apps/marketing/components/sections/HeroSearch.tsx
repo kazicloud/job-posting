@@ -3,7 +3,7 @@
 import { Search, Loader2 } from 'lucide-react'
 import { useJobSearch } from '../../hooks/useJobSearch'
 
-const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'http://localhost:3000'
+const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || 'https://app.kazicloud.com'
 
 export default function HeroSearch() {
   const { query, setQuery, results, isSearching, hasQuery } = useJobSearch()
