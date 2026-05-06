@@ -10,6 +10,8 @@ import { BasicInfoStep } from "@/components/onboarding/basic-info-step";
 import { StatusStep } from "@/components/onboarding/status-step";
 import { SkillsStep } from "@/components/onboarding/skills-step";
 import { PreferencesStep } from "@/components/onboarding/preferences-step";
+import { ExperienceStep } from "@/components/onboarding/experience-step";
+import { EducationStep } from "@/components/onboarding/education-step";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -114,7 +116,9 @@ export default function OnboardingPage() {
         basicInfo: 1,
         status: 2,
         skills: 3,
-        preferences: 4,
+        experience: 4,
+        education: 5,
+        preferences: 6,
       }[stepKey] || 1;
 
       try {
@@ -185,18 +189,19 @@ export default function OnboardingPage() {
         />
       ),
       validate: () => {
-        const { fullName, phone, county, desiredJobTitle, headline } = formData.basicInfo || {};
+        const { fullName, phone, preferredCountry, preferredRegions, desiredJobTitle, headline } = formData.basicInfo || {};
         if (!fullName?.trim()) return { isValid: false, error: "Full name is required" };
         if (!phone?.trim()) return { isValid: false, error: "Phone number is required" };
-        if (!county?.trim()) return { isValid: false, error: "County is required" };
+        if (!preferredCountry?.trim()) return { isValid: false, error: "Please select your preferred work country" };
+        if (!preferredRegions?.length) return { isValid: false, error: "Please select at least one county/region" };
         if (!desiredJobTitle?.trim()) return { isValid: false, error: "Desired job title is required" };
         if (!headline?.trim()) return { isValid: false, error: "Professional headline is required" };
         return { isValid: true };
       },
-      requiredFields: 5,
+      requiredFields: 6,
       getFilledFields: () => {
-        const { fullName, phone, county, desiredJobTitle, headline } = formData.basicInfo || {};
-        return [fullName, phone, county, desiredJobTitle, headline].filter(f => f?.trim()).length;
+        const { fullName, phone, preferredCountry, preferredRegions, desiredJobTitle, headline } = formData.basicInfo || {};
+        return [fullName, phone, preferredCountry, preferredRegions?.length ? "ok" : "", desiredJobTitle, headline].filter(f => f?.toString().trim()).length;
       },
     },
     {
@@ -245,6 +250,36 @@ export default function OnboardingPage() {
       },
       requiredFields: 3,
       getFilledFields: () => formData.skills?.skills?.length || 0,
+    },
+    {
+      title: "Your work experience",
+      description: "Add your previous roles — this helps employers know your background",
+      component: (
+        <ExperienceStep
+          onDataChange={(data) => handleStepData("experience", data)}
+          initialData={formData.experience}
+          cvExtras={formData._cvExtras}
+        />
+      ),
+      // optional step — always valid
+      validate: () => ({ isValid: true }),
+      requiredFields: 0,
+      getFilledFields: () => 0,
+    },
+    {
+      title: "Your education",
+      description: "Add your academic background so employers can see your qualifications",
+      component: (
+        <EducationStep
+          onDataChange={(data) => handleStepData("education", data)}
+          initialData={formData.education}
+          cvExtras={formData._cvExtras}
+        />
+      ),
+      // optional step — always valid
+      validate: () => ({ isValid: true }),
+      requiredFields: 0,
+      getFilledFields: () => 0,
     },
     {
       title: "What are you looking for?",

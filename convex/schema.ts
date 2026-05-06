@@ -14,6 +14,7 @@ export default defineSchema({
     phone: v.optional(v.string()),
     county: v.optional(v.string()),
     country: v.optional(v.string()), // Defaults to "Kenya"
+    preferredRegions: v.optional(v.array(v.string())), // Up to 5 preferred work regions
     location: v.optional(v.string()), // Legacy field - keep for backward compatibility
     resumeStorageId: v.optional(v.string()), // Convex file storage ID
     onboardingCompleted: v.optional(v.boolean()),
@@ -45,6 +46,7 @@ export default defineSchema({
     openToWork: v.optional(v.boolean()),
     availability: v.optional(v.union(
       v.literal("immediate"),
+      v.literal("2_weeks"),
       v.literal("1_month"),
       v.literal("2_months"),
       v.literal("3_months")
