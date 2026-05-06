@@ -4,7 +4,7 @@ import { EmployerDashboardLayout } from "@/components/employer-dashboard/employe
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
-import { Building2, MapPin, Globe, Users, Mail, Phone, Shield, Bell, CreditCard, Trash2, Lock, Pencil, X, Send, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Building2, MapPin, Globe, Users, Mail, Phone, Shield, Bell, CreditCard, Trash2, Lock, Pencil, X, Send, CheckCircle, Clock, AlertCircle, ChevronDown } from "lucide-react";
 import { DeleteAccountSection } from "@/components/settings/delete-account-section";
 
 export default function EmployerSettingsPage() {
@@ -72,80 +72,447 @@ export default function EmployerSettingsPage() {
   );
 }
 
+const INDUSTRIES = [
+  { value: "technology", label: "Technology & IT" },
+  { value: "marketing", label: "Marketing & Sales" },
+  { value: "finance", label: "Finance & Accounting" },
+  { value: "engineering", label: "Engineering" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "education", label: "Education & Training" },
+  { value: "hospitality", label: "Hospitality & Tourism" },
+  { value: "agriculture", label: "Agriculture" },
+  { value: "construction", label: "Construction" },
+  { value: "logistics", label: "Logistics & Transport" },
+  { value: "creative", label: "Creative & Design" },
+  { value: "customer_service", label: "Customer Service" },
+  { value: "other", label: "Other" },
+];
+
+const COMPANY_SIZES = [
+  { value: "startup", label: "Startup (1-10)" },
+  { value: "small", label: "Small (11-50)" },
+  { value: "medium", label: "Medium (51-200)" },
+  { value: "large", label: "Large (200+)" },
+  { value: "ngo", label: "NGO/Non-Profit" },
+  { value: "agency", label: "Recruitment Agency" },
+];
+
+// ─── Country / verification config (mirrors employer-wizard) ─────────────────
+const SUPPORTED_COUNTRIES = [
+  { code: "KE" as const, name: "Kenya",    hqLabel: "County",           hqPlaceholder: "e.g., Nairobi",       phonePlaceholder: "+254712345678 or 0712345678", isKenya: true  },
+  { code: "RW" as const, name: "Rwanda",   hqLabel: "Province or City", hqPlaceholder: "e.g., Kigali",        phonePlaceholder: "+250 78 000 0000",           isKenya: false },
+  { code: "TZ" as const, name: "Tanzania", hqLabel: "Region or City",   hqPlaceholder: "e.g., Dar es Salaam", phonePlaceholder: "+255 71 000 0000",           isKenya: false },
+  { code: "UG" as const, name: "Uganda",   hqLabel: "District or City", hqPlaceholder: "e.g., Kampala",       phonePlaceholder: "+256 70 000 0000",           isKenya: false },
+];
+
+type CountryCode = "KE" | "RW" | "TZ" | "UG";
+
+const COUNTRY_NAME_TO_CODE: Record<string, CountryCode> = {
+  Kenya: "KE", Rwanda: "RW", Tanzania: "TZ", Uganda: "UG",
+  KE: "KE", RW: "RW", TZ: "TZ", UG: "UG",
+};
+
+const VERIFICATION_CONFIG: Record<
+  CountryCode,
+  { regLabel: string; regHint: string; taxLabel: string; taxHint: string; certLabel: string; certHint: string }
+> = {
+  KE: {
+    regLabel: "Business Registration Number (BRS)",
+    regHint: "Verified with Kenya Business Registration Service",
+    taxLabel: "KRA PIN",
+    taxHint: "Kenya Revenue Authority Personal Identification Number",
+    certLabel: "Certificate of Incorporation",
+    certHint: "Certificate of Incorporation or Business Registration Certificate",
+  },
+  RW: {
+    regLabel: "RDB Registration Number",
+    regHint: "Rwanda Development Board business registration number",
+    taxLabel: "RRA Tax Identification Number (TIN)",
+    taxHint: "9-digit TIN issued by Rwanda Revenue Authority",
+    certLabel: "Certificate of Incorporation",
+    certHint: "Upload your RDB Certificate of Incorporation",
+  },
+  TZ: {
+    regLabel: "BRELA Registration Number",
+    regHint: "Business Registrations and Licensing Agency registration number",
+    taxLabel: "TRA Tax Identification Number (TIN)",
+    taxHint: "9-digit TIN issued by Tanzania Revenue Authority",
+    certLabel: "Certificate of Incorporation",
+    certHint: "Upload your BRELA Certificate of Incorporation",
+  },
+  UG: {
+    regLabel: "URSB Registration Number",
+    regHint: "Uganda Registration Services Bureau business registration number",
+    taxLabel: "URA Tax Identification Number (TIN)",
+    taxHint: "10-digit TIN issued by Uganda Revenue Authority",
+    certLabel: "Certificate of Incorporation",
+    certHint: "Upload your URSB Certificate of Incorporation",
+  },
+};
+
+// ── Tiny helper: per-section save button ─────────────────────────────────────
+function SectionSaveButton({
+  dirty,
+  saving,
+  saved,
+  onClick,
+}: {
+  dirty: boolean;
+  saving: boolean;
+  saved: boolean;
+  onClick: () => void;
+}) {
+  if (saved) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="px-5 py-2 rounded-md text-sm font-medium bg-green-50 text-green-700 border border-green-200 flex items-center gap-1.5 cursor-default"
+      >
+        <CheckCircle className="w-4 h-4" />
+        Saved
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!dirty || saving}
+      className="px-5 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-brand-orange text-white hover:bg-brand-orange/90"
+    >
+      {saving ? "Saving…" : "Save Changes"}
+    </button>
+  );
+}
+
+function MissingBadge() {
+  return (
+    <span className="ml-1.5 text-xs font-normal bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
+      Missing
+    </span>
+  );
+}
+
 function CompanyProfileTab({ profile }: { profile: any }) {
   const updateProfile = useMutation(api.profile.updateEmployerProfile);
+  const fillMissingData = useMutation(api.profile.fillMissingEmployerData);
+  const generateUploadUrl = useMutation(api.employerDocuments.generateUploadUrl);
   const submitChangeRequest = useMutation(api.profileChangeRequests.submitChangeRequest);
   const notifyAdmin = useAction(api.emails.notifyAdminProfileChangeRequest);
   const changeRequest = useQuery(api.profileChangeRequests.getMyChangeRequest);
 
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(
-    profile?.employerProfile?.companyLogo || null
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [requestReason, setRequestReason] = useState("");
-  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
-  const [industry, setIndustry] = useState(profile?.employerProfile?.companyIndustries?.[0] || "");
-  const [companySize, setCompanySize] = useState(profile?.employerProfile?.companySize || "");
-
   const ep = profile?.employerProfile;
 
-  // Editing is allowed only if admin approved the change request
+  // ── Edit-approval ─────────────────────────────────────────────────────────
   const isEditApproved = changeRequest?.status === "approved";
   const hasPendingRequest = changeRequest?.status === "pending";
 
-  useEffect(() => {
-    if (ep?.companyLogo) setLogoPreview(ep.companyLogo);
-  }, [ep?.companyLogo]);
+  // ── Country resolution ────────────────────────────────────────────────────
+  const resolvedCode: CountryCode | null = ep?.country
+    ? (COUNTRY_NAME_TO_CODE[ep.country] ?? null)
+    : null;
 
+  // ── Which fields are missing ──────────────────────────────────────────────
+  const missing = {
+    country: !ep?.country,
+    companySize: !ep?.companySize,
+    companyIndustries: !ep?.companyIndustries?.length,
+    website: !ep?.website,
+    foundedYear: !ep?.foundedYear,
+    linkedInProfile: !ep?.linkedInProfile,
+    companyDescription: !ep?.companyDescription,
+    headquarters: !ep?.headquarters,
+    contactPersonName: !ep?.contactPersonName,
+    contactPersonTitle: !ep?.contactPersonTitle,
+    contactPersonPhone: !ep?.contactPersonPhone,
+    companyLogo: !ep?.companyLogo,
+    incorporationCert: !ep?.incorporationCertStorageId,
+  };
+  const missingCount = Object.values(missing).filter(Boolean).length;
+
+  // Field is editable when it's missing OR edit is approved
+  const editable = (isMissing: boolean) => isMissing || isEditApproved;
+
+  // ── Form state ────────────────────────────────────────────────────────────
+  const [selectedCountryCode, setSelectedCountryCode] = useState<CountryCode | "">(resolvedCode ?? "");
+  const [logoPreview, setLogoPreview] = useState<string | null>(ep?.companyLogo || null);
+  const [selectedIndustries, setSelectedIndustries] = useState<string[]>(ep?.companyIndustries || []);
+  const [companySize, setCompanySize] = useState(ep?.companySize || "");
+  const [companyName, setCompanyName] = useState(ep?.companyName || "");
+  const [website, setWebsite] = useState(ep?.website || "");
+  const [foundedYear, setFoundedYear] = useState(ep?.foundedYear?.toString() || "");
+  const [linkedIn, setLinkedIn] = useState(ep?.linkedInProfile || "");
+  const [description, setDescription] = useState(ep?.companyDescription || "");
+  const [headquarters, setHeadquarters] = useState(ep?.headquarters || "");
+  const [contactName, setContactName] = useState(ep?.contactPersonName || "");
+  const [contactTitle, setContactTitle] = useState(ep?.contactPersonTitle || "");
+  const [contactPhone, setContactPhone] = useState(ep?.contactPersonPhone || "");
+  const [showIndustryPicker, setShowIndustryPicker] = useState(false);
+
+  // Derived: full country object
+  const selectedCountry = selectedCountryCode
+    ? SUPPORTED_COUNTRIES.find((c) => c.code === selectedCountryCode) ?? null
+    : null;
+
+  // ── Debounced values for validation ──────────────────────────────────────
+  const [debouncedWebsite, setDebouncedWebsite] = useState(website);
+  const [debouncedLinkedIn, setDebouncedLinkedIn] = useState(linkedIn);
+  const [debouncedPhone, setDebouncedPhone] = useState(contactPhone);
+  const [debouncedDescription, setDebouncedDescription] = useState(description);
+  const [debouncedYear, setDebouncedYear] = useState(foundedYear);
+
+  useEffect(() => { const t = setTimeout(() => setDebouncedWebsite(website), 500); return () => clearTimeout(t); }, [website]);
+  useEffect(() => { const t = setTimeout(() => setDebouncedLinkedIn(linkedIn), 500); return () => clearTimeout(t); }, [linkedIn]);
+  useEffect(() => { const t = setTimeout(() => setDebouncedPhone(contactPhone), 500); return () => clearTimeout(t); }, [contactPhone]);
+  useEffect(() => { const t = setTimeout(() => setDebouncedDescription(description), 500); return () => clearTimeout(t); }, [description]);
+  useEffect(() => { const t = setTimeout(() => setDebouncedYear(foundedYear), 500); return () => clearTimeout(t); }, [foundedYear]);
+
+  // ── Convex validation queries ────────────────────────────────────────────
+  const websiteCheck = useQuery(
+    api.signupValidation.validateWebsiteUrl,
+    editable(missing.website) && debouncedWebsite.trim() ? { url: debouncedWebsite } : "skip"
+  );
+  const linkedInCheck = useQuery(
+    api.signupValidation.validateLinkedInUrl,
+    editable(missing.linkedInProfile) && debouncedLinkedIn.trim() ? { url: debouncedLinkedIn } : "skip"
+  );
+  const phoneCheck = useQuery(
+    api.signupValidation.validatePhoneNumber,
+    editable(missing.contactPersonPhone) && debouncedPhone.trim() && selectedCountry
+      ? { phone: debouncedPhone, isKenyaBased: selectedCountry.isKenya }
+      : "skip"
+  );
+  const descriptionCheck = useQuery(
+    api.signupValidation.validateDescription,
+    editable(missing.companyDescription) && debouncedDescription.trim() ? { description: debouncedDescription } : "skip"
+  );
+  const yearCheck = useQuery(
+    api.signupValidation.validateYearFounded,
+    editable(missing.foundedYear) && debouncedYear ? { year: parseInt(debouncedYear) } : "skip"
+  );
+
+  // ── Per-section saving / saved-flash state ───────────────────────────────
+  const [logoSaving, setLogoSaving] = useState(false);
+  const [logoSaved, setLogoSaved] = useState(false);
+  const [compSaving, setCompSaving] = useState(false);
+  const [compSaved, setCompSaved] = useState(false);
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactSaved, setContactSaved] = useState(false);
+  const [certSaving, setCertSaving] = useState(false);
+  const [certSaved, setCertSaved] = useState(false);
+
+  // ── Modal state ───────────────────────────────────────────────────────────
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestReason, setRequestReason] = useState("");
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+
+  // Sync from reactive Convex updates
   useEffect(() => {
     if (ep) {
-      setIndustry(ep.companyIndustries?.[0] || "");
+      setSelectedIndustries(ep.companyIndustries || []);
       setCompanySize(ep.companySize || "");
+      setCompanyName(ep.companyName || "");
+      setWebsite(ep.website || "");
+      setFoundedYear(ep.foundedYear?.toString() || "");
+      setLinkedIn(ep.linkedInProfile || "");
+      setDescription(ep.companyDescription || "");
+      setHeadquarters(ep.headquarters || "");
+      setContactName(ep.contactPersonName || "");
+      setContactTitle(ep.contactPersonTitle || "");
+      setContactPhone(ep.contactPersonPhone || "");
+      if (ep.companyLogo) setLogoPreview(ep.companyLogo);
+      const code: CountryCode | "" = ep.country ? (COUNTRY_NAME_TO_CODE[ep.country] ?? "") : "";
+      setSelectedCountryCode(code);
     }
   }, [ep]);
 
+  // Flash "Saved" for 2.5s then reset
+  const flashSaved = (setter: (v: boolean) => void) => {
+    setter(true);
+    setTimeout(() => setter(false), 2500);
+  };
+
+  // ── Dirty flags per section ───────────────────────────────────────────────
+  const logoDirty = logoPreview !== (ep?.companyLogo || null);
+
+  const industriesSorted = (arr: string[]) => [...arr].sort().join(",");
+  const companyInfoDirty =
+    companyName !== (ep?.companyName || "") ||
+    selectedCountryCode !== (resolvedCode ?? "") ||
+    industriesSorted(selectedIndustries) !== industriesSorted(ep?.companyIndustries || []) ||
+    companySize !== (ep?.companySize || "") ||
+    foundedYear !== (ep?.foundedYear?.toString() || "") ||
+    website !== (ep?.website || "") ||
+    linkedIn !== (ep?.linkedInProfile || "") ||
+    description !== (ep?.companyDescription || "") ||
+    headquarters !== (ep?.headquarters || "");
+
+  const contactInfoDirty =
+    contactName !== (ep?.contactPersonName || "") ||
+    contactTitle !== (ep?.contactPersonTitle || "") ||
+    contactPhone !== (ep?.contactPersonPhone || "");
+
+  // Show a section footer when it has at least one editable field
+  const companyHasEditable =
+    isEditApproved ||
+    missing.country ||
+    missing.companySize ||
+    missing.companyIndustries ||
+    missing.website ||
+    missing.foundedYear ||
+    missing.linkedInProfile ||
+    missing.companyDescription ||
+    missing.headquarters;
+
+  const contactHasEditable =
+    isEditApproved ||
+    missing.contactPersonName ||
+    missing.contactPersonTitle ||
+    missing.contactPersonPhone;
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setLogoPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!isEditApproved) return;
-    setIsSaving(true);
+  const toggleIndustry = (value: string) =>
+    setSelectedIndustries((prev) =>
+      prev.includes(value) ? prev.filter((i) => i !== value) : [...prev, value]
+    );
+
+  const handleSaveLogo = async () => {
+    setLogoSaving(true);
     try {
-      const fd = new FormData(e.currentTarget);
-      await updateProfile({
-        companyName: fd.get("companyName") as string,
-        companySize: fd.get("companySize") as string,
-        companyIndustries: [fd.get("industry") as string].filter(Boolean),
-        website: fd.get("website") as string,
-        foundedYear: fd.get("foundedYear") ? parseInt(fd.get("foundedYear") as string) : undefined,
-        linkedInProfile: fd.get("linkedInProfile") as string,
-        companyDescription: fd.get("companyDescription") as string,
-        isKenyaBased: ep?.isKenyaBased,
-        headquarters: fd.get("headquarters") as string,
-        country: ep?.country || "Kenya",
-        registrationNumber: ep?.registrationNumber,
-        kraPin: ep?.kraPin,
-        contactPersonName: fd.get("contactPersonName") as string,
-        contactPersonTitle: fd.get("contactPersonTitle") as string,
-        contactPersonPhone: fd.get("contactPersonPhone") as string,
-        companyLogo: logoPreview || undefined,
-      });
-      alert("Profile updated successfully!");
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      alert("Failed to update profile. Please try again.");
+      if (isEditApproved) {
+        await updateProfile({ companyLogo: logoPreview || undefined });
+      } else {
+        await fillMissingData({ companyLogo: logoPreview || undefined });
+      }
+      flashSaved(setLogoSaved);
+    } catch {
+      alert("Failed to save logo. Please try again.");
     } finally {
-      setIsSaving(false);
+      setLogoSaving(false);
+    }
+  };
+
+  const handleSaveCompanyInfo = async () => {
+    if (website && websiteCheck?.valid === false) {
+      alert("Please enter a valid website URL before saving.");
+      return;
+    }
+    if (linkedIn && linkedInCheck?.valid === false) {
+      alert("Please enter a valid LinkedIn URL before saving.");
+      return;
+    }
+    if (description && descriptionCheck?.valid === false) {
+      alert("Please improve your company description before saving.");
+      return;
+    }
+    if (foundedYear && yearCheck?.valid === false) {
+      alert("Please enter a valid founding year before saving.");
+      return;
+    }
+    setCompSaving(true);
+    try {
+      if (isEditApproved) {
+        await updateProfile({
+          companyName,
+          companySize: companySize || undefined,
+          companyIndustries: selectedIndustries,
+          website: website || undefined,
+          foundedYear: foundedYear ? parseInt(foundedYear) : undefined,
+          linkedInProfile: linkedIn || undefined,
+          companyDescription: description || undefined,
+          headquarters: headquarters || undefined,
+          isKenyaBased: selectedCountry?.isKenya ?? ep?.isKenyaBased,
+          country: selectedCountry?.name || ep?.country || undefined,
+          registrationNumber: ep?.registrationNumber,
+          kraPin: ep?.kraPin,
+          contactPersonName: ep?.contactPersonName,
+          contactPersonTitle: ep?.contactPersonTitle,
+          contactPersonPhone: ep?.contactPersonPhone,
+          companyLogo: ep?.companyLogo,
+        });
+      } else {
+        await fillMissingData({
+          companySize: missing.companySize && companySize ? companySize : undefined,
+          companyIndustries: missing.companyIndustries && selectedIndustries.length ? selectedIndustries : undefined,
+          companyDescription: missing.companyDescription && description ? description : undefined,
+          website: missing.website && website ? website : undefined,
+          foundedYear: missing.foundedYear && foundedYear ? parseInt(foundedYear) : undefined,
+          linkedInProfile: missing.linkedInProfile && linkedIn ? linkedIn : undefined,
+          headquarters: missing.headquarters && headquarters ? headquarters : undefined,
+          country: missing.country && selectedCountryCode ? selectedCountry?.name : undefined,
+          isKenyaBased: missing.country && selectedCountryCode ? selectedCountry?.isKenya : undefined,
+        });
+      }
+      flashSaved(setCompSaved);
+    } catch {
+      alert("Failed to save company information. Please try again.");
+    } finally {
+      setCompSaving(false);
+    }
+  };
+
+  const handleSaveContactInfo = async () => {
+    if (contactPhone && phoneCheck?.valid === false) {
+      alert("Please enter a valid phone number before saving.");
+      return;
+    }
+    setContactSaving(true);
+    try {
+      if (isEditApproved) {
+        await updateProfile({
+          companyName: ep?.companyName,
+          isKenyaBased: ep?.isKenyaBased,
+          country: ep?.country || undefined,
+          registrationNumber: ep?.registrationNumber,
+          kraPin: ep?.kraPin,
+          contactPersonName: contactName || undefined,
+          contactPersonTitle: contactTitle || undefined,
+          contactPersonPhone: contactPhone || undefined,
+          companyLogo: ep?.companyLogo,
+        });
+      } else {
+        await fillMissingData({
+          contactPersonName: missing.contactPersonName && contactName ? contactName : undefined,
+          contactPersonTitle: missing.contactPersonTitle && contactTitle ? contactTitle : undefined,
+          contactPersonPhone: missing.contactPersonPhone && contactPhone ? contactPhone : undefined,
+        });
+      }
+      flashSaved(setContactSaved);
+    } catch {
+      alert("Failed to save contact information. Please try again.");
+    } finally {
+      setContactSaving(false);
+    }
+  };
+
+  const handleUploadCert = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCertSaving(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const { storageId } = await res.json();
+      await fillMissingData({ incorporationCertStorageId: storageId });
+      flashSaved(setCertSaved);
+    } catch {
+      alert("Failed to upload document. Please try again.");
+    } finally {
+      setCertSaving(false);
     }
   };
 
@@ -174,55 +541,98 @@ function CompanyProfileTab({ profile }: { profile: any }) {
     }
   };
 
-  const COUNTRY_MAP: Record<string, string> = {
-    KE: "Kenya", RW: "Rwanda", TZ: "Tanzania", UG: "Uganda",
-    Kenya: "Kenya", Rwanda: "Rwanda", Tanzania: "Tanzania", Uganda: "Uganda",
-  };
-  const displayCountry = COUNTRY_MAP[ep?.country || ""] || ep?.country || "—";
+  // ── CSS helpers ───────────────────────────────────────────────────────────
+  const readOnlyClass =
+    "w-full px-4 py-2.5 border border-neutral-border rounded-md bg-gray-50 text-neutral-text-secondary cursor-not-allowed";
+  const editableClass =
+    "w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20";
+  const missingClass =
+    "w-full px-4 py-2.5 border border-dashed border-amber-400 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 bg-amber-50/20";
 
-  // Greyed out input styles
-  const readOnlyClass = "w-full px-4 py-2.5 border border-neutral-border rounded-md bg-gray-50 text-neutral-text-secondary cursor-not-allowed";
-  const editableClass = "w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20";
+  const inputClass = (isMissing: boolean) =>
+    !editable(isMissing) ? readOnlyClass : isMissing && !isEditApproved ? missingClass : editableClass;
+
+  // Layered class: base editable/missing styling + green/red validation border
+  const validatedInputClass = (isMissing: boolean, valid: boolean | null | undefined) => {
+    if (!editable(isMissing)) return readOnlyClass;
+    const base =
+      isMissing && !isEditApproved
+        ? "w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 bg-amber-50/20"
+        : "w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20";
+    if (valid === true) return `${base} border-green-500`;
+    if (valid === false) return `${base} border-red-500`;
+    return `${base} ${isMissing && !isEditApproved ? "border-dashed border-amber-400" : "border-neutral-border"}`;
+  };
+
+  // ── Verification config based on country ──────────────────────────────────
+  const verificationConfig = selectedCountry
+    ? VERIFICATION_CONFIG[selectedCountry.code]
+    : VERIFICATION_CONFIG["KE"];
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Edit Request Banner */}
-        {!isEditApproved && (
-          <div className={`rounded-lg border p-4 flex items-start gap-3 ${
-            hasPendingRequest
-              ? "bg-yellow-50 border-yellow-200"
-              : "bg-blue-50 border-blue-200"
-          }`}>
-            {hasPendingRequest ? (
-              <>
-                <Clock className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-800">Change Request Pending</p>
-                  <p className="text-sm text-yellow-700 mt-0.5">
-                    Your request to edit your profile is under review by an admin. You&apos;ll be notified once it&apos;s approved.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <Lock className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-800">Profile fields are locked</p>
-                  <p className="text-sm text-blue-700 mt-0.5">
-                    To protect data integrity, profile fields cannot be edited directly. To make changes, submit a request explaining what you need to update.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowRequestModal(true)}
-                  className="flex-shrink-0 px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center gap-2"
-                >
-                  <Pencil className="w-4 h-4" />
-                  Request Edit
-                </button>
-              </>
-            )}
+      <div className="space-y-6">
+        {/* ── Banners ───────────────────────────────────────────────────────── */}
+        {missingCount > 0 && (
+          <div className="rounded-lg border bg-amber-50 border-amber-200 p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-800">
+                {missingCount} incomplete field{missingCount !== 1 ? "s" : ""} in your profile
+              </p>
+              <p className="text-sm text-amber-700 mt-0.5">
+                Fields marked <span className="font-semibold">Missing</span> can be filled and
+                saved directly — no approval required. To change already-filled fields, use{" "}
+                <span className="font-semibold">Request Edit</span>.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {hasPendingRequest && (
+          <div className="rounded-lg border bg-yellow-50 border-yellow-200 p-4 flex items-start gap-3">
+            <Clock className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800">Change Request Pending</p>
+              <p className="text-sm text-yellow-700 mt-0.5">
+                Your request to edit existing profile fields is under admin review. You'll be
+                notified once it's approved.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!isEditApproved && !hasPendingRequest && missingCount === 0 && (
+          <div className="rounded-lg border bg-blue-50 border-blue-200 p-4 flex items-start gap-3">
+            <Lock className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-800">Profile fields are locked</p>
+              <p className="text-sm text-blue-700 mt-0.5">
+                To protect data integrity, profile fields cannot be edited directly. Submit a
+                request explaining what you need to update.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRequestModal(true)}
+              className="flex-shrink-0 px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center gap-2"
+            >
+              <Pencil className="w-4 h-4" />
+              Request Edit
+            </button>
+          </div>
+        )}
+
+        {!isEditApproved && !hasPendingRequest && missingCount > 0 && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowRequestModal(true)}
+              className="px-4 py-2 bg-white border border-brand-orange text-brand-orange text-sm font-medium rounded-lg hover:bg-brand-orange/5 transition-colors flex items-center gap-2"
+            >
+              <Pencil className="w-4 h-4" />
+              Request Edit for Existing Fields
+            </button>
           </div>
         )}
 
@@ -232,271 +642,494 @@ function CompanyProfileTab({ profile }: { profile: any }) {
             <div>
               <p className="text-sm font-medium text-green-800">Edit Mode Active</p>
               <p className="text-sm text-green-700 mt-0.5">
-                Your change request was approved. You can now edit your profile fields below. Save your changes when done.
+                Your change request was approved. You can now edit all profile fields below.
+                Each section saves independently.
               </p>
             </div>
           </div>
         )}
 
-        {/* Company Logo */}
-        <div className="bg-white border border-neutral-border rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-neutral-text mb-6">Company Logo</h3>
-          <div className="flex items-start gap-6">
-            <div className="flex-shrink-0">
-              {logoPreview ? (
-                <div className="relative w-32 h-32 border-2 border-neutral-border rounded-lg overflow-hidden bg-neutral-bg-secondary">
-                  <img src={logoPreview} alt="Company logo" className="w-full h-full object-contain" />
+        {/* ── Company Logo ──────────────────────────────────────────────────── */}
+        <div className="bg-white border border-neutral-border rounded-lg overflow-hidden">
+          <div className="p-6">
+            <h3 className="text-base font-semibold text-neutral-text mb-5">
+              Company Logo{missing.companyLogo && <MissingBadge />}
+            </h3>
+            <div className="flex items-start gap-6">
+              <div className="flex-shrink-0">
+                {logoPreview ? (
+                  <div className="w-24 h-24 border-2 border-neutral-border rounded-lg overflow-hidden bg-neutral-bg-secondary">
+                    <img src={logoPreview} alt="Company logo" className="w-full h-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 border-2 border-dashed border-amber-400 rounded-lg flex items-center justify-center bg-amber-50/30">
+                    <Building2 className="w-10 h-10 text-amber-400" />
+                  </div>
+                )}
+              </div>
+              {editable(missing.companyLogo) ? (
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-neutral-text mb-1">Upload your company logo</p>
+                  <p className="text-sm text-neutral-text-secondary mb-4">
+                    Square image, at least 200×200 px. Max 2 MB.
+                  </p>
+                  <label className="inline-flex items-center px-4 py-2 bg-white border border-neutral-border text-neutral-text text-sm font-medium rounded-md hover:bg-neutral-bg-secondary cursor-pointer transition-colors">
+                    Choose File
+                    <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+                  </label>
                 </div>
               ) : (
-                <div className="w-32 h-32 border-2 border-dashed border-neutral-border rounded-lg flex items-center justify-center bg-neutral-bg-secondary">
-                  <Building2 className="w-12 h-12 text-neutral-text-muted" />
+                <div className="flex-1 flex items-center">
+                  <p className="text-sm text-neutral-text-secondary">
+                    {logoPreview ? "Logo uploaded." : "No logo uploaded yet."}
+                  </p>
                 </div>
               )}
             </div>
-            {isEditApproved && (
-              <div className="flex-1">
-                <p className="text-sm text-neutral-text mb-2 font-medium">Upload your company logo</p>
-                <p className="text-sm text-neutral-text-secondary mb-4">Recommended: Square image, at least 200x200px. Max 2MB</p>
-                <label className="px-4 py-2.5 bg-white border border-neutral-border text-neutral-text text-sm font-medium rounded-md hover:bg-neutral-bg-secondary cursor-pointer transition-colors">
-                  Choose File
-                  <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
-                </label>
-              </div>
-            )}
           </div>
+          {editable(missing.companyLogo) && (
+            <div className="px-6 py-4 border-t border-neutral-border bg-neutral-bg-secondary/50 flex items-center justify-between">
+              <p className="text-xs text-neutral-text-muted">
+                {logoDirty ? "You have unsaved changes." : "No changes."}
+              </p>
+              <SectionSaveButton dirty={logoDirty} saving={logoSaving} saved={logoSaved} onClick={handleSaveLogo} />
+            </div>
+          )}
         </div>
 
-        {/* Company Information */}
-        <div className="bg-white border border-neutral-border rounded-lg p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-neutral-text">Company Information</h3>
-            {!isEditApproved && (
-              <span className="flex items-center gap-1.5 text-xs text-neutral-text-muted">
-                <Lock className="w-3.5 h-3.5" /> Read-only
-              </span>
-            )}
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-text mb-2">Company Name</label>
-              <input
-                type="text"
-                name="companyName"
-                defaultValue={ep?.companyName}
-                readOnly={!isEditApproved}
-                className={isEditApproved ? editableClass : readOnlyClass}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Industry</label>
-                {isEditApproved ? (
-                  <select
-                    name="industry"
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    className={editableClass}
-                  >
-                    <option value="">Select industry</option>
-                    <option value="technology">Technology & IT</option>
-                    <option value="marketing">Marketing & Sales</option>
-                    <option value="finance">Finance & Accounting</option>
-                    <option value="engineering">Engineering</option>
-                    <option value="healthcare">Healthcare</option>
-                    <option value="education">Education & Training</option>
-                    <option value="hospitality">Hospitality & Tourism</option>
-                    <option value="agriculture">Agriculture</option>
-                    <option value="construction">Construction</option>
-                    <option value="logistics">Logistics & Transport</option>
-                    <option value="creative">Creative & Design</option>
-                    <option value="customer_service">Customer Service</option>
-                    <option value="other">Other</option>
-                  </select>
-                ) : (
-                  <input type="text" value={industry || "—"} readOnly className={readOnlyClass} />
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Company Size</label>
-                {isEditApproved ? (
-                  <select
-                    name="companySize"
-                    value={companySize}
-                    onChange={(e) => setCompanySize(e.target.value)}
-                    className={editableClass}
-                  >
-                    <option value="">Select size</option>
-                    <option value="startup">Startup (1-10)</option>
-                    <option value="small">Small (11-50)</option>
-                    <option value="medium">Medium (51-200)</option>
-                    <option value="large">Large (200+)</option>
-                    <option value="ngo">NGO/Non-Profit</option>
-                    <option value="agency">Recruitment Agency</option>
-                  </select>
-                ) : (
-                  <input type="text" value={companySize || "—"} readOnly className={readOnlyClass} />
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Website</label>
-                <input
-                  type="url"
-                  name="website"
-                  defaultValue={ep?.website}
-                  readOnly={!isEditApproved}
-                  placeholder="https://example.com"
-                  className={isEditApproved ? editableClass : readOnlyClass}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Founded Year</label>
-                <input
-                  type="number"
-                  name="foundedYear"
-                  min="1800"
-                  max={new Date().getFullYear()}
-                  defaultValue={ep?.foundedYear}
-                  readOnly={!isEditApproved}
-                  placeholder="2020"
-                  className={isEditApproved ? editableClass : readOnlyClass}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-text mb-2">LinkedIn Profile</label>
-              <input
-                type="url"
-                name="linkedInProfile"
-                defaultValue={ep?.linkedInProfile}
-                readOnly={!isEditApproved}
-                placeholder="https://linkedin.com/company/your-company"
-                className={isEditApproved ? editableClass : readOnlyClass}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-text mb-2">Company Description</label>
-              <textarea
-                rows={4}
-                name="companyDescription"
-                defaultValue={ep?.companyDescription}
-                readOnly={!isEditApproved}
-                placeholder="Tell us about your company..."
-                className={isEditApproved ? editableClass : readOnlyClass}
-              />
-            </div>
-
-            {/* Location */}
-            <div className="pt-4 border-t border-neutral-border">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-semibold text-neutral-text">Location</h4>
+        {/* ── Company Information ────────────────────────────────────────────── */}
+        <div className="bg-white border border-neutral-border rounded-lg overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-neutral-text">Company Information</h3>
+              {!isEditApproved && (
                 <span className="flex items-center gap-1.5 text-xs text-neutral-text-muted">
-                  <Lock className="w-3.5 h-3.5" /> Read-only
+                  <Lock className="w-3.5 h-3.5" />
+                  {missingCount > 0 ? "Existing fields locked" : "Read-only"}
                 </span>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {/* Company Name */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">Company Name</label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => isEditApproved && setCompanyName(e.target.value)}
+                  readOnly={!isEditApproved}
+                  className={isEditApproved ? editableClass : readOnlyClass}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-text mb-2">Country</label>
-                  <input type="text" value={displayCountry} readOnly className={readOnlyClass} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-text mb-2">Headquarters</label>
+
+              {/* Industries */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  Industry / Industries{missing.companyIndustries && <MissingBadge />}
+                </label>
+                {editable(missing.companyIndustries) ? (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowIndustryPicker((p) => !p)}
+                      className={`${missing.companyIndustries && !isEditApproved ? missingClass : editableClass} text-left flex items-center justify-between`}
+                    >
+                      <span className={selectedIndustries.length ? "text-neutral-text" : "text-neutral-text-muted"}>
+                        {selectedIndustries.length
+                          ? selectedIndustries.map((v) => INDUSTRIES.find((i) => i.value === v)?.label).filter(Boolean).join(", ")
+                          : "Select one or more industries…"}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-neutral-text-muted flex-shrink-0" />
+                    </button>
+                    {showIndustryPicker && (
+                      <>
+                        <div className="fixed inset-0 z-[9]" onClick={() => setShowIndustryPicker(false)} />
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-border rounded-lg shadow-lg z-[10] max-h-60 overflow-y-auto">
+                          {INDUSTRIES.map((industry) => (
+                            <label
+                              key={industry.value}
+                              className="flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-bg-secondary cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedIndustries.includes(industry.value)}
+                                onChange={() => toggleIndustry(industry.value)}
+                                className="rounded border-neutral-border accent-brand-orange"
+                              />
+                              <span className="text-sm text-neutral-text">{industry.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
                   <input
                     type="text"
-                    name="headquarters"
-                    defaultValue={ep?.headquarters}
-                    readOnly={!isEditApproved}
-                    className={isEditApproved ? editableClass : readOnlyClass}
+                    value={selectedIndustries.map((v) => INDUSTRIES.find((i) => i.value === v)?.label).filter(Boolean).join(", ") || "—"}
+                    readOnly
+                    className={readOnlyClass}
+                  />
+                )}
+              </div>
+
+              {/* Company Size + Founded Year */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-2">
+                    Company Size{missing.companySize && <MissingBadge />}
+                  </label>
+                  {editable(missing.companySize) ? (
+                    <select
+                      value={companySize}
+                      onChange={(e) => setCompanySize(e.target.value)}
+                      className={missing.companySize && !isEditApproved ? missingClass : editableClass}
+                    >
+                      <option value="">Select size</option>
+                      {COMPANY_SIZES.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={COMPANY_SIZES.find((s) => s.value === companySize)?.label || companySize || "—"}
+                      readOnly
+                      className={readOnlyClass}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-2">
+                    Founded Year{missing.foundedYear && <MissingBadge />}
+                  </label>
+                  <input
+                    type="number"
+                    min="1800"
+                    max={new Date().getFullYear()}
+                    value={foundedYear}
+                    onChange={(e) => editable(missing.foundedYear) && setFoundedYear(e.target.value)}
+                    readOnly={!editable(missing.foundedYear)}
+                    placeholder="e.g. 2010"
+                    className={validatedInputClass(missing.foundedYear, yearCheck?.valid)}
+                  />
+                  {yearCheck?.valid === false && (
+                    <p className="text-xs mt-1 text-red-600">{yearCheck.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Website */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  Website{missing.website && <MissingBadge />}
+                </label>
+                <input
+                  type="url"
+                  value={website}
+                  onChange={(e) => editable(missing.website) && setWebsite(e.target.value)}
+                  onBlur={(e) => {
+                    if (editable(missing.website)) {
+                      const val = e.target.value.trim();
+                      if (val && !val.startsWith("http://") && !val.startsWith("https://")) {
+                        setWebsite("https://" + val);
+                      }
+                    }
+                  }}
+                  readOnly={!editable(missing.website)}
+                  placeholder="https://example.com"
+                  className={validatedInputClass(missing.website, websiteCheck?.valid)}
+                />
+                {websiteCheck?.valid === false && (
+                  <p className="text-xs mt-1 text-red-600">{websiteCheck.message}</p>
+                )}
+              </div>
+
+              {/* LinkedIn */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  LinkedIn Profile{missing.linkedInProfile && <MissingBadge />}
+                </label>
+                <input
+                  type="url"
+                  value={linkedIn}
+                  onChange={(e) => editable(missing.linkedInProfile) && setLinkedIn(e.target.value)}
+                  readOnly={!editable(missing.linkedInProfile)}
+                  placeholder="https://linkedin.com/company/your-company"
+                  className={validatedInputClass(missing.linkedInProfile, linkedInCheck?.valid)}
+                />
+                {linkedInCheck?.valid === false && (
+                  <p className="text-xs mt-1 text-red-600">{linkedInCheck.message}</p>
+                )}
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  Company Description{missing.companyDescription && <MissingBadge />}
+                </label>
+                <textarea
+                  rows={4}
+                  value={description}
+                  onChange={(e) => editable(missing.companyDescription) && setDescription(e.target.value)}
+                  readOnly={!editable(missing.companyDescription)}
+                  placeholder="Tell us about your company… (minimum 20 words)"
+                  className={validatedInputClass(missing.companyDescription, descriptionCheck?.valid)}
+                />
+                {descriptionCheck?.valid === false && (
+                  <p className="text-xs mt-1 text-red-600">{descriptionCheck.message}</p>
+                )}
+                {descriptionCheck?.valid === true && (
+                  <p className="text-xs mt-1 text-green-600">{descriptionCheck.message}</p>
+                )}
+              </div>
+
+              {/* Location */}
+              <div className="pt-4 border-t border-neutral-border">
+                <h4 className="text-sm font-semibold text-neutral-text mb-4">Location</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Country — dropdown when missing, read-only when set */}
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-text mb-2">
+                      Country{missing.country && <MissingBadge />}
+                    </label>
+                    {missing.country ? (
+                      <select
+                        value={selectedCountryCode}
+                        onChange={(e) => setSelectedCountryCode(e.target.value as CountryCode | "")}
+                        className={selectedCountryCode ? editableClass : missingClass}
+                      >
+                        <option value="">Select your country…</option>
+                        {SUPPORTED_COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.code}>{c.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={selectedCountry?.name || ep?.country || "—"}
+                          readOnly
+                          className={readOnlyClass}
+                        />
+                        <p className="text-xs text-neutral-text-muted mt-1 flex items-center gap-1">
+                          <Lock className="w-3 h-3" /> Set at registration
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Headquarters — label adapts to selected country */}
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-text mb-2">
+                      {selectedCountry?.hqLabel || "Headquarters"}{missing.headquarters && <MissingBadge />}
+                    </label>
+                    <input
+                      type="text"
+                      value={headquarters}
+                      onChange={(e) => editable(missing.headquarters) && setHeadquarters(e.target.value)}
+                      readOnly={!editable(missing.headquarters)}
+                      placeholder={selectedCountry?.hqPlaceholder || "City, Region"}
+                      className={inputClass(missing.headquarters)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {companyHasEditable && (
+            <div className="px-6 py-4 border-t border-neutral-border bg-neutral-bg-secondary/50 flex items-center justify-between">
+              <p className="text-xs text-neutral-text-muted">
+                {companyInfoDirty ? "You have unsaved changes." : "No changes."}
+              </p>
+              <SectionSaveButton
+                dirty={companyInfoDirty}
+                saving={compSaving}
+                saved={compSaved}
+                onClick={handleSaveCompanyInfo}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ── Contact Information ────────────────────────────────────────────── */}
+        <div className="bg-white border border-neutral-border rounded-lg overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-neutral-text">Contact Information</h3>
+              {!isEditApproved && (
+                <span className="flex items-center gap-1.5 text-xs text-neutral-text-muted">
+                  <Lock className="w-3.5 h-3.5" />
+                  {missingCount > 0 ? "Existing fields locked" : "Read-only"}
+                </span>
+              )}
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-2">
+                    Contact Person Name{missing.contactPersonName && <MissingBadge />}
+                  </label>
+                  <input
+                    type="text"
+                    value={contactName}
+                    onChange={(e) => editable(missing.contactPersonName) && setContactName(e.target.value)}
+                    readOnly={!editable(missing.contactPersonName)}
+                    className={inputClass(missing.contactPersonName)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-2">
+                    Job Title{missing.contactPersonTitle && <MissingBadge />}
+                  </label>
+                  <input
+                    type="text"
+                    value={contactTitle}
+                    onChange={(e) => editable(missing.contactPersonTitle) && setContactTitle(e.target.value)}
+                    readOnly={!editable(missing.contactPersonTitle)}
+                    placeholder="e.g. HR Manager, Recruiter"
+                    className={inputClass(missing.contactPersonTitle)}
                   />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-2">Email</label>
+                  <input type="email" value={profile?.email || "—"} readOnly className={readOnlyClass} />
+                  <p className="text-xs text-neutral-text-muted mt-1 flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> Managed by your account
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-2">
+                    Phone{missing.contactPersonPhone && <MissingBadge />}
+                  </label>
+                  <input
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => editable(missing.contactPersonPhone) && setContactPhone(e.target.value)}
+                    readOnly={!editable(missing.contactPersonPhone)}
+                    placeholder={selectedCountry?.phonePlaceholder || "+254 7XX XXX XXX"}
+                    className={validatedInputClass(missing.contactPersonPhone, phoneCheck?.valid)}
+                  />
+                  {phoneCheck?.valid === false && (
+                    <p className="text-xs mt-1 text-red-600">{phoneCheck.message}</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-
-          {isEditApproved && (
-            <div className="flex items-center gap-3 mt-6">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="px-6 py-2.5 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSaving ? "Saving..." : "Save Changes"}
-              </button>
+          {contactHasEditable && (
+            <div className="px-6 py-4 border-t border-neutral-border bg-neutral-bg-secondary/50 flex items-center justify-between">
+              <p className="text-xs text-neutral-text-muted">
+                {contactInfoDirty ? "You have unsaved changes." : "No changes."}
+              </p>
+              <SectionSaveButton
+                dirty={contactInfoDirty}
+                saving={contactSaving}
+                saved={contactSaved}
+                onClick={handleSaveContactInfo}
+              />
             </div>
           )}
         </div>
 
-        {/* Contact Information */}
-        <div className="bg-white border border-neutral-border rounded-lg p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-neutral-text">Contact Information</h3>
-            {!isEditApproved && (
-              <span className="flex items-center gap-1.5 text-xs text-neutral-text-muted">
-                <Lock className="w-3.5 h-3.5" /> Read-only
-              </span>
-            )}
-          </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Contact Person Name</label>
-                <input
-                  type="text"
-                  name="contactPersonName"
-                  defaultValue={ep?.contactPersonName}
-                  readOnly={!isEditApproved}
-                  className={isEditApproved ? editableClass : readOnlyClass}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Job Title</label>
-                <input
-                  type="text"
-                  name="contactPersonTitle"
-                  defaultValue={ep?.contactPersonTitle}
-                  readOnly={!isEditApproved}
-                  className={isEditApproved ? editableClass : readOnlyClass}
-                />
-              </div>
+        {/* ── Verification Documents ─────────────────────────────────────────── */}
+        <div className="bg-white border border-neutral-border rounded-lg overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-base font-semibold text-neutral-text">Verification Documents</h3>
+              {missing.incorporationCert && <MissingBadge />}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Email</label>
-                <input type="email" value={profile?.email || "—"} readOnly className={readOnlyClass} />
+            <p className="text-sm text-neutral-text-secondary mb-6">
+              Registration details are fixed at verification. You can upload the certificate if it's
+              missing — contact support to update any other document.
+            </p>
+            <div className="space-y-4">
+              {/* Registration Number + Tax ID — labels are country-aware */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-2">
+                    {verificationConfig.regLabel}
+                  </label>
+                  <input type="text" value={ep?.registrationNumber || "—"} readOnly className={readOnlyClass} />
+                  <p className="text-xs text-neutral-text-muted mt-1">{verificationConfig.regHint}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-text mb-2">
+                    {verificationConfig.taxLabel}
+                  </label>
+                  <input type="text" value={ep?.kraPin || "—"} readOnly className={readOnlyClass} />
+                  <p className="text-xs text-neutral-text-muted mt-1">{verificationConfig.taxHint}</p>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Phone</label>
-                <input
-                  type="tel"
-                  name="contactPersonPhone"
-                  defaultValue={ep?.contactPersonPhone}
-                  readOnly={!isEditApproved}
-                  className={isEditApproved ? editableClass : readOnlyClass}
-                />
-              </div>
-            </div>
-          </div>
 
-          {isEditApproved && (
-            <div className="flex items-center gap-3 mt-6">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="px-6 py-2.5 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSaving ? "Saving..." : "Save Changes"}
-              </button>
+              {/* Certificate of Incorporation */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  {verificationConfig.certLabel}{missing.incorporationCert && <MissingBadge />}
+                </label>
+                {ep?.incorporationCertStorageId || certSaved ? (
+                  <div className={`${readOnlyClass} flex items-center gap-2`}>
+                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <span className="text-green-700">Uploaded</span>
+                  </div>
+                ) : certSaving ? (
+                  <div className={`${readOnlyClass} flex items-center gap-2`}>
+                    <div className="w-4 h-4 border-2 border-brand-orange border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    <span className="text-neutral-text-secondary">Uploading…</span>
+                  </div>
+                ) : (
+                  <label className={`${missingClass} flex items-center gap-3 cursor-pointer hover:bg-amber-50/40 transition-colors`}>
+                    <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                    <span className="text-sm text-neutral-text flex-1">
+                      No document — click to upload PDF, JPG, or PNG
+                    </span>
+                    <span className="text-xs font-medium text-brand-orange px-3 py-1 border border-brand-orange rounded-md flex-shrink-0">
+                      Choose File
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleUploadCert}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-neutral-text-muted mt-1">{verificationConfig.certHint}</p>
+              </div>
+
+              {/* Verification Status */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">Verification Status</label>
+                <div className={`${readOnlyClass} flex items-center gap-2`}>
+                  {ep?.verificationStatus === "verified" && (
+                    <><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-green-700">Verified</span></>
+                  )}
+                  {ep?.verificationStatus === "documents_submitted" && (
+                    <><Clock className="w-4 h-4 text-blue-600" /><span className="text-blue-700">Documents Submitted — pending review</span></>
+                  )}
+                  {ep?.verificationStatus === "under_review" && (
+                    <><Clock className="w-4 h-4 text-yellow-600" /><span className="text-yellow-700">Under Review</span></>
+                  )}
+                  {ep?.verificationStatus === "rejected" && (
+                    <><AlertCircle className="w-4 h-4 text-red-600" /><span className="text-red-700">Rejected</span></>
+                  )}
+                  {(ep?.verificationStatus === "pending" || !ep?.verificationStatus) && (
+                    <span className="text-neutral-text-secondary">
+                      {ep?.verificationStatus === "pending" ? "Pending Submission" : "—"}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
-      </form>
+      </div>
 
-      {/* Request Edit Modal */}
+      {/* ── Request Edit Modal ─────────────────────────────────────────────── */}
       {showRequestModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -514,10 +1147,10 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <div className="p-6">
               <p className="text-sm text-neutral-text-secondary mb-4">
-                Please explain which fields you need to change and why. An admin will review your request and grant edit access if approved.
+                Please explain which existing fields you need to change and why. An admin will
+                review your request and grant edit access if approved.
               </p>
               <label className="block">
                 <span className="text-sm font-medium text-neutral-text">
@@ -526,7 +1159,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 <textarea
                   value={requestReason}
                   onChange={(e) => setRequestReason(e.target.value)}
-                  placeholder="e.g., We recently rebranded and need to update our company name and logo. We also moved our headquarters to a new city..."
+                  placeholder="e.g., We recently rebranded and need to update our company name and logo…"
                   className="mt-2 w-full px-4 py-3 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange resize-none"
                   rows={5}
                 />
@@ -535,7 +1168,6 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 Your request will be sent to the Kazicloud admin team for review.
               </p>
             </div>
-
             <div className="flex items-center justify-end gap-3 p-6 border-t border-neutral-border bg-neutral-bg-secondary rounded-b-lg">
               <button
                 onClick={() => { setShowRequestModal(false); setRequestReason(""); }}
@@ -549,7 +1181,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 className="px-6 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <Send className="w-4 h-4" />
-                {isSubmittingRequest ? "Submitting..." : "Submit Request"}
+                {isSubmittingRequest ? "Submitting…" : "Submit Request"}
               </button>
             </div>
           </div>
@@ -558,6 +1190,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
     </>
   );
 }
+
 
 function NotificationsTab() {
   return (

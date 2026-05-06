@@ -7,7 +7,7 @@ function calculateCompleteness(data: any): number {
     // Basic Info (40%)
     data.basicInfo?.fullName ? 10 : 0,
     data.basicInfo?.phone ? 5 : 0,
-    data.basicInfo?.county ? 5 : 0,
+    (data.basicInfo?.preferredRegions?.length || data.basicInfo?.county) ? 5 : 0,
     data.basicInfo?.desiredJobTitle ? 10 : 0,
     data.basicInfo?.headline ? 10 : 0,
     
@@ -154,8 +154,9 @@ export const completeOnboarding = mutation({
     await ctx.db.patch(userId, {
       fullName: data.basicInfo?.fullName,
       phone: data.basicInfo?.phone,
-      county: data.basicInfo?.county,
-      country: "Kenya",
+      county: data.basicInfo?.preferredRegions?.[0] || data.basicInfo?.county,
+      preferredRegions: data.basicInfo?.preferredRegions,
+      country: data.basicInfo?.preferredCountry || "KE",
       onboardingCompleted: isComplete,
     });
 
@@ -181,19 +182,30 @@ export const completeOnboarding = mutation({
       }
     }
 
-    // Save work experience from CV
-    if (data._cvExtras?.workExperience && data._cvExtras.workExperience.length > 0) {
-      for (let i = 0; i < data._cvExtras.workExperience.length; i++) {
-        const exp = data._cvExtras.workExperience[i];
-        // Skip if required fields are missing
+    // Save work experience — prefer manually entered; fall back to CV-parsed
+    const manualExperience: any[] = data.experience?.entries || [];
+    const cvExperience: any[] = data._cvExtras?.workExperience || [];
+    const experienceSource = manualExperience.length > 0 ? manualExperience : cvExperience;
+
+    if (experienceSource.length > 0) {
+      // Clear any previously saved work experience for this user
+      const existingExp = await ctx.db
+        .query("workExperience")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect();
+      for (const e of existingExp) {
+        await ctx.db.delete(e._id);
+      }
+
+      for (let i = 0; i < experienceSource.length; i++) {
+        const exp = experienceSource[i];
         if (!exp.company || !exp.title) continue;
-        
         await ctx.db.insert("workExperience", {
           userId,
           company: exp.company,
           title: exp.title,
-          industry: "Other", // Default, can be updated later
-          employmentType: "permanent", // Default
+          industry: exp.industry || "Other",
+          employmentType: (exp.employmentType as any) || "permanent",
           startDate: exp.startDate || "",
           endDate: exp.endDate || undefined,
           currentlyWorking: exp.currentlyWorking || false,
@@ -203,20 +215,32 @@ export const completeOnboarding = mutation({
       }
     }
 
-    // Save education from CV
-    if (data._cvExtras?.education && data._cvExtras.education.length > 0) {
-      for (let i = 0; i < data._cvExtras.education.length; i++) {
-        const edu = data._cvExtras.education[i];
-        // Skip if required fields are missing
+    // Save education — prefer manually entered; fall back to CV-parsed
+    const manualEducation: any[] = data.education?.entries || [];
+    const cvEducation: any[] = data._cvExtras?.education || [];
+    const educationSource = manualEducation.length > 0 ? manualEducation : cvEducation;
+
+    if (educationSource.length > 0) {
+      // Clear any previously saved education for this user
+      const existingEdu = await ctx.db
+        .query("education")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect();
+      for (const e of existingEdu) {
+        await ctx.db.delete(e._id);
+      }
+
+      for (let i = 0; i < educationSource.length; i++) {
+        const edu = educationSource[i];
         if (!edu.institution || !edu.fieldOfStudy) continue;
-        
         await ctx.db.insert("education", {
           userId,
           institution: edu.institution,
-          qualificationLevel: edu.qualificationLevel || "degree",
+          qualificationLevel: (edu.qualificationLevel as any) || "degree",
+          certificateType: edu.certificateType || undefined,
           fieldOfStudy: edu.fieldOfStudy,
           startYear: edu.startYear || "",
-          endYear: edu.endYear || "",
+          endYear: edu.currentlyStudying ? "" : (edu.endYear || ""),
           grade: edu.grade || undefined,
           order: i + 1,
         });

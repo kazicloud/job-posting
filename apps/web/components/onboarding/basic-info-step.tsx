@@ -1,12 +1,35 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, X, ChevronDown, Search } from "lucide-react";
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import countiesData from "@/data/counties.json";
 import { jobTitlesWithSkills, jobTitlesByField, popularJobs } from "@/data/job-titles";
 import { useSignUpStore } from "@/store/signup-store";
+
+const WORK_COUNTRIES = [
+  { code: "KE", name: "Kenya", flag: "🇰🇪", isKenya: true },
+  { code: "RW", name: "Rwanda", flag: "🇷🇼", isKenya: false },
+  { code: "TZ", name: "Tanzania", flag: "🇹🇿", isKenya: false },
+  { code: "UG", name: "Uganda", flag: "🇺🇬", isKenya: false },
+];
+
+const REGIONS_BY_COUNTRY: Record<string, string[]> = {
+  RW: ["Kigali City", "Northern Province", "Southern Province", "Eastern Province", "Western Province"],
+  TZ: [
+    "Arusha", "Dar es Salaam", "Dodoma", "Geita", "Iringa", "Kagera", "Katavi",
+    "Kigoma", "Kilimanjaro", "Lindi", "Mara", "Mbeya", "Morogoro", "Mtwara",
+    "Mwanza", "Njombe", "Pemba North", "Pemba South", "Pwani", "Rukwa",
+    "Ruvuma", "Shinyanga", "Simiyu", "Singida", "Songwe", "Tabora", "Tanga",
+    "Zanzibar North", "Zanzibar South", "Zanzibar West",
+  ],
+  UG: [
+    "Adjumani", "Arua", "Busia", "Fort Portal", "Gulu", "Hoima", "Iganga",
+    "Jinja", "Kabale", "Kampala", "Kasese", "Lira", "Masaka", "Mbarara",
+    "Mbale", "Moroto", "Mubende", "Mukono", "Soroti", "Tororo", "Wakiso",
+  ],
+};
 
 interface BasicInfoStepProps {
   onDataChange: (data: any) => void;
@@ -27,6 +50,8 @@ export function BasicInfoStep({ onDataChange, initialData }: BasicInfoStepProps)
   const [uploadError, setUploadError] = useState("");
   const [cvParsed, setCvParsed] = useState(false);
   const [uploadAttempts, setUploadAttempts] = useState(0);
+  const [regionSearch, setRegionSearch] = useState("");
+  const [regionDropdownOpen, setRegionDropdownOpen] = useState(false);
   const parseCV = useAction(api.cvParser.parseCV);
   const generateUploadUrl = useMutation(api.cvUpload.generateUploadUrl);
   const saveCVFile = useMutation(api.cvUpload.saveCVFile);
@@ -34,6 +59,8 @@ export function BasicInfoStep({ onDataChange, initialData }: BasicInfoStepProps)
   const [formData, setFormData] = useState({
     fullName: initialData?.fullName || "",
     phone: initialData?.phone || "",
+    preferredCountry: initialData?.preferredCountry || "KE",
+    preferredRegions: (initialData?.preferredRegions as string[]) || [],
     county: initialData?.county || "",
     desiredJobTitle: initialData?.desiredJobTitle || "",
     headline: initialData?.headline || "",
@@ -95,6 +122,8 @@ export function BasicInfoStep({ onDataChange, initialData }: BasicInfoStepProps)
         ...prev,
         fullName: initialData.fullName || prev.fullName,
         phone: initialData.phone || prev.phone,
+        preferredCountry: initialData.preferredCountry || prev.preferredCountry,
+        preferredRegions: initialData.preferredRegions || prev.preferredRegions,
         county: initialData.county || prev.county,
         desiredJobTitle: initialData.desiredJobTitle || prev.desiredJobTitle,
         headline: initialData.headline || prev.headline,
@@ -103,11 +132,45 @@ export function BasicInfoStep({ onDataChange, initialData }: BasicInfoStepProps)
     }
   }, [initialData, initialized]);
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: any) => {
     const updated = { ...formData, [field]: value };
+    // Keep county in sync with first preferredRegion for backward compat
+    if (field === "preferredRegions" && Array.isArray(value)) {
+      updated.county = value[0] || "";
+    }
+    if (field === "preferredCountry") {
+      updated.preferredRegions = [];
+      updated.county = "";
+    }
     setFormData(updated);
     onDataChange(updated);
   };
+
+  const toggleRegion = (region: string) => {
+    const current = formData.preferredRegions;
+    if (current.includes(region)) {
+      handleChange("preferredRegions", current.filter(r => r !== region));
+    } else if (current.length < 5) {
+      handleChange("preferredRegions", [...current, region]);
+    }
+  };
+
+  // Get available regions for selected country
+  const availableRegions = useMemo(() => {
+    if (formData.preferredCountry === "KE") {
+      return (countiesData as County[])
+        .map(c => c.county_name)
+        .sort();
+    }
+    return REGIONS_BY_COUNTRY[formData.preferredCountry] || [];
+  }, [formData.preferredCountry]);
+
+  const filteredRegions = useMemo(() => {
+    if (!regionSearch) return availableRegions;
+    return availableRegions.filter(r =>
+      r.toLowerCase().includes(regionSearch.toLowerCase())
+    );
+  }, [availableRegions, regionSearch]);
 
   const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -303,24 +366,126 @@ export function BasicInfoStep({ onDataChange, initialData }: BasicInfoStepProps)
 
       <div>
         <label className="block text-sm font-medium text-neutral-text mb-1">
-          Preferred Work Location (County) *
+          Preferred Work Country *
         </label>
         <select
-          value={formData.county}
-          onChange={(e) => handleChange("county", e.target.value)}
+          value={formData.preferredCountry}
+          onChange={(e) => handleChange("preferredCountry", e.target.value)}
           className="w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
           required
         >
-          <option value="">Select county</option>
-          {(countiesData as County[])
-            .sort((a, b) => a.county_name.localeCompare(b.county_name))
-            .map((county) => (
-              <option key={county.county_name} value={county.county_name}>
-                {county.county_name}
-              </option>
-            ))}
+          <option value="">Select country</option>
+          {WORK_COUNTRIES.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.flag} {c.name}
+            </option>
+          ))}
         </select>
       </div>
+
+      {formData.preferredCountry && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-neutral-text">
+              Preferred {formData.preferredCountry === "KE" ? "Counties" : "Regions"} * (up to 5)
+            </label>
+            {formData.preferredRegions.length > 0 && (
+              <span className="text-xs text-neutral-text-muted">
+                {formData.preferredRegions.length}/5 selected
+              </span>
+            )}
+          </div>
+
+          {/* Selected tags */}
+          {formData.preferredRegions.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {formData.preferredRegions.map((region) => (
+                <span
+                  key={region}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-brand-orange/10 text-brand-orange text-xs font-medium rounded-full"
+                >
+                  {region}
+                  <button
+                    type="button"
+                    onClick={() => toggleRegion(region)}
+                    className="hover:text-brand-orange/60"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Dropdown toggle */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setRegionDropdownOpen(!regionDropdownOpen)}
+              disabled={formData.preferredRegions.length >= 5}
+              className="w-full flex items-center justify-between px-4 py-2.5 border border-neutral-border rounded-md text-sm text-neutral-text focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="text-neutral-text-muted">
+                {formData.preferredRegions.length >= 5
+                  ? "Maximum 5 selected"
+                  : `Select ${formData.preferredCountry === "KE" ? "counties" : "regions"}...`}
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${regionDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {regionDropdownOpen && formData.preferredRegions.length < 5 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-border rounded-md shadow-lg">
+                <div className="p-2 border-b border-neutral-border">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-text-muted" />
+                    <input
+                      type="text"
+                      value={regionSearch}
+                      onChange={(e) => setRegionSearch(e.target.value)}
+                      placeholder="Search..."
+                      className="w-full pl-8 pr-3 py-1.5 text-sm border border-neutral-border rounded focus:outline-none focus:ring-1 focus:ring-brand-orange/20"
+                    />
+                  </div>
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                  {filteredRegions.map((region) => {
+                    const isSelected = formData.preferredRegions.includes(region);
+                    return (
+                      <button
+                        key={region}
+                        type="button"
+                        onClick={() => {
+                          toggleRegion(region);
+                          if (!isSelected && formData.preferredRegions.length >= 4) {
+                            setRegionDropdownOpen(false);
+                          }
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                          isSelected
+                            ? "bg-brand-orange/10 text-brand-orange font-medium"
+                            : "text-neutral-text hover:bg-neutral-bg-secondary"
+                        }`}
+                      >
+                        {region}
+                      </button>
+                    );
+                  })}
+                  {filteredRegions.length === 0 && (
+                    <p className="px-3 py-2 text-sm text-neutral-text-muted">No results</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Close dropdown when clicking outside */}
+          {regionDropdownOpen && (
+            <div
+              className="fixed inset-0 z-0"
+              onClick={() => setRegionDropdownOpen(false)}
+            />
+          )}
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-neutral-text mb-1">
