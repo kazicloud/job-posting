@@ -4,7 +4,8 @@ import { EmployerDashboardLayout } from "@/components/employer-dashboard/employe
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
-import { Building2, MapPin, Globe, Users, Mail, Phone, Shield, Bell, CreditCard, Trash2, Lock, Pencil, X, Send, CheckCircle, Clock, AlertCircle, ChevronDown } from "lucide-react";
+import { Building2, MapPin, Globe, Users, Mail, Phone, Shield, Bell, CreditCard, Trash2, Lock, Pencil, X, Send, CheckCircle, Clock, AlertCircle, ChevronDown, BadgeCheck } from "lucide-react";
+import Link from "next/link";
 import { DeleteAccountSection } from "@/components/settings/delete-account-section";
 
 export default function EmployerSettingsPage() {
@@ -198,15 +199,17 @@ function CompanyProfileTab({ profile }: { profile: any }) {
   const updateProfile = useMutation(api.profile.updateEmployerProfile);
   const fillMissingData = useMutation(api.profile.fillMissingEmployerData);
   const generateUploadUrl = useMutation(api.employerDocuments.generateUploadUrl);
-  const submitChangeRequest = useMutation(api.profileChangeRequests.submitChangeRequest);
-  const notifyAdmin = useAction(api.emails.notifyAdminProfileChangeRequest);
-  const changeRequest = useQuery(api.profileChangeRequests.getMyChangeRequest);
+  const submitPendingEdits = useMutation(api.employerPendingEdits.submitPendingEdits);
+  const cancelPendingEdits = useMutation(api.employerPendingEdits.cancelPendingEdits);
+  const notifyAdminVerificationReminder = useAction(api.emails.notifyAdminVerificationReminder);
+  const pendingEdits = useQuery(api.employerPendingEdits.getMyPendingEdits);
 
   const ep = profile?.employerProfile;
-
-  // ── Edit-approval ─────────────────────────────────────────────────────────
-  const isEditApproved = changeRequest?.status === "approved";
-  const hasPendingRequest = changeRequest?.status === "pending";
+  const pending = (pendingEdits?.changes ?? {}) as Record<string, any>;
+  const hasPending = !!pendingEdits;
+  const pendingChangedCount = Object.entries(pending).filter(
+    ([k, v]) => JSON.stringify((ep as any)?.[k]) !== JSON.stringify(v)
+  ).length;
 
   // ── Country resolution ────────────────────────────────────────────────────
   const resolvedCode: CountryCode | null = ep?.country
@@ -231,8 +234,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
   };
   const missingCount = Object.values(missing).filter(Boolean).length;
 
-  // Field is editable when it's missing OR edit is approved
-  const editable = (isMissing: boolean) => isMissing || isEditApproved;
+  // All fields are always editable; changes are staged as pending for admin review
 
   // ── Form state ────────────────────────────────────────────────────────────
   const [selectedCountryCode, setSelectedCountryCode] = useState<CountryCode | "">(resolvedCode ?? "");
@@ -271,25 +273,25 @@ function CompanyProfileTab({ profile }: { profile: any }) {
   // ── Convex validation queries ────────────────────────────────────────────
   const websiteCheck = useQuery(
     api.signupValidation.validateWebsiteUrl,
-    editable(missing.website) && debouncedWebsite.trim() ? { url: debouncedWebsite } : "skip"
+    debouncedWebsite.trim() ? { url: debouncedWebsite } : "skip"
   );
   const linkedInCheck = useQuery(
     api.signupValidation.validateLinkedInUrl,
-    editable(missing.linkedInProfile) && debouncedLinkedIn.trim() ? { url: debouncedLinkedIn } : "skip"
+    debouncedLinkedIn.trim() ? { url: debouncedLinkedIn } : "skip"
   );
   const phoneCheck = useQuery(
     api.signupValidation.validatePhoneNumber,
-    editable(missing.contactPersonPhone) && debouncedPhone.trim() && selectedCountry
+    debouncedPhone.trim() && selectedCountry
       ? { phone: debouncedPhone, isKenyaBased: selectedCountry.isKenya }
       : "skip"
   );
   const descriptionCheck = useQuery(
     api.signupValidation.validateDescription,
-    editable(missing.companyDescription) && debouncedDescription.trim() ? { description: debouncedDescription } : "skip"
+    debouncedDescription.trim() ? { description: debouncedDescription } : "skip"
   );
   const yearCheck = useQuery(
     api.signupValidation.validateYearFounded,
-    editable(missing.foundedYear) && debouncedYear ? { year: parseInt(debouncedYear) } : "skip"
+    debouncedYear ? { year: parseInt(debouncedYear) } : "skip"
   );
 
   // ── Per-section saving / saved-flash state ───────────────────────────────
@@ -302,10 +304,55 @@ function CompanyProfileTab({ profile }: { profile: any }) {
   const [certSaving, setCertSaving] = useState(false);
   const [certSaved, setCertSaved] = useState(false);
 
-  // ── Modal state ───────────────────────────────────────────────────────────
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [requestReason, setRequestReason] = useState("");
-  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  // ── Modal state (cancel pending edits confirmation) ──────────────────────
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // ── Verification reminder cooldown (3 hours, persisted in localStorage) ──
+  const [reminderLastSent, setReminderLastSent] = useState<number | null>(null);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
+  const [reminderNotice, setReminderNotice] = useState<{ kind: "success" | "cooldown"; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!ep?._id) return;
+    const stored = localStorage.getItem(`verificationReminder_${ep._id}`);
+    if (stored) setReminderLastSent(parseInt(stored, 10));
+  }, [ep?._id]);
+
+  const handleSendReminder = async () => {
+    const COOLDOWN_MS = 3 * 60 * 60 * 1000;
+    const now = Date.now();
+    if (reminderLastSent && now - reminderLastSent < COOLDOWN_MS) {
+      const remaining = COOLDOWN_MS - (now - reminderLastSent);
+      const h = Math.floor(remaining / (60 * 60 * 1000));
+      const m = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+      setReminderNotice({
+        kind: "cooldown",
+        message: `A reminder was already sent recently. Please wait ${h > 0 ? `${h}h ` : ""}${m}m before sending another.`,
+      });
+      setTimeout(() => setReminderNotice(null), 6000);
+      return;
+    }
+    setIsSendingReminder(true);
+    try {
+      await notifyAdminVerificationReminder({
+        employerName: profile?.fullName || "Employer",
+        companyName: ep?.companyName || "Company",
+        employerEmail: profile?.email || "",
+        verificationStatus: ep?.verificationStatus || "pending",
+      });
+      localStorage.setItem(`verificationReminder_${ep?._id}`, now.toString());
+      setReminderLastSent(now);
+      setReminderNotice({
+        kind: "success",
+        message: "Reminder sent to the Kazicloud team. We will process your verification shortly.",
+      });
+      setTimeout(() => setReminderNotice(null), 6000);
+    } catch {
+      alert("Failed to send reminder. Please try again.");
+    } finally {
+      setIsSendingReminder(false);
+    }
+  };
 
   // Sync from reactive Convex updates
   useEffect(() => {
@@ -353,23 +400,9 @@ function CompanyProfileTab({ profile }: { profile: any }) {
     contactTitle !== (ep?.contactPersonTitle || "") ||
     contactPhone !== (ep?.contactPersonPhone || "");
 
-  // Show a section footer when it has at least one editable field
-  const companyHasEditable =
-    isEditApproved ||
-    missing.country ||
-    missing.companySize ||
-    missing.companyIndustries ||
-    missing.website ||
-    missing.foundedYear ||
-    missing.linkedInProfile ||
-    missing.companyDescription ||
-    missing.headquarters;
-
-  const contactHasEditable =
-    isEditApproved ||
-    missing.contactPersonName ||
-    missing.contactPersonTitle ||
-    missing.contactPersonPhone;
+  // Show save footer for all sections (always editable)
+  const companyHasEditable = true;
+  const contactHasEditable = true;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -389,11 +422,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
   const handleSaveLogo = async () => {
     setLogoSaving(true);
     try {
-      if (isEditApproved) {
-        await updateProfile({ companyLogo: logoPreview || undefined });
-      } else {
-        await fillMissingData({ companyLogo: logoPreview || undefined });
-      }
+      await submitPendingEdits({ changes: { companyLogo: logoPreview || undefined } });
       flashSaved(setLogoSaved);
     } catch {
       alert("Failed to save logo. Please try again.");
@@ -421,38 +450,18 @@ function CompanyProfileTab({ profile }: { profile: any }) {
     }
     setCompSaving(true);
     try {
-      if (isEditApproved) {
-        await updateProfile({
-          companyName,
-          companySize: companySize || undefined,
-          companyIndustries: selectedIndustries,
-          website: website || undefined,
-          foundedYear: foundedYear ? parseInt(foundedYear) : undefined,
-          linkedInProfile: linkedIn || undefined,
-          companyDescription: description || undefined,
-          headquarters: headquarters || undefined,
-          isKenyaBased: selectedCountry?.isKenya ?? ep?.isKenyaBased,
-          country: selectedCountry?.name || ep?.country || undefined,
-          registrationNumber: ep?.registrationNumber,
-          kraPin: ep?.kraPin,
-          contactPersonName: ep?.contactPersonName,
-          contactPersonTitle: ep?.contactPersonTitle,
-          contactPersonPhone: ep?.contactPersonPhone,
-          companyLogo: ep?.companyLogo,
-        });
-      } else {
-        await fillMissingData({
-          companySize: missing.companySize && companySize ? companySize : undefined,
-          companyIndustries: missing.companyIndustries && selectedIndustries.length ? selectedIndustries : undefined,
-          companyDescription: missing.companyDescription && description ? description : undefined,
-          website: missing.website && website ? website : undefined,
-          foundedYear: missing.foundedYear && foundedYear ? parseInt(foundedYear) : undefined,
-          linkedInProfile: missing.linkedInProfile && linkedIn ? linkedIn : undefined,
-          headquarters: missing.headquarters && headquarters ? headquarters : undefined,
-          country: missing.country && selectedCountryCode ? selectedCountry?.name : undefined,
-          isKenyaBased: missing.country && selectedCountryCode ? selectedCountry?.isKenya : undefined,
-        });
-      }
+      await submitPendingEdits({ changes: {
+        companyName: companyName || undefined,
+        companySize: companySize || undefined,
+        companyIndustries: selectedIndustries.length ? selectedIndustries : undefined,
+        website: website || undefined,
+        foundedYear: foundedYear ? parseInt(foundedYear) : undefined,
+        linkedInProfile: linkedIn || undefined,
+        companyDescription: description || undefined,
+        headquarters: headquarters || undefined,
+        isKenyaBased: selectedCountry?.isKenya ?? ep?.isKenyaBased,
+        country: selectedCountry?.name || ep?.country || undefined,
+      } });
       flashSaved(setCompSaved);
     } catch {
       alert("Failed to save company information. Please try again.");
@@ -468,25 +477,11 @@ function CompanyProfileTab({ profile }: { profile: any }) {
     }
     setContactSaving(true);
     try {
-      if (isEditApproved) {
-        await updateProfile({
-          companyName: ep?.companyName,
-          isKenyaBased: ep?.isKenyaBased,
-          country: ep?.country || undefined,
-          registrationNumber: ep?.registrationNumber,
-          kraPin: ep?.kraPin,
-          contactPersonName: contactName || undefined,
-          contactPersonTitle: contactTitle || undefined,
-          contactPersonPhone: contactPhone || undefined,
-          companyLogo: ep?.companyLogo,
-        });
-      } else {
-        await fillMissingData({
-          contactPersonName: missing.contactPersonName && contactName ? contactName : undefined,
-          contactPersonTitle: missing.contactPersonTitle && contactTitle ? contactTitle : undefined,
-          contactPersonPhone: missing.contactPersonPhone && contactPhone ? contactPhone : undefined,
-        });
-      }
+      await submitPendingEdits({ changes: {
+        contactPersonName: contactName || undefined,
+        contactPersonTitle: contactTitle || undefined,
+        contactPersonPhone: contactPhone || undefined,
+      } });
       flashSaved(setContactSaved);
     } catch {
       alert("Failed to save contact information. Please try again.");
@@ -516,52 +511,23 @@ function CompanyProfileTab({ profile }: { profile: any }) {
     }
   };
 
-  const handleSubmitRequest = async () => {
-    if (!requestReason.trim()) return;
-    setIsSubmittingRequest(true);
-    try {
-      await submitChangeRequest({ reason: requestReason.trim() });
-      await notifyAdmin({
-        employerName: profile?.fullName || "Employer",
-        companyName: ep?.companyName || "Company",
-        employerEmail: profile?.email || "",
-        reason: requestReason.trim(),
-      });
-      setShowRequestModal(false);
-      setRequestReason("");
-      alert("Your change request has been submitted. You'll be notified once an admin reviews it.");
-    } catch (error: any) {
-      if (error?.message?.includes("already have a pending")) {
-        alert("You already have a pending change request. Please wait for admin review.");
-      } else {
-        alert("Failed to submit request. Please try again.");
-      }
-    } finally {
-      setIsSubmittingRequest(false);
-    }
-  };
-
   // ── CSS helpers ───────────────────────────────────────────────────────────
-  const readOnlyClass =
-    "w-full px-4 py-2.5 border border-neutral-border rounded-md bg-gray-50 text-neutral-text-secondary cursor-not-allowed";
   const editableClass =
     "w-full px-4 py-2.5 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20";
   const missingClass =
     "w-full px-4 py-2.5 border border-dashed border-amber-400 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 bg-amber-50/20";
 
   const inputClass = (isMissing: boolean) =>
-    !editable(isMissing) ? readOnlyClass : isMissing && !isEditApproved ? missingClass : editableClass;
+    isMissing ? missingClass : editableClass;
 
   // Layered class: base editable/missing styling + green/red validation border
   const validatedInputClass = (isMissing: boolean, valid: boolean | null | undefined) => {
-    if (!editable(isMissing)) return readOnlyClass;
-    const base =
-      isMissing && !isEditApproved
-        ? "w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 bg-amber-50/20"
-        : "w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20";
+    const base = isMissing
+      ? "w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 bg-amber-50/20"
+      : "w-full px-4 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20";
     if (valid === true) return `${base} border-green-500`;
     if (valid === false) return `${base} border-red-500`;
-    return `${base} ${isMissing && !isEditApproved ? "border-dashed border-amber-400" : "border-neutral-border"}`;
+    return `${base} ${isMissing ? "border-dashed border-amber-400" : "border-neutral-border"}`;
   };
 
   // ── Verification config based on country ──────────────────────────────────
@@ -581,69 +547,44 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 {missingCount} incomplete field{missingCount !== 1 ? "s" : ""} in your profile
               </p>
               <p className="text-sm text-amber-700 mt-0.5">
-                Fields marked <span className="font-semibold">Missing</span> can be filled and
-                saved directly — no approval required. To change already-filled fields, use{" "}
-                <span className="font-semibold">Request Edit</span>.
+                Fields highlighted in amber are unfilled. Fill them in and save — changes go for
+                admin review before going live.
               </p>
             </div>
           </div>
         )}
 
-        {hasPendingRequest && (
+        {/* Pending edits banner */}
+        {hasPending && (
           <div className="rounded-lg border bg-yellow-50 border-yellow-200 p-4 flex items-start gap-3">
             <Clock className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-yellow-800">Change Request Pending</p>
-              <p className="text-sm text-yellow-700 mt-0.5">
-                Your request to edit existing profile fields is under admin review. You'll be
-                notified once it's approved.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {!isEditApproved && !hasPendingRequest && missingCount === 0 && (
-          <div className="rounded-lg border bg-blue-50 border-blue-200 p-4 flex items-start gap-3">
-            <Lock className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-blue-800">Profile fields are locked</p>
-              <p className="text-sm text-blue-700 mt-0.5">
-                To protect data integrity, profile fields cannot be edited directly. Submit a
-                request explaining what you need to update.
+              <p className="text-sm font-medium text-yellow-800">Changes pending admin review</p>
+              <p className="text-sm text-yellow-700 mt-0.5">
+                {pendingChangedCount} field{pendingChangedCount !== 1 ? "s" : ""} are
+                saved and awaiting approval. The live profile remains unchanged until an admin approves.
+                Fields with a <span className="font-semibold text-yellow-800">⏳</span> label show the
+                proposed value.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => setShowRequestModal(true)}
-              className="flex-shrink-0 px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center gap-2"
+              onClick={() => setShowCancelModal(true)}
+              className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
             >
-              <Pencil className="w-4 h-4" />
-              Request Edit
+              Cancel Changes
             </button>
           </div>
         )}
 
-        {!isEditApproved && !hasPendingRequest && missingCount > 0 && (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => setShowRequestModal(true)}
-              className="px-4 py-2 bg-white border border-brand-orange text-brand-orange text-sm font-medium rounded-lg hover:bg-brand-orange/5 transition-colors flex items-center gap-2"
-            >
-              <Pencil className="w-4 h-4" />
-              Request Edit for Existing Fields
-            </button>
-          </div>
-        )}
-
-        {isEditApproved && (
-          <div className="rounded-lg border bg-green-50 border-green-200 p-4 flex items-start gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+        {!hasPending && missingCount === 0 && (
+          <div className="rounded-lg border bg-blue-50 border-blue-200 p-4 flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-green-800">Edit Mode Active</p>
-              <p className="text-sm text-green-700 mt-0.5">
-                Your change request was approved. You can now edit all profile fields below.
-                Each section saves independently.
+              <p className="text-sm font-medium text-blue-800">Profile up to date</p>
+              <p className="text-sm text-blue-700 mt-0.5">
+                All profile fields are filled. Edit any section below — your changes will be
+                submitted for admin review before going live.
               </p>
             </div>
           </div>
@@ -667,8 +608,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                   </div>
                 )}
               </div>
-              {editable(missing.companyLogo) ? (
-                <div className="flex-1">
+              <div className="flex-1">
                   <p className="text-sm font-medium text-neutral-text mb-1">Upload your company logo</p>
                   <p className="text-sm text-neutral-text-secondary mb-4">
                     Square image, at least 200×200 px. Max 2 MB.
@@ -678,23 +618,14 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                     <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
                   </label>
                 </div>
-              ) : (
-                <div className="flex-1 flex items-center">
-                  <p className="text-sm text-neutral-text-secondary">
-                    {logoPreview ? "Logo uploaded." : "No logo uploaded yet."}
-                  </p>
-                </div>
-              )}
             </div>
           </div>
-          {editable(missing.companyLogo) && (
-            <div className="px-6 py-4 border-t border-neutral-border bg-neutral-bg-secondary/50 flex items-center justify-between">
+          <div className="px-6 py-4 border-t border-neutral-border bg-neutral-bg-secondary/50 flex items-center justify-between">
               <p className="text-xs text-neutral-text-muted">
-                {logoDirty ? "You have unsaved changes." : "No changes."}
+                {logoDirty ? "You have unsaved changes — will go for review." : pending?.companyLogo ? "⏳ Logo change pending admin review." : "No changes."}
               </p>
               <SectionSaveButton dirty={logoDirty} saving={logoSaving} saved={logoSaved} onClick={handleSaveLogo} />
             </div>
-          )}
         </div>
 
         {/* ── Company Information ────────────────────────────────────────────── */}
@@ -702,12 +633,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
           <div className="p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-neutral-text">Company Information</h3>
-              {!isEditApproved && (
-                <span className="flex items-center gap-1.5 text-xs text-neutral-text-muted">
-                  <Lock className="w-3.5 h-3.5" />
-                  {missingCount > 0 ? "Existing fields locked" : "Read-only"}
-                </span>
-              )}
+              <span className="text-xs text-neutral-text-muted">Changes require admin approval</span>
             </div>
 
             <div className="space-y-4">
@@ -717,10 +643,12 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 <input
                   type="text"
                   value={companyName}
-                  onChange={(e) => isEditApproved && setCompanyName(e.target.value)}
-                  readOnly={!isEditApproved}
-                  className={isEditApproved ? editableClass : readOnlyClass}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className={editableClass}
                 />
+                {pending?.companyName && pending.companyName !== (ep?.companyName || "") && (
+                  <p className="text-xs mt-1 text-yellow-700">⏳ Pending: {pending.companyName}</p>
+                )}
               </div>
 
               {/* Industries */}
@@ -728,12 +656,11 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 <label className="block text-sm font-medium text-neutral-text mb-2">
                   Industry / Industries{missing.companyIndustries && <MissingBadge />}
                 </label>
-                {editable(missing.companyIndustries) ? (
-                  <div className="relative">
+                <div className="relative">
                     <button
                       type="button"
                       onClick={() => setShowIndustryPicker((p) => !p)}
-                      className={`${missing.companyIndustries && !isEditApproved ? missingClass : editableClass} text-left flex items-center justify-between`}
+                      className={`${missing.companyIndustries ? missingClass : editableClass} text-left flex items-center justify-between`}
                     >
                       <span className={selectedIndustries.length ? "text-neutral-text" : "text-neutral-text-muted"}>
                         {selectedIndustries.length
@@ -765,14 +692,6 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                       </>
                     )}
                   </div>
-                ) : (
-                  <input
-                    type="text"
-                    value={selectedIndustries.map((v) => INDUSTRIES.find((i) => i.value === v)?.label).filter(Boolean).join(", ") || "—"}
-                    readOnly
-                    className={readOnlyClass}
-                  />
-                )}
               </div>
 
               {/* Company Size + Founded Year */}
@@ -781,25 +700,16 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                   <label className="block text-sm font-medium text-neutral-text mb-2">
                     Company Size{missing.companySize && <MissingBadge />}
                   </label>
-                  {editable(missing.companySize) ? (
-                    <select
+                  <select
                       value={companySize}
                       onChange={(e) => setCompanySize(e.target.value)}
-                      className={missing.companySize && !isEditApproved ? missingClass : editableClass}
+                      className={missing.companySize ? missingClass : editableClass}
                     >
                       <option value="">Select size</option>
                       {COMPANY_SIZES.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={COMPANY_SIZES.find((s) => s.value === companySize)?.label || companySize || "—"}
-                      readOnly
-                      className={readOnlyClass}
-                    />
-                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-text mb-2">
@@ -810,8 +720,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                     min="1800"
                     max={new Date().getFullYear()}
                     value={foundedYear}
-                    onChange={(e) => editable(missing.foundedYear) && setFoundedYear(e.target.value)}
-                    readOnly={!editable(missing.foundedYear)}
+                    onChange={(e) => setFoundedYear(e.target.value)}
                     placeholder="e.g. 2010"
                     className={validatedInputClass(missing.foundedYear, yearCheck?.valid)}
                   />
@@ -829,16 +738,13 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 <input
                   type="url"
                   value={website}
-                  onChange={(e) => editable(missing.website) && setWebsite(e.target.value)}
+                  onChange={(e) => setWebsite(e.target.value)}
                   onBlur={(e) => {
-                    if (editable(missing.website)) {
-                      const val = e.target.value.trim();
-                      if (val && !val.startsWith("http://") && !val.startsWith("https://")) {
-                        setWebsite("https://" + val);
-                      }
+                    const val = e.target.value.trim();
+                    if (val && !val.startsWith("http://") && !val.startsWith("https://")) {
+                      setWebsite("https://" + val);
                     }
                   }}
-                  readOnly={!editable(missing.website)}
                   placeholder="https://example.com"
                   className={validatedInputClass(missing.website, websiteCheck?.valid)}
                 />
@@ -855,8 +761,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 <input
                   type="url"
                   value={linkedIn}
-                  onChange={(e) => editable(missing.linkedInProfile) && setLinkedIn(e.target.value)}
-                  readOnly={!editable(missing.linkedInProfile)}
+                  onChange={(e) => setLinkedIn(e.target.value)}
                   placeholder="https://linkedin.com/company/your-company"
                   className={validatedInputClass(missing.linkedInProfile, linkedInCheck?.valid)}
                 />
@@ -873,8 +778,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 <textarea
                   rows={4}
                   value={description}
-                  onChange={(e) => editable(missing.companyDescription) && setDescription(e.target.value)}
-                  readOnly={!editable(missing.companyDescription)}
+                  onChange={(e) => setDescription(e.target.value)}
                   placeholder="Tell us about your company… (minimum 20 words)"
                   className={validatedInputClass(missing.companyDescription, descriptionCheck?.valid)}
                 />
@@ -890,35 +794,21 @@ function CompanyProfileTab({ profile }: { profile: any }) {
               <div className="pt-4 border-t border-neutral-border">
                 <h4 className="text-sm font-semibold text-neutral-text mb-4">Location</h4>
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Country — dropdown when missing, read-only when set */}
+                  {/* Country — always a dropdown so employer can update it if needed */}
                   <div>
                     <label className="block text-sm font-medium text-neutral-text mb-2">
                       Country{missing.country && <MissingBadge />}
                     </label>
-                    {missing.country ? (
-                      <select
-                        value={selectedCountryCode}
-                        onChange={(e) => setSelectedCountryCode(e.target.value as CountryCode | "")}
-                        className={selectedCountryCode ? editableClass : missingClass}
-                      >
-                        <option value="">Select your country…</option>
-                        {SUPPORTED_COUNTRIES.map((c) => (
-                          <option key={c.code} value={c.code}>{c.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <>
-                        <input
-                          type="text"
-                          value={selectedCountry?.name || ep?.country || "—"}
-                          readOnly
-                          className={readOnlyClass}
-                        />
-                        <p className="text-xs text-neutral-text-muted mt-1 flex items-center gap-1">
-                          <Lock className="w-3 h-3" /> Set at registration
-                        </p>
-                      </>
-                    )}
+                    <select
+                      value={selectedCountryCode}
+                      onChange={(e) => setSelectedCountryCode(e.target.value as CountryCode | "")}
+                      className={selectedCountryCode ? editableClass : missingClass}
+                    >
+                      <option value="">Select your country…</option>
+                      {SUPPORTED_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.name}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Headquarters — label adapts to selected country */}
@@ -929,8 +819,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                     <input
                       type="text"
                       value={headquarters}
-                      onChange={(e) => editable(missing.headquarters) && setHeadquarters(e.target.value)}
-                      readOnly={!editable(missing.headquarters)}
+                      onChange={(e) => setHeadquarters(e.target.value)}
                       placeholder={selectedCountry?.hqPlaceholder || "City, Region"}
                       className={inputClass(missing.headquarters)}
                     />
@@ -939,10 +828,9 @@ function CompanyProfileTab({ profile }: { profile: any }) {
               </div>
             </div>
           </div>
-          {companyHasEditable && (
-            <div className="px-6 py-4 border-t border-neutral-border bg-neutral-bg-secondary/50 flex items-center justify-between">
+          <div className="px-6 py-4 border-t border-neutral-border bg-neutral-bg-secondary/50 flex items-center justify-between">
               <p className="text-xs text-neutral-text-muted">
-                {companyInfoDirty ? "You have unsaved changes." : "No changes."}
+                {companyInfoDirty ? "You have unsaved changes — will go for review." : hasPending ? "⏳ Changes pending admin review." : "No changes."}
               </p>
               <SectionSaveButton
                 dirty={companyInfoDirty}
@@ -951,7 +839,6 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                 onClick={handleSaveCompanyInfo}
               />
             </div>
-          )}
         </div>
 
         {/* ── Contact Information ────────────────────────────────────────────── */}
@@ -959,12 +846,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
           <div className="p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-neutral-text">Contact Information</h3>
-              {!isEditApproved && (
-                <span className="flex items-center gap-1.5 text-xs text-neutral-text-muted">
-                  <Lock className="w-3.5 h-3.5" />
-                  {missingCount > 0 ? "Existing fields locked" : "Read-only"}
-                </span>
-              )}
+              <span className="text-xs text-neutral-text-muted">Changes require admin approval</span>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -975,8 +857,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                   <input
                     type="text"
                     value={contactName}
-                    onChange={(e) => editable(missing.contactPersonName) && setContactName(e.target.value)}
-                    readOnly={!editable(missing.contactPersonName)}
+                    onChange={(e) => setContactName(e.target.value)}
                     className={inputClass(missing.contactPersonName)}
                   />
                 </div>
@@ -987,8 +868,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                   <input
                     type="text"
                     value={contactTitle}
-                    onChange={(e) => editable(missing.contactPersonTitle) && setContactTitle(e.target.value)}
-                    readOnly={!editable(missing.contactPersonTitle)}
+                    onChange={(e) => setContactTitle(e.target.value)}
                     placeholder="e.g. HR Manager, Recruiter"
                     className={inputClass(missing.contactPersonTitle)}
                   />
@@ -997,7 +877,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-text mb-2">Email</label>
-                  <input type="email" value={profile?.email || "—"} readOnly className={readOnlyClass} />
+                  <input type="email" value={profile?.email || "—"} readOnly className="w-full px-4 py-2.5 border border-neutral-border rounded-md bg-gray-50 text-neutral-text-secondary cursor-not-allowed" />
                   <p className="text-xs text-neutral-text-muted mt-1 flex items-center gap-1">
                     <Lock className="w-3 h-3" /> Managed by your account
                   </p>
@@ -1009,8 +889,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                   <input
                     type="tel"
                     value={contactPhone}
-                    onChange={(e) => editable(missing.contactPersonPhone) && setContactPhone(e.target.value)}
-                    readOnly={!editable(missing.contactPersonPhone)}
+                    onChange={(e) => setContactPhone(e.target.value)}
                     placeholder={selectedCountry?.phonePlaceholder || "+254 7XX XXX XXX"}
                     className={validatedInputClass(missing.contactPersonPhone, phoneCheck?.valid)}
                   />
@@ -1024,7 +903,7 @@ function CompanyProfileTab({ profile }: { profile: any }) {
           {contactHasEditable && (
             <div className="px-6 py-4 border-t border-neutral-border bg-neutral-bg-secondary/50 flex items-center justify-between">
               <p className="text-xs text-neutral-text-muted">
-                {contactInfoDirty ? "You have unsaved changes." : "No changes."}
+                {contactInfoDirty ? "You have unsaved changes — will go for review." : hasPending ? "⏳ Changes pending admin review." : "No changes."}
               </p>
               <SectionSaveButton
                 dirty={contactInfoDirty}
@@ -1054,14 +933,14 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                   <label className="block text-sm font-medium text-neutral-text mb-2">
                     {verificationConfig.regLabel}
                   </label>
-                  <input type="text" value={ep?.registrationNumber || "—"} readOnly className={readOnlyClass} />
+                  <input type="text" value={ep?.registrationNumber || "—"} readOnly className="w-full px-4 py-2.5 border border-neutral-border rounded-md bg-gray-50 text-neutral-text-secondary cursor-not-allowed" />
                   <p className="text-xs text-neutral-text-muted mt-1">{verificationConfig.regHint}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-text mb-2">
                     {verificationConfig.taxLabel}
                   </label>
-                  <input type="text" value={ep?.kraPin || "—"} readOnly className={readOnlyClass} />
+                  <input type="text" value={ep?.kraPin || "—"} readOnly className="w-full px-4 py-2.5 border border-neutral-border rounded-md bg-gray-50 text-neutral-text-secondary cursor-not-allowed" />
                   <p className="text-xs text-neutral-text-muted mt-1">{verificationConfig.taxHint}</p>
                 </div>
               </div>
@@ -1072,12 +951,12 @@ function CompanyProfileTab({ profile }: { profile: any }) {
                   {verificationConfig.certLabel}{missing.incorporationCert && <MissingBadge />}
                 </label>
                 {ep?.incorporationCertStorageId || certSaved ? (
-                  <div className={`${readOnlyClass} flex items-center gap-2`}>
+                  <div className="w-full px-4 py-2.5 border border-neutral-border rounded-md bg-gray-50 text-neutral-text-secondary flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                     <span className="text-green-700">Uploaded</span>
                   </div>
                 ) : certSaving ? (
-                  <div className={`${readOnlyClass} flex items-center gap-2`}>
+                  <div className="w-full px-4 py-2.5 border border-neutral-border rounded-md bg-gray-50 text-neutral-text-secondary flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-brand-orange border-t-transparent rounded-full animate-spin flex-shrink-0" />
                     <span className="text-neutral-text-secondary">Uploading…</span>
                   </div>
@@ -1103,86 +982,114 @@ function CompanyProfileTab({ profile }: { profile: any }) {
 
               {/* Verification Status */}
               <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Verification Status</label>
-                <div className={`${readOnlyClass} flex items-center gap-2`}>
-                  {ep?.verificationStatus === "verified" && (
-                    <><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-green-700">Verified</span></>
-                  )}
-                  {ep?.verificationStatus === "documents_submitted" && (
-                    <><Clock className="w-4 h-4 text-blue-600" /><span className="text-blue-700">Documents Submitted — pending review</span></>
-                  )}
-                  {ep?.verificationStatus === "under_review" && (
-                    <><Clock className="w-4 h-4 text-yellow-600" /><span className="text-yellow-700">Under Review</span></>
-                  )}
-                  {ep?.verificationStatus === "rejected" && (
-                    <><AlertCircle className="w-4 h-4 text-red-600" /><span className="text-red-700">Rejected</span></>
-                  )}
-                  {(ep?.verificationStatus === "pending" || !ep?.verificationStatus) && (
-                    <span className="text-neutral-text-secondary">
-                      {ep?.verificationStatus === "pending" ? "Pending Submission" : "—"}
-                    </span>
-                  )}
-                </div>
+                <label className="block text-sm font-medium text-neutral-text mb-3">Verification Status</label>
+
+                {/* ── Verified ────────────────────────────────────────────── */}
+                {ep?.verificationStatus === "verified" && (
+                  <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                    <BadgeCheck className="w-8 h-8 text-blue-600 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-blue-900">Your company is verified</p>
+                      <p className="text-xs text-blue-600 mt-0.5">Your account has been reviewed and approved by the Kazicloud team.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Profile incomplete ──────────────────────────────────── */}
+                {!ep?.onboardingCompleted && ep?.verificationStatus !== "verified" && (
+                  <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-900">Company profile incomplete</p>
+                      <p className="text-xs text-amber-700 mt-1 mb-3">
+                        Complete your company profile to initiate the verification process and unlock full access to the platform.
+                      </p>
+                      <Link
+                        href="/employer-onboarding"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-brand-orange text-white text-xs font-semibold rounded-md hover:bg-brand-orange/90 transition-colors"
+                      >
+                        Complete Your Profile
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Profile complete, awaiting verification ─────────────── */}
+                {ep?.onboardingCompleted && ep?.verificationStatus !== "verified" && (
+                  <div className="flex items-start gap-3 p-4 bg-neutral-bg-secondary border border-neutral-border rounded-lg">
+                    {ep?.verificationStatus === "rejected"
+                      ? <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                      : <Clock className="w-5 h-5 text-neutral-text-muted mt-0.5 flex-shrink-0" />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold ${
+                        ep?.verificationStatus === "rejected" ? "text-red-700" : "text-neutral-text"
+                      }`}>
+                        {ep?.verificationStatus === "documents_submitted" && "Documents Submitted — Pending Review"}
+                        {ep?.verificationStatus === "under_review" && "Under Review"}
+                        {ep?.verificationStatus === "rejected" && "Verification Rejected"}
+                        {(ep?.verificationStatus === "pending" || !ep?.verificationStatus) && "Awaiting Verification"}
+                      </p>
+                      <p className="text-xs text-neutral-text-secondary mt-1 mb-3">
+                        {ep?.verificationStatus === "rejected"
+                          ? (ep?.rejectionReason || "Your verification was not approved. Please contact support for further assistance.")
+                          : "Your profile is complete. Our team will review your account and verify it shortly. You may send a reminder if you have not heard back."}
+                      </p>
+                      {ep?.verificationStatus !== "rejected" && (
+                        <button
+                          onClick={handleSendReminder}
+                          disabled={isSendingReminder}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-neutral-border text-neutral-text text-xs font-semibold rounded-md hover:bg-neutral-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          {isSendingReminder ? "Sending…" : "Send Verification Reminder"}
+                        </button>
+                      )}
+                      {reminderNotice && (
+                        <div className={`mt-2 text-xs rounded-md px-3 py-2 border ${
+                          reminderNotice.kind === "success"
+                            ? "bg-green-50 border-green-200 text-green-700"
+                            : "bg-amber-50 border-amber-200 text-amber-700"
+                        }`}>
+                          {reminderNotice.message}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Request Edit Modal ─────────────────────────────────────────────── */}
-      {showRequestModal && (
+      {/* ── Cancel Pending Edits Modal ─────────────────────────────────────── */}
+      {showCancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="flex items-center justify-between p-6 border-b border-neutral-border">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-brand-orange/10 rounded-full flex items-center justify-center">
-                  <Pencil className="w-5 h-5 text-brand-orange" />
-                </div>
-                <h3 className="text-lg font-semibold text-neutral-text">Request Profile Edit</h3>
-              </div>
-              <button
-                onClick={() => { setShowRequestModal(false); setRequestReason(""); }}
-                className="text-neutral-text-secondary hover:text-neutral-text transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4">
             <div className="p-6">
-              <p className="text-sm text-neutral-text-secondary mb-4">
-                Please explain which existing fields you need to change and why. An admin will
-                review your request and grant edit access if approved.
+              <h3 className="text-base font-semibold text-neutral-text mb-2">Cancel pending changes?</h3>
+              <p className="text-sm text-neutral-text-secondary mb-5">
+                This will discard all {pendingChangedCount} pending field update{pendingChangedCount !== 1 ? "s" : ""} awaiting review.
+                The live profile will remain unchanged.
               </p>
-              <label className="block">
-                <span className="text-sm font-medium text-neutral-text">
-                  Reason for Edit <span className="text-red-500">*</span>
-                </span>
-                <textarea
-                  value={requestReason}
-                  onChange={(e) => setRequestReason(e.target.value)}
-                  placeholder="e.g., We recently rebranded and need to update our company name and logo…"
-                  className="mt-2 w-full px-4 py-3 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange resize-none"
-                  rows={5}
-                />
-              </label>
-              <p className="text-xs text-neutral-text-muted mt-2">
-                Your request will be sent to the Kazicloud admin team for review.
-              </p>
-            </div>
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-neutral-border bg-neutral-bg-secondary rounded-b-lg">
-              <button
-                onClick={() => { setShowRequestModal(false); setRequestReason(""); }}
-                className="px-4 py-2 text-sm text-neutral-text-secondary hover:text-neutral-text transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitRequest}
-                disabled={!requestReason.trim() || isSubmittingRequest}
-                className="px-6 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                {isSubmittingRequest ? "Submitting…" : "Submit Request"}
-              </button>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="px-4 py-2 text-sm text-neutral-text-secondary hover:text-neutral-text transition-colors"
+                >
+                  Keep Changes
+                </button>
+                <button
+                  onClick={async () => {
+                    await cancelPendingEdits();
+                    setShowCancelModal(false);
+                  }}
+                  className="px-5 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Discard Changes
+                </button>
+              </div>
             </div>
           </div>
         </div>

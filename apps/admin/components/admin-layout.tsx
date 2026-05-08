@@ -4,6 +4,8 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk, useUser } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { 
   LayoutDashboard, 
   Users, 
@@ -13,7 +15,8 @@ import {
   Settings,
   LogOut,
   Headphones,
-  CreditCard
+  CreditCard,
+  MessageSquare,
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -26,6 +29,7 @@ const navigation = [
   { name: "Job Seekers", href: "/job-seekers", icon: Users },
   { name: "Jobs", href: "/jobs", icon: Briefcase },
   { name: "Applications", href: "/applications", icon: FileText },
+  { name: "Messages", href: "/messages", icon: MessageSquare },
   { name: "Subscriptions", href: "/subscriptions", icon: CreditCard },
   { name: "Services", href: "/services", icon: Headphones },
   { name: "Settings", href: "/settings", icon: Settings },
@@ -35,6 +39,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const { signOut } = useClerk();
   const { user } = useUser();
+  const unreadMessages = useQuery(api.contactMessages.unreadCount, {});
+  const unreadChats = useQuery(api.conversations.totalUnreadCount);
 
   return (
     <div className="flex">
@@ -72,7 +78,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       }`}
                     >
                       <Icon className="w-5 h-5" />
-                      <span className="font-medium">{item.name}</span>
+                      <span className="font-medium flex-1">{item.name}</span>
+                      {item.href === "/messages" && ((unreadMessages ?? 0) + (unreadChats ?? 0)) > 0 && (
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${isActive ? "bg-white/20 text-white" : "bg-blue-600 text-white"}`}>
+                          {(unreadMessages ?? 0) + (unreadChats ?? 0)}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );

@@ -445,6 +445,7 @@ export default function JobsPage() {
                     id={job._id}
                     company={job.companyName}
                     employerId={job.employerId}
+                    companyLogo={(job as any).employerProfile?.companyLogo}
                     title={job.title}
                     slug={job.slug}
                     department={job.department}
@@ -490,6 +491,7 @@ function JobCard({
   id,
   company,
   employerId,
+  companyLogo,
   title,
   slug,
   department,
@@ -507,6 +509,7 @@ function JobCard({
   id: string;
   company: string;
   employerId: string;
+  companyLogo?: string;
   title: string;
   slug?: string;
   department?: string;
@@ -521,17 +524,9 @@ function JobCard({
   isExpanded: boolean;
   onToggleExpand: () => void;
 }) {
-  // Fetch employer profile for company stats
-  const employerProfile = useQuery(api.profile.getEmployerProfile, { userId: employerId as any });
-  
-  // Fetch skill match for this job
-  const skillMatch = useQuery(api.matching.calculateSkillMatch, { jobId: id as any });
-  
-  // Fetch real analytics
-  const jobAnalytics = useQuery(api.analytics.getJobAnalytics, { jobId: id as any });
-  
-  const applicantCount = jobAnalytics?.applicationCount || 0;
-  const viewCount = jobAnalytics?.viewCount || 0;
+  // Only the logo (from listing data) is shown in the card view.
+  // Employer profile, skill match, and analytics are loaded lazily in ExpandedJobDetails
+  // only when the card is expanded — this avoids N per-card queries on the listing page.
 
   // Color and display helpers
   const logo = company.charAt(0).toUpperCase();
@@ -579,9 +574,9 @@ function JobCard({
         <div className={`w-full sm:w-[120px] lg:w-[148px] h-[100px] sm:h-[140px] lg:h-[160px] ${bgColors[colorIndex]} rounded-2xl flex flex-col items-center justify-center flex-shrink-0 p-3 sm:p-4`}>
           <span className={`text-xs sm:text-sm font-semibold ${textColors[colorIndex]} mb-2 sm:mb-3 text-center truncate w-full px-2`}>{company}</span>
           <div className="w-16 h-16 sm:w-18 sm:h-18 lg:w-20 lg:h-20 bg-[#E8FF00] rounded-xl flex items-center justify-center overflow-hidden">
-            {employerProfile?.companyLogo ? (
+            {companyLogo ? (
               <img 
-                src={employerProfile.companyLogo} 
+                src={companyLogo} 
                 alt={`${company} logo`}
                 className="w-full h-full object-cover"
               />
@@ -683,9 +678,7 @@ function JobCard({
 
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto">
               <Link
-                href={slug ? `${process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com"}/job/${slug}` : `/dashboard/jobs/${id}`}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={`/dashboard/jobs/${slug || id}`}
                 className="flex-1 sm:flex-none px-4 sm:px-5 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-black/90 transition-colors flex items-center justify-center gap-2"
               >
                 <span>View job</span>
@@ -701,94 +694,164 @@ function JobCard({
             </div>
           </div>
 
-          {/* Expanded Details */}
+          {/* Expanded Details — queries only fire when this mounts */}
           {isExpanded && (
-            <div className="mt-4 pt-4 border-t border-neutral-border">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {/* Quick Stats */}
-                <div>
-                  <h4 className="text-sm font-semibold text-neutral-text mb-3">Quick Stats</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
-                      <Users className="w-4 h-4" />
-                      <span>{applicantCount} applicants</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
-                      <Eye className="w-4 h-4" />
-                      <span>{viewCount} views</span>
-                    </div>
-                    {daysLeft && (
-                      <div className="flex items-center gap-2 text-sm text-orange-600">
-                        <Calendar className="w-4 h-4" />
-                        <span>{daysLeft} days remaining</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+            <ExpandedJobDetails
+              jobId={id}
+              employerId={employerId}
+              daysLeft={daysLeft}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-                {/* Company Info */}
-                <div>
-                  <h4 className="text-sm font-semibold text-neutral-text mb-3">Company Info</h4>
-                  <div className="space-y-2">
-                    {employerProfile?.companySize && (
-                      <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
-                        <Building className="w-4 h-4" />
-                        <span>{employerProfile.companySize}</span>
-                      </div>
-                    )}
-                    {employerProfile?.headquarters && (
-                      <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
-                        <MapPin className="w-4 h-4" />
-                        <span>{employerProfile.headquarters}, {employerProfile.country || 'Kenya'}</span>
-                      </div>
-                    )}
-                    {employerProfile?.companyIndustries && employerProfile.companyIndustries.length > 0 && (
-                      <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
-                        <Briefcase className="w-4 h-4" />
-                        <span>{employerProfile.companyIndustries.join(', ')}</span>
-                      </div>
-                    )}
-                    {!employerProfile && (
-                      <p className="text-xs text-neutral-text-muted italic">Loading company info...</p>
-                    )}
-                  </div>
-                </div>
+/**
+ * Rendered only when the card is expanded.
+ * Fires 3 queries (employer profile, skill match, analytics) lazily.
+ */
+function ExpandedJobDetails({
+  jobId,
+  employerId,
+  daysLeft,
+}: {
+  jobId: string;
+  employerId: string;
+  daysLeft: number | null;
+}) {
+  const employerProfile = useQuery(api.profile.getEmployerProfile, {
+    userId: employerId as any,
+  });
+  const skillMatch = useQuery(api.matching.calculateSkillMatch, {
+    jobId: jobId as any,
+  });
+  const jobAnalytics = useQuery(api.analytics.getJobAnalytics, {
+    jobId: jobId as any,
+  });
 
-                {/* Match Indicator */}
-                <div>
-                  <h4 className="text-sm font-semibold text-neutral-text mb-3">Your Match</h4>
-                  {skillMatch ? (
-                    <>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="flex gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <CheckCircle2
-                              key={i}
-                              className={`w-4 h-4 ${i < skillMatch.matchScore ? 'text-green-500 fill-green-500' : 'text-gray-300'}`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm font-medium text-neutral-text">{skillMatch.matchScore}/5</span>
-                      </div>
-                      <p className="text-xs text-neutral-text-secondary mb-2">
-                        You match {skillMatch.matchedCount} of {skillMatch.totalRequired} required skills ({skillMatch.matchPercentage}%)
-                      </p>
-                      {skillMatch.matchedSkills.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {skillMatch.matchedSkills.slice(0, 3).map((skill, idx) => (
-                            <span key={idx} className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-xs text-neutral-text-muted italic">Add skills to your profile to see match score</p>
-                  )}
-                </div>
-              </div>
+  const applicantCount = jobAnalytics?.applicationCount ?? "—";
+  const viewCount = jobAnalytics?.viewCount ?? "—";
+
+  return (
+    <div className="mt-4 pt-4 border-t border-neutral-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Quick Stats */}
+        <div>
+          <h4 className="text-sm font-semibold text-neutral-text mb-3">Quick Stats</h4>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
+              <Users className="w-4 h-4" />
+              <span>{applicantCount} applicants</span>
             </div>
+            <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
+              <Eye className="w-4 h-4" />
+              <span>{viewCount} views</span>
+            </div>
+            {daysLeft && (
+              <div className="flex items-center gap-2 text-sm text-orange-600">
+                <Calendar className="w-4 h-4" />
+                <span>{daysLeft} days remaining</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Company Info */}
+        <div>
+          <h4 className="text-sm font-semibold text-neutral-text mb-3">Company Info</h4>
+          {employerProfile === undefined ? (
+            <div className="space-y-2 animate-pulse">
+              <div className="h-3 bg-gray-200 rounded w-3/4" />
+              <div className="h-3 bg-gray-200 rounded w-1/2" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {employerProfile?.companySize && (
+                <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
+                  <Building className="w-4 h-4" />
+                  <span>{employerProfile.companySize}</span>
+                </div>
+              )}
+              {employerProfile?.headquarters && (
+                <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
+                  <MapPin className="w-4 h-4" />
+                  <span>
+                    {employerProfile.headquarters},{" "}
+                    {employerProfile.country || "Kenya"}
+                  </span>
+                </div>
+              )}
+              {employerProfile?.companyIndustries &&
+                employerProfile.companyIndustries.length > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-text-secondary">
+                    <Briefcase className="w-4 h-4" />
+                    <span>{employerProfile.companyIndustries.join(", ")}</span>
+                  </div>
+                )}
+              {!employerProfile?.companySize &&
+                !employerProfile?.headquarters && (
+                  <p className="text-xs text-neutral-text-muted italic">
+                    No company details available
+                  </p>
+                )}
+            </div>
+          )}
+        </div>
+
+        {/* Match Indicator */}
+        <div>
+          <h4 className="text-sm font-semibold text-neutral-text mb-3">Your Match</h4>
+          {skillMatch === undefined ? (
+            <div className="space-y-2 animate-pulse">
+              <div className="flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="w-4 h-4 bg-gray-200 rounded-full" />
+                ))}
+              </div>
+              <div className="h-3 bg-gray-200 rounded w-2/3" />
+            </div>
+          ) : skillMatch ? (
+            <>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <CheckCircle2
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < skillMatch.matchScore
+                          ? "text-green-500 fill-green-500"
+                          : "text-gray-300"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm font-medium text-neutral-text">
+                  {skillMatch.matchScore}/5
+                </span>
+              </div>
+              <p className="text-xs text-neutral-text-secondary mb-2">
+                {skillMatch.matchedCount} of {skillMatch.totalRequired} skills (
+                {skillMatch.matchPercentage}%)
+              </p>
+              {skillMatch.matchedSkills.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {skillMatch.matchedSkills.slice(0, 3).map((skill, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-neutral-text-muted italic">
+              Add skills to your profile to see match score
+            </p>
           )}
         </div>
       </div>

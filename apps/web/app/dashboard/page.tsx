@@ -2,7 +2,7 @@
 
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import Link from "next/link";
-import { Briefcase, TrendingUp, Users, MapPin, Clock, Bookmark, ArrowRight, Sparkles, Target, /* Bell, */ Eye, CheckCircle } from "lucide-react";
+import { Briefcase, TrendingUp, Users, MapPin, Clock, Bookmark, ArrowRight, Sparkles, Target, /* Bell, */ Eye, CheckCircle, Camera, FileText, Award, GraduationCap, Zap } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useState } from "react";
@@ -179,21 +179,28 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              {/* Career Resources - Shown last on mobile */}
-              <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6 order-last lg:order-none">
-                <h2 className="text-base sm:text-lg font-semibold text-neutral-text mb-4">
-                  Career resources
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Career Resources */}
+              <div className="bg-white rounded-xl border border-neutral-border overflow-hidden order-last lg:order-none">
+                <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-neutral-border">
+                  <h2 className="text-base sm:text-lg font-semibold text-neutral-text">Career resources</h2>
+                  <p className="text-xs text-neutral-text-secondary mt-0.5">Expert tools to accelerate your job search</p>
+                </div>
+                <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <ResourceCard
-                    icon={<Target className="w-5 h-5" />}
+                    href="/dashboard/help#cv-services"
+                    accentColor="orange"
+                    icon={<FileText className="w-5 h-5" />}
                     title="Resume tips"
-                    description="Stand out to employers"
+                    description="Get your CV past ATS filters and into recruiters' hands"
+                    cta="Get CV help"
                   />
                   <ResourceCard
+                    href="/dashboard/help#career-success"
+                    accentColor="purple"
                     icon={<Users className="w-5 h-5" />}
                     title="Interview prep"
-                    description="Ace your next interview"
+                    description="Master the STAR method and land your next role confidently"
+                    cta="Prepare now"
                   />
                 </div>
               </div>
@@ -258,15 +265,32 @@ export default function DashboardPage() {
               </div>
 
               {/* Profile Strength */}
-              <div className="bg-white rounded-lg border border-neutral-border p-6">
-                <h3 className="font-semibold text-neutral-text mb-4">Profile strength</h3>
-                <div className="space-y-3">
-                  <StrengthItem label="Profile photo" completed />
-                  <StrengthItem label="Work experience" completed />
-                  <StrengthItem label="Skills" completed />
-                  <StrengthItem label="Certifications" completed={false} />
+              {profile !== undefined ? (
+                <ProfileStrengthCard
+                  completeness={completeness}
+                  hasPhoto={!!profile?.profilePhoto}
+                  hasSummary={!!profile?.jobSeekerProfile?.careerSummary}
+                  hasWorkExp={(profile?.workExperience?.length ?? 0) > 0}
+                  hasSkills={(profile?.skills?.length ?? 0) > 0}
+                  hasEducation={(profile?.education?.length ?? 0) > 0}
+                  hasCerts={(profile?.certifications?.length ?? 0) > 0}
+                />
+              ) : (
+                <div className="bg-white rounded-xl border border-neutral-border p-5 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-5" />
+                  <div className="flex justify-center mb-5">
+                    <div className="w-24 h-24 bg-gray-200 rounded-full" />
+                  </div>
+                  <div className="space-y-2.5">
+                    {[1,2,3,4,5,6].map(i => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="w-7 h-7 bg-gray-200 rounded-full flex-shrink-0" />
+                        <div className="h-3 bg-gray-200 rounded flex-1" />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -349,9 +373,8 @@ function StatCardSkeleton() {
 }
 
 function JobCard({ jobId, slug, company, logo, title, location, type, salary, postedTime, matchScore }: any) {
-  const MARKETING_URL = process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com";
   return (
-    <Link href={slug ? `${MARKETING_URL}/job/${slug}` : `/dashboard/jobs/${jobId}`} target="_blank" rel="noopener noreferrer" className="block">
+    <Link href={`/dashboard/jobs/${slug || jobId}`} className="block">
       <div className="flex gap-3 p-3 sm:p-4 border border-neutral-border rounded-lg hover:border-brand-orange/30 hover:bg-neutral-bg-secondary/50 transition-all cursor-pointer group">
         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-neutral-bg-secondary rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-white transition-colors">
           <span className="text-base sm:text-lg font-bold text-neutral-text">{logo}</span>
@@ -403,15 +426,55 @@ function JobCardSkeleton() {
   );
 }
 
-function ResourceCard({ icon, title, description }: any) {
+function ResourceCard({
+  href,
+  accentColor,
+  icon,
+  title,
+  description,
+  cta,
+}: {
+  href: string;
+  accentColor: "orange" | "purple";
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  cta: string;
+}) {
+  const styles = {
+    orange: {
+      iconBg: "bg-brand-orange",
+      topBar: "bg-gradient-to-r from-brand-orange to-amber-400",
+      ctaBase: "bg-brand-orange/10 text-brand-orange",
+      ctaHover: "group-hover:bg-brand-orange group-hover:text-white",
+    },
+    purple: {
+      iconBg: "bg-indigo-600",
+      topBar: "bg-gradient-to-r from-indigo-500 to-purple-500",
+      ctaBase: "bg-indigo-50 text-indigo-600",
+      ctaHover: "group-hover:bg-indigo-600 group-hover:text-white",
+    },
+  };
+  const s = styles[accentColor];
+
   return (
-    <div className="p-3 sm:p-4 border border-neutral-border rounded-lg hover:border-brand-orange/30 hover:shadow-sm transition-all cursor-pointer">
-      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-orange/10 rounded-lg flex items-center justify-center mb-2 sm:mb-3">
-        <div className="text-brand-orange">{icon}</div>
+    <Link
+      href={href}
+      className="block rounded-xl border border-neutral-border overflow-hidden hover:shadow-md hover:border-transparent transition-all group"
+    >
+      <div className={`h-1 ${s.topBar}`} />
+      <div className="p-4">
+        <div className={`w-10 h-10 ${s.iconBg} rounded-xl flex items-center justify-center text-white mb-3`}>
+          {icon}
+        </div>
+        <h4 className="text-sm font-semibold text-neutral-text mb-1">{title}</h4>
+        <p className="text-xs text-neutral-text-secondary mb-4 leading-relaxed">{description}</p>
+        <div className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${s.ctaBase} ${s.ctaHover}`}>
+          {cta}
+          <ArrowRight className="w-3 h-3" />
+        </div>
       </div>
-      <h4 className="text-sm sm:text-base font-medium text-neutral-text mb-1">{title}</h4>
-      <p className="text-xs text-neutral-text-secondary">{description}</p>
-    </div>
+    </Link>
   );
 }
 
@@ -431,15 +494,124 @@ function ActivityItem({ action, target, time, jobId }: { action: string; target:
   );
 }
 
-function StrengthItem({ label, completed }: { label: string; completed: boolean }) {
+function ProfileStrengthCard({
+  completeness,
+  hasPhoto,
+  hasSummary,
+  hasWorkExp,
+  hasSkills,
+  hasEducation,
+  hasCerts,
+}: {
+  completeness: number;
+  hasPhoto: boolean;
+  hasSummary: boolean;
+  hasWorkExp: boolean;
+  hasSkills: boolean;
+  hasEducation: boolean;
+  hasCerts: boolean;
+}) {
+  const r = 38;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - completeness / 100);
+
+  const strengthLabel =
+    completeness >= 90 ? { text: "All-Star", bg: "bg-orange-50", color: "text-brand-orange" }
+    : completeness >= 70 ? { text: "Strong", bg: "bg-green-50", color: "text-green-700" }
+    : completeness >= 40 ? { text: "Intermediate", bg: "bg-amber-50", color: "text-amber-700" }
+    : { text: "Getting started", bg: "bg-red-50", color: "text-red-600" };
+
+  const items = [
+    { label: "Profile photo",    Icon: Camera,        done: hasPhoto,     href: "/dashboard/profile#section-photo" },
+    { label: "Career summary",   Icon: FileText,      done: hasSummary,   href: "/dashboard/profile#section-summary" },
+    { label: "Work experience",  Icon: Briefcase,     done: hasWorkExp,   href: "/dashboard/profile#section-experience" },
+    { label: "Skills",           Icon: Zap,           done: hasSkills,    href: "/dashboard/profile#section-skills" },
+    { label: "Education",        Icon: GraduationCap, done: hasEducation, href: "/dashboard/profile#section-education" },
+    { label: "Certifications",   Icon: Award,         done: hasCerts,     href: "/dashboard/profile#section-skills" },
+  ];
+
+  const doneCount = items.filter(i => i.done).length;
+
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-neutral-text">{label}</span>
-      {completed ? (
-        <span className="text-green-600 text-sm">✓</span>
-      ) : (
-        <span className="text-xs text-neutral-text-muted">Add</span>
-      )}
+    <div className="bg-white rounded-xl border border-neutral-border overflow-hidden">
+      {/* top gradient bar */}
+      <div className="h-1 bg-gradient-to-r from-brand-orange via-amber-400 to-brand-orange" />
+
+      <div className="p-5">
+        {/* header */}
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-semibold text-neutral-text">Profile strength</h3>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${strengthLabel.bg} ${strengthLabel.color}`}>
+            {strengthLabel.text}
+          </span>
+        </div>
+
+        {/* circular progress ring */}
+        <div className="flex justify-center mb-5">
+          <div className="relative w-24 h-24">
+            <svg viewBox="0 0 100 100" className="w-24 h-24 -rotate-90">
+              <circle cx="50" cy="50" r={r} fill="none" stroke="#F3F4F6" strokeWidth="10" />
+              <circle
+                cx="50" cy="50" r={r}
+                fill="none"
+                stroke="#DC842C"
+                strokeWidth="10"
+                strokeLinecap="round"
+                strokeDasharray={circ}
+                strokeDashoffset={offset}
+                style={{ transition: "stroke-dashoffset 0.7s ease" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-bold text-neutral-text leading-none">{completeness}%</span>
+              <span className="text-[10px] text-neutral-text-secondary mt-0.5">{doneCount}/{items.length}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* checklist */}
+        <div className="space-y-2 mb-5">
+          {items.map(({ label, Icon, done, href }) => (
+            <Link key={label} href={href} className="flex items-center gap-3 group">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                done
+                  ? "bg-green-50 text-green-600"
+                  : "bg-neutral-bg-secondary text-neutral-text-muted group-hover:bg-brand-orange/10 group-hover:text-brand-orange"
+              }`}>
+                {done
+                  ? <CheckCircle className="w-3.5 h-3.5 fill-green-100" />
+                  : <Icon className="w-3.5 h-3.5" />}
+              </div>
+              <span className={`text-sm flex-1 transition-colors ${
+                done ? "text-neutral-text-secondary" : "text-neutral-text font-medium group-hover:text-brand-orange"
+              }`}>
+                {label}
+              </span>
+              {done
+                ? <span className="text-green-500 text-xs font-bold">✓</span>
+                : <span className="text-[10px] font-semibold text-brand-orange opacity-0 group-hover:opacity-100 transition-opacity">Add →</span>
+              }
+            </Link>
+          ))}
+        </div>
+
+        {/* CTA */}
+        {completeness < 100 ? (
+          <Link
+            href="/dashboard/profile"
+            className="block w-full py-2.5 text-sm font-semibold text-center text-white bg-neutral-text rounded-lg hover:bg-neutral-text/90 transition-colors"
+          >
+            Complete your profile
+          </Link>
+        ) : (
+          <Link
+            href="/dashboard/profile"
+            className="block w-full py-2.5 text-sm font-semibold text-center text-brand-orange border border-brand-orange rounded-lg hover:bg-brand-orange/5 transition-colors"
+          >
+            View your profile →
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

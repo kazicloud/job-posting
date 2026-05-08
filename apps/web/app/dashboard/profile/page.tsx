@@ -3,10 +3,10 @@
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { PageHeader } from "@/components/dashboard/page-header";
 import Link from "next/link";
-import { Edit2, Briefcase, GraduationCap, Award, MapPin, Phone, Mail, Loader2, Plus, Camera, Upload, Trash2, Edit3, RefreshCw, RotateCcw, RotateCw, ZoomIn, FileText, Settings, X, Search, ChevronDown } from "lucide-react";
+import { Edit2, Briefcase, GraduationCap, Award, MapPin, Phone, Mail, Loader2, Plus, Camera, Upload, Trash2, Edit3, RefreshCw, RotateCcw, RotateCw, ZoomIn, FileText, Settings, X, Search, ChevronDown, CheckCircle, Zap, Bookmark } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import Cropper from "react-easy-crop";
 import { useUser } from "@clerk/nextjs";
 import countiesData from "@/data/counties.json";
@@ -67,12 +67,14 @@ function CareerSummarySection({ profile }: { profile: any }) {
   const [isEditing, setIsEditing] = useState(false);
   const [summary, setSummary] = useState(profile.jobSeekerProfile?.careerSummary || "");
   const updateCareerSummary = useMutation(api.profile.updateCareerSummary);
+  const refreshCompleteness = useMutation(api.profile.refreshCompleteness);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       await updateCareerSummary({ summary });
+      void refreshCompleteness({});
       setIsEditing(false);
     } catch (error) {
       console.error("Failed to save career summary:", error);
@@ -82,9 +84,9 @@ function CareerSummarySection({ profile }: { profile: any }) {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-neutral-border p-4 sm:p-6">
+    <div id="section-summary" className="bg-white rounded-xl border border-neutral-border p-4 sm:p-6 scroll-mt-20">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base sm:text-lg font-semibold text-neutral-text">About</h3>
+        <h3 className="text-base font-semibold text-neutral-text">About</h3>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
@@ -153,6 +155,7 @@ function BasicInfoSection({ profile }: { profile: any }) {
   const [regionSearch, setRegionSearch] = useState("");
   const [regionDropdownOpen, setRegionDropdownOpen] = useState(false);
   const updateBasicInfo = useMutation(api.profile.updateJobSeekerBasicInfo);
+  const refreshCompleteness = useMutation(api.profile.refreshCompleteness);
 
   const [form, setForm] = useState({
     fullName: profile.fullName || "",
@@ -193,6 +196,7 @@ function BasicInfoSection({ profile }: { profile: any }) {
         preferredRegions: form.preferredRegions,
         county: form.preferredRegions[0] || "",
       });
+      void refreshCompleteness({});
       setIsEditing(false);
     } catch (err) {
       console.error("Failed to update basic info:", err);
@@ -222,9 +226,9 @@ function BasicInfoSection({ profile }: { profile: any }) {
     : [];
 
   return (
-    <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6">
+    <div id="section-basic" className="bg-white border border-neutral-border rounded-xl p-4 sm:p-6 scroll-mt-20">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base sm:text-lg font-semibold text-neutral-text">Basic Information</h3>
+        <h3 className="text-base font-semibold text-neutral-text">Basic Information</h3>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
@@ -408,6 +412,7 @@ function CareerPreferencesSection({ profile }: { profile: any }) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const updatePreferences = useMutation(api.profile.updateJobSeekerPreferences);
+  const refreshCompleteness = useMutation(api.profile.refreshCompleteness);
 
   const countryCurrency = COUNTRY_CURRENCY[normalizeCountryCode(profile.country)] || "KES";
 
@@ -446,6 +451,7 @@ function CareerPreferencesSection({ profile }: { profile: any }) {
         willingToRelocate: form.willingToRelocate,
         availability: form.availability || undefined,
       });
+      void refreshCompleteness({});
       setIsEditing(false);
     } catch (err) {
       console.error("Failed to update preferences:", err);
@@ -471,9 +477,9 @@ function CareerPreferencesSection({ profile }: { profile: any }) {
   ];
 
   return (
-    <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6">
+    <div id="section-preferences" className="bg-white border border-neutral-border rounded-xl p-4 sm:p-6 scroll-mt-20">
       <div className="flex items-center justify-between mb-4 sm:mb-5">
-        <h3 className="text-base sm:text-lg font-semibold text-neutral-text">Career Preferences</h3>
+        <h3 className="text-base font-semibold text-neutral-text">Career Preferences</h3>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
@@ -784,6 +790,7 @@ function SkillsSection({ profile }: { profile: any }) {
   const [newSkill, setNewSkill] = useState("");
   const addSkill = useMutation(api.educationSkillsMutations.addSkill);
   const deleteSkill = useMutation(api.educationSkillsMutations.deleteSkill);
+  const refreshCompleteness = useMutation(api.profile.refreshCompleteness);
   const [saving, setSaving] = useState(false);
 
   const handleAddSkill = () => {
@@ -824,6 +831,7 @@ function SkillsSection({ profile }: { profile: any }) {
         await deleteSkill({ id: skill._id });
       }
       
+      void refreshCompleteness({});
       setIsEditing(false);
     } catch (error) {
       console.error("Failed to save skills:", error);
@@ -833,9 +841,9 @@ function SkillsSection({ profile }: { profile: any }) {
   };
 
   return (
-    <div className="bg-white border border-neutral-border rounded-lg p-6">
+    <div id="section-skills" className="bg-white border border-neutral-border rounded-xl p-6 scroll-mt-20">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-neutral-text">Skills</h3>
+        <h3 className="text-base font-semibold text-neutral-text">Skills</h3>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
@@ -1257,11 +1265,95 @@ function EditEducationModal({ education, onClose, onSave, onDelete }: any) {
 }
 
 
+// Sidebar checklist card — mirrors the computation logic so the user
+// sees exactly what's missing and can click to fix each item.
+function ProfileStrengthSidebar({ profile }: { profile: any }) {
+  const pct = profile.jobSeekerProfile?.profileCompleteness || 0;
+  const label =
+    pct >= 90 ? "All-Star"
+    : pct >= 70 ? "Strong"
+    : pct >= 40 ? "Intermediate"
+    : "Getting started";
+
+  const hasPhoto = !!(profile.profilePhoto || profile.profilePhotoStorageId);
+  const hasContact = !!(profile.fullName && profile.phone && (profile.county || profile.preferredRegions?.length));
+  const hasHeadline = !!(profile.jobSeekerProfile?.headline?.trim().length >= 3);
+  const hasSummary = !!(profile.jobSeekerProfile?.careerSummary?.trim().length >= 50);
+  const hasExp = (profile.workExperience?.length ?? 0) >= 1;
+  const hasEdu = (profile.education?.length ?? 0) >= 1;
+  const hasSkills = (profile.skills?.length ?? 0) >= 3;
+  const hasCerts = (profile.certifications?.length ?? 0) >= 1;
+
+  const items = [
+    { label: "Profile photo",        done: hasPhoto,    pts: 10, section: "section-photo" },
+    { label: "Name, phone & region", done: hasContact,  pts: 10, section: "section-basic" },
+    { label: "Professional headline",done: hasHeadline, pts: 10, section: "section-basic" },
+    { label: "Career summary",       done: hasSummary,  pts: 15, note: "≥ 50 chars", section: "section-summary" },
+    { label: "Work experience",      done: hasExp,      pts: 20, section: "section-experience" },
+    { label: "Education",            done: hasEdu,      pts: 10, section: "section-education" },
+    { label: "Skills (min. 3)",      done: hasSkills,   pts: 15, section: "section-skills" },
+    { label: "Certifications",       done: hasCerts,    pts: 10, section: "section-skills" },
+  ];
+
+  const done = items.filter(i => i.done).length;
+
+  return (
+    <div className="bg-white border border-neutral-border rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="px-5 pt-5 pb-4 border-b border-neutral-border">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-neutral-text">Profile strength</h3>
+          <span className="text-xs font-bold text-brand-orange">{label}</span>
+        </div>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex-1 h-1.5 bg-neutral-bg-secondary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-brand-orange rounded-full transition-all duration-700"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="text-xs font-semibold text-neutral-text tabular-nums">{pct}%</span>
+        </div>
+        <p className="text-xs text-neutral-text-muted">{done}/{items.length} sections complete</p>
+      </div>
+
+      {/* Checklist */}
+      <div className="p-4 space-y-0.5">
+        {items.map(({ label, done, pts, note, section }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => {
+              const el = document.getElementById(section);
+              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className={`w-full flex items-center gap-3 px-1 py-2 rounded-lg text-left cursor-pointer hover:bg-neutral-bg-secondary transition-colors`}
+          >
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+              done ? "bg-green-50" : "border-2 border-neutral-border"
+            }`}>
+              {done && <CheckCircle className="w-4 h-4 text-green-600" />}
+            </div>
+            <span className={`flex-1 text-xs ${done ? "text-neutral-text-secondary line-through" : "text-neutral-text"}`}>
+              {label}
+              {note && !done && <span className="text-neutral-text-muted ml-1">({note})</span>}
+            </span>
+            <span className={`text-[10px] font-semibold tabular-nums ${done ? "text-green-600" : "text-neutral-text-muted"}`}>
+              +{pts}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const profile = useQuery(api.profile.getCurrentUserProfile);
   const generateUploadUrl = useMutation(api.cvUpload.generateUploadUrl);
   const updateProfilePhoto = useMutation(api.profile.updateProfilePhoto);
   const removeProfilePhoto = useMutation(api.profile.removeProfilePhoto);
+  const refreshCompleteness = useMutation(api.profile.refreshCompleteness);
   const updateWorkExperience = useMutation(api.workExperienceMutations.updateWorkExperience);
   const deleteWorkExperience = useMutation(api.workExperienceMutations.deleteWorkExperience);
   const addWorkExperience = useMutation(api.workExperienceMutations.addWorkExperience);
@@ -1269,6 +1361,13 @@ export default function ProfilePage() {
   const deleteEducation = useMutation(api.educationSkillsMutations.deleteEducation);
   const addEducation = useMutation(api.educationSkillsMutations.addEducation);
   const { user } = useUser();
+
+  // Recalculate completeness based on actual DB state the first time the page loads.
+  // This corrects any stale value left over from onboarding's lighter calculation.
+  useEffect(() => {
+    refreshCompleteness({}).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally run once on mount
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -1377,6 +1476,7 @@ export default function ProfilePage() {
       if (user && result?.photoUrl) {
         await user.setProfileImage({ file: croppedBlob });
       }
+      void refreshCompleteness({});
       
       // Reset states
       setEditMode(false);
@@ -1467,166 +1567,98 @@ export default function ProfilePage() {
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 lg:p-8">
-        {/* Show PageHeader only on desktop, show button on mobile */}
-        <div className="hidden sm:block">
-          <PageHeader
-            title="My Profile"
-            description="Manage your professional information"
-            action={
-              profile?.jobSeekerProfile?.profileCompleteness && profile.jobSeekerProfile.profileCompleteness < 100 ? (
-                <Link
-                  href="/onboarding"
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
-                >
-                  Complete Profile
-                </Link>
-              ) : null
-            }
-          />
-        </div>
-        
-        {/* Mobile: Show only Complete Profile button if needed */}
-        {profile?.jobSeekerProfile?.profileCompleteness && profile.jobSeekerProfile.profileCompleteness < 100 && (
-          <div className="sm:hidden mb-4">
-            <Link
-              href="/onboarding"
-              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-brand-orange text-white text-sm font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
-            >
-              Complete Profile ({profile.jobSeekerProfile.profileCompleteness}%)
-            </Link>
+        {/* Page title */}
+        <div className="hidden sm:flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl font-semibold text-neutral-text">My Profile</h1>
+            <p className="text-sm text-neutral-text-secondary mt-0.5">Manage your professional information</p>
           </div>
-        )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Main Profile Card */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Basic Info */}
-            <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row items-start gap-4">
-                {/* Avatar with Circular Progress */}
-                <div className="relative flex-shrink-0 mx-auto sm:mx-0">
-                  {/* Circular Progress Bar */}
-                  <svg className="w-20 h-20 sm:w-24 sm:h-24 -rotate-90">
-                    {/* Background circle */}
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="36"
-                      stroke="#E2E8F0"
-                      strokeWidth="4"
-                      fill="none"
-                      className="sm:hidden"
-                    />
-                    <circle
-                      cx="48"
-                      cy="48"
-                      r="44"
-                      stroke="#E2E8F0"
-                      strokeWidth="4"
-                      fill="none"
-                      className="hidden sm:block"
-                    />
-                    {/* Progress circle */}
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r="36"
-                      stroke="#DC842C"
-                      strokeWidth="4"
-                      fill="none"
-                      strokeDasharray={`${2 * Math.PI * 36}`}
-                      strokeDashoffset={`${2 * Math.PI * 36 * (1 - (profile.jobSeekerProfile?.profileCompleteness || 0) / 100)}`}
-                      strokeLinecap="round"
-                      className="transition-all duration-500 sm:hidden"
-                    />
-                    <circle
-                      cx="48"
-                      cy="48"
-                      r="44"
-                      stroke="#DC842C"
-                      strokeWidth="4"
-                      fill="none"
-                      strokeDasharray={`${2 * Math.PI * 44}`}
-                      strokeDashoffset={`${2 * Math.PI * 44 * (1 - (profile.jobSeekerProfile?.profileCompleteness || 0) / 100)}`}
-                      strokeLinecap="round"
-                      className="transition-all duration-500 hidden sm:block"
-                    />
-                  </svg>
-                  
-                  {/* Avatar */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <button
-                      onClick={() => setShowPhotoModal(true)}
-                      disabled={uploading}
-                      className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-neutral-text group cursor-pointer disabled:cursor-not-allowed"
-                    >
-                      {profile.profilePhoto ? (
-                        <img 
-                          src={profile.profilePhoto} 
-                          alt={profile.fullName || "User"} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white text-xl sm:text-2xl font-semibold">
-                          {profile.fullName?.split(" ").map(n => n[0]).join("") || "U"}
-                        </div>
-                      )}
-                      
-                      {/* Loading overlay */}
-                      {uploading && (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                          <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-white" />
-                        </div>
-                      )}
-                      
-                      {/* Hover overlay */}
-                      {!uploading && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                        </div>
-                      )}
-                    </button>
-                  </div>
-                  
-                  {/* Completeness percentage */}
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-white px-2 py-0.5 rounded-full border border-neutral-border">
-                    <span className="text-xs font-semibold text-brand-orange">
-                      {profile.jobSeekerProfile?.profileCompleteness || 0}%
+          {/* Main column */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-5">
+            {/* Hero card — photo + name + meta */}
+            <div id="section-photo" className="bg-white border border-neutral-border rounded-xl p-5 sm:p-6 scroll-mt-20">
+              <div className="flex items-start gap-5">
+                {/* Photo */}
+                <div className="relative flex-shrink-0">
+                  <button
+                    onClick={() => setShowPhotoModal(true)}
+                    disabled={uploading}
+                    className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-neutral-text group cursor-pointer disabled:cursor-not-allowed flex-shrink-0"
+                  >
+                    {profile.profilePhoto ? (
+                      <img
+                        src={profile.profilePhoto}
+                        alt={profile.fullName || "User"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white text-2xl sm:text-3xl font-semibold">
+                        {profile.fullName?.split(" ").map((n: string) => n[0]).join("").slice(0, 2) || "U"}
+                      </div>
+                    )}
+                    {uploading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 animate-spin text-white" />
+                      </div>
+                    )}
+                    {!uploading && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Camera className="w-5 h-5 text-white" />
+                      </div>
+                    )}
+                  </button>
+                  {/* Open-to-work ring */}
+                  {profile.jobSeekerProfile?.openToWork && (
+                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 bg-green-600 text-white text-[10px] font-semibold rounded-full">
+                      Open to work
                     </span>
-                  </div>
+                  )}
                 </div>
 
-                <div className="flex-1">
-                  {uploadError && (
-                    <p className="text-xs text-red-600 mb-2">{uploadError}</p>
-                  )}
-                  <h2 className="text-xl sm:text-2xl font-semibold text-neutral-text mb-1">
-                    {profile.fullName || "User"}
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  {uploadError && <p className="text-xs text-red-600 mb-1">{uploadError}</p>}
+                  <h2 className="text-lg sm:text-xl font-semibold text-neutral-text leading-tight">
+                    {profile.fullName || "Your Name"}
                   </h2>
-                  <p className="text-sm sm:text-base text-neutral-text-secondary mb-3">{profile.jobSeekerProfile?.headline || "No headline set"}</p>
-                  <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-neutral-text-secondary">
+                  <p className="text-sm text-neutral-text-secondary mt-0.5 mb-3 truncate">
+                    {profile.jobSeekerProfile?.headline || (
+                      <span className="italic text-neutral-text-muted">Add a headline</span>
+                    )}
+                  </p>
+
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-neutral-text-secondary">
                     {(() => {
                       const displayCountry = WORK_COUNTRIES.find(c => c.code === normalizeCountryCode(profile.country));
                       const displayRegions = profile.preferredRegions?.length ? profile.preferredRegions : profile.county ? [profile.county] : [];
                       if (!displayRegions.length && !displayCountry) return null;
                       return (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span className="truncate">
-                            {displayRegions.slice(0, 2).join(", ")}{displayRegions.length > 2 ? ` +${displayRegions.length - 2}` : ""}{displayCountry ? `, ${displayCountry.flag} ${displayCountry.name}` : ""}
-                          </span>
-                        </div>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                          {displayRegions.slice(0, 2).join(", ")}{displayRegions.length > 2 ? ` +${displayRegions.length - 2}` : ""}{displayCountry ? `, ${displayCountry.flag} ${displayCountry.name}` : ""}
+                        </span>
                       );
                     })()}
-                    <div className="flex items-center gap-1">
-                      <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span className="truncate">{profile.email}</span>
-                    </div>
+                    <span className="flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate max-w-[180px]">{profile.email}</span>
+                    </span>
+                    {profile.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                        {profile.phone}
+                      </span>
+                    )}
                   </div>
+
                   {profile.jobSeekerProfile?.currentStatus && (
                     <div className="mt-3">
-                      <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-brand-orange/10 text-brand-orange text-xs sm:text-sm font-medium rounded-full">
-                        ⚡ {statusMap[profile.jobSeekerProfile.currentStatus] || profile.jobSeekerProfile.currentStatus}
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-bg-secondary text-neutral-text-secondary text-xs font-medium rounded-full border border-neutral-border">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-orange inline-block" />
+                        {statusMap[profile.jobSeekerProfile.currentStatus] || profile.jobSeekerProfile.currentStatus}
                       </span>
                     </div>
                   )}
@@ -1644,19 +1676,22 @@ export default function ProfilePage() {
             <CareerPreferencesSection profile={profile} />
 
             {/* Work Experience */}
-            <div className="bg-white border border-neutral-border rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-neutral-text">Work Experience</h3>
+            <div id="section-experience" className="bg-white border border-neutral-border rounded-xl p-5 sm:p-6 scroll-mt-20">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <Briefcase className="w-4 h-4 text-neutral-text-secondary" />
+                  <h3 className="text-base font-semibold text-neutral-text">Work Experience</h3>
+                </div>
                 <button
                   onClick={() => setAddingExperience(true)}
-                  className="text-brand-orange hover:text-brand-orange/80 text-sm font-medium flex items-center gap-1"
+                  className="flex items-center gap-1 text-sm font-medium text-brand-orange hover:text-brand-orange/80 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Add</span>
+                  Add
                 </button>
               </div>
               {profile.workExperience && profile.workExperience.length > 0 ? (
-                <div className="space-y-5">
+                <div className="space-y-0">
                   {profile.workExperience.map((exp, idx) => (
                     <div key={exp._id}>
                       {idx > 0 && <div className="border-t border-neutral-border mb-5" />}
@@ -1709,7 +1744,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Education */}
-            <div className="bg-white border border-neutral-border rounded-lg p-6">
+            <div id="section-education" className="bg-white border border-neutral-border rounded-lg p-6 scroll-mt-20">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-neutral-text">Education</h3>
                 <button
@@ -1775,44 +1810,34 @@ export default function ProfilePage() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="bg-white border border-neutral-border rounded-lg p-6">
-              <h3 className="text-base font-semibold text-neutral-text mb-3">
-                Quick Actions
-              </h3>
-              <div className="space-y-2">
-                {profile.jobSeekerProfile?.profileCompleteness && profile.jobSeekerProfile.profileCompleteness < 100 && (
-                  <Link
-                    href="/onboarding"
-                    className="flex items-center justify-between px-4 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-md transition-colors group"
-                  >
-                    <span>Complete Profile Setup</span>
-                    <span className="text-xs text-brand-orange font-medium">
-                      {profile.jobSeekerProfile.profileCompleteness}%
-                    </span>
-                  </Link>
-                )}
-                {/* <Link
-                  href="/dashboard/profile/edit"
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-md transition-colors"
-                >
-                  <Edit2 className="w-4 h-4 text-neutral-text-secondary" />
-                  <span>Edit Profile</span>
-                </Link> */}
+          <div className="space-y-4 sm:space-y-5">
+            {/* Profile Strength checklist card */}
+            <ProfileStrengthSidebar profile={profile} />
+
+            {/* Quick links */}
+            <div className="bg-white border border-neutral-border rounded-xl p-4 sm:p-5">
+              <h3 className="text-sm font-semibold text-neutral-text mb-3">Quick links</h3>
+              <div className="space-y-1">
                 <Link
                   href="/dashboard/applications"
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-md transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-lg transition-colors"
                 >
-                  <FileText className="w-4 h-4 text-neutral-text-secondary" />
-                  <span>My Applications</span>
+                  <FileText className="w-4 h-4 text-neutral-text-muted" />
+                  My Applications
+                </Link>
+                <Link
+                  href="/dashboard/wishlist"
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-lg transition-colors"
+                >
+                  <Bookmark className="w-4 h-4 text-neutral-text-muted" />
+                  Saved Jobs
                 </Link>
                 <Link
                   href="/dashboard/settings"
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-md transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-text hover:bg-neutral-bg-secondary rounded-lg transition-colors"
                 >
-                  <Settings className="w-4 h-4 text-neutral-text-secondary" />
-                  <span>Account Settings</span>
+                  <Settings className="w-4 h-4 text-neutral-text-muted" />
+                  Account Settings
                 </Link>
               </div>
             </div>
@@ -2145,11 +2170,13 @@ export default function ProfilePage() {
           onClose={() => setEditingExperience(null)}
           onSave={async (data: any) => {
             await updateWorkExperience({ id: editingExperience._id, ...data });
+            void refreshCompleteness({});
             setEditingExperience(null);
           }}
           onDelete={async () => {
             if (confirm("Delete this experience?")) {
               await deleteWorkExperience({ id: editingExperience._id });
+              void refreshCompleteness({});
               setEditingExperience(null);
             }
           }}
@@ -2173,6 +2200,7 @@ export default function ProfilePage() {
               currentlyWorking: data.currentlyWorking,
               description: data.description || undefined,
             });
+            void refreshCompleteness({});
             setAddingExperience(false);
           }}
           onDelete={null}
@@ -2186,11 +2214,13 @@ export default function ProfilePage() {
           onClose={() => setEditingEducation(null)}
           onSave={async (data: any) => {
             await updateEducation({ id: editingEducation._id, ...data });
+            void refreshCompleteness({});
             setEditingEducation(null);
           }}
           onDelete={async () => {
             if (confirm("Delete this education?")) {
               await deleteEducation({ id: editingEducation._id });
+              void refreshCompleteness({});
               setEditingEducation(null);
             }
           }}
@@ -2204,6 +2234,7 @@ export default function ProfilePage() {
           onClose={() => setAddingEducation(false)}
           onSave={async (data: any) => {
             await addEducation({ userId: profile._id, ...data });
+            void refreshCompleteness({});
             setAddingEducation(false);
           }}
           onDelete={null}

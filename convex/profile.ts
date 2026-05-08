@@ -1,5 +1,61 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+
+// ─── Completeness engine ─────────────────────────────────────────────────────
+// Mirrors the checklist shown in the UI dashboard card.
+// photo(10) + contact(10) + headline(10) + summary(15) +
+// experience(20) + education(10) + skills≥3(15) + certifications(10) = 100
+async function computeCompleteness(ctx: any, userId: Id<"users">): Promise<number> {
+  const user = await ctx.db.get(userId);
+  if (!user) return 0;
+
+  const profile = await ctx.db
+    .query("jobSeekerProfiles")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .first();
+
+  const [skills, workExp, education, certifications] = await Promise.all([
+    ctx.db.query("skills").withIndex("by_user", (q: any) => q.eq("userId", userId)).collect(),
+    ctx.db.query("workExperience").withIndex("by_user", (q: any) => q.eq("userId", userId)).collect(),
+    ctx.db.query("education").withIndex("by_user", (q: any) => q.eq("userId", userId)).collect(),
+    ctx.db.query("certifications").withIndex("by_user", (q: any) => q.eq("userId", userId)).collect(),
+  ]);
+
+  let score = 0;
+  if (user.profilePhoto || user.profilePhotoStorageId) score += 10;
+  if (user.fullName && user.phone && (user.county || user.preferredRegions?.length)) score += 10;
+  if (profile?.headline && profile.headline.trim().length >= 3) score += 10;
+  if (profile?.careerSummary && profile.careerSummary.trim().length >= 50) score += 15;
+  if (workExp.length >= 1) score += 20;
+  if (education.length >= 1) score += 10;
+  score += skills.length >= 3 ? 15 : skills.length * 5; // partial credit
+  if (certifications.length >= 1) score += 10;
+
+  return Math.min(Math.round(score), 100);
+}
+
+/** Call after any profile edit to sync the stored completeness value. */
+export const refreshCompleteness = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return 0;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+    if (!user) return 0;
+    const score = await computeCompleteness(ctx, user._id);
+    const profile = await ctx.db
+      .query("jobSeekerProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .first();
+    if (profile) await ctx.db.patch(profile._id, { profileCompleteness: score });
+    return score;
+  },
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const getEmployerProfile = query({
   args: { userId: v.id("users") },

@@ -3,6 +3,7 @@
 import { ReactNode, createContext, useContext, useState } from "react";
 import { EmployerSidebar } from "./employer-sidebar";
 import { EmployerTopNav } from "./employer-top-nav";
+import { ContactSupportButton } from "@/components/contact-support-button";
 
 interface EmployerDashboardLayoutProps {
   children: ReactNode;
@@ -32,6 +33,7 @@ export function EmployerDashboardLayout({ children }: EmployerDashboardLayoutPro
       <div className={`min-h-screen bg-neutral-bg-secondary transition-all duration-200 ${collapsed ? "lg:pl-16" : "lg:pl-64"}`}>
         <EmployerTopNav />
         {children}
+        <ContactSupportButton inboxPath="/employer-dashboard/inbox" />
       </div>
     </SidebarContext.Provider>
   );

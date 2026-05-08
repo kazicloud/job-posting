@@ -7,12 +7,34 @@ import Link from "next/link";
 import { 
   ArrowLeft, Building2, MapPin, Globe, Calendar, Users, Briefcase, 
   FileText, CheckCircle, XCircle, Mail, Phone, Linkedin, ExternalLink,
-  Shield, AlertCircle, Trash2, Clock, Pencil
+  Shield, AlertCircle, Trash2, Clock, Pencil, GitCompare
 } from "lucide-react";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { RejectionModal } from "../../../../components/rejection-modal";
 import { DeleteUserModal } from "../../../../components/delete-user-modal";
 import { useState } from "react";
+
+function DocumentLink({ storageId, label }: { storageId: string; label: string }) {
+  const url = useQuery(api.serviceOrders.getFileUrl, { storageId });
+  return (
+    <div className="flex items-center justify-between p-2 rounded bg-neutral-bg-secondary">
+      <span className="text-sm text-neutral-text">{label}</span>
+      {url ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs font-medium text-brand-orange hover:underline"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          View
+        </a>
+      ) : (
+        <CheckCircle className="w-4 h-4 text-green-600" />
+      )}
+    </div>
+  );
+}
 
 export default function EmployerDetailPage() {
   const params = useParams();
@@ -28,11 +50,18 @@ export default function EmployerDetailPage() {
   
   const changeRequests = useQuery(api.profileChangeRequests.getChangeRequestsForUser, { userId: employerId });
   const resolveChangeRequest = useMutation(api.profileChangeRequests.resolveChangeRequest);
+  const pendingEdits = useQuery(api.employerPendingEdits.getPendingEditsForUser, { userId: employerId });
+  const approvePendingEdits = useMutation(api.employerPendingEdits.approvePendingEdits);
+  const rejectPendingEdits = useMutation(api.employerPendingEdits.rejectPendingEdits);
 
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+  const [processingEdits, setProcessingEdits] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
+  const [showRejectNoteInput, setShowRejectNoteInput] = useState(false);
+  const [showEditsModal, setShowEditsModal] = useState(false);
 
   const handleVerify = async (verified: boolean) => {
     if (!verified) {
@@ -337,6 +366,151 @@ export default function EmployerDetailPage() {
         onConfirm={handleDeleteUser}
       />
 
+      {/* ── Pending Profile Edits Modal ─────────────────────────────────── */}
+      {showEditsModal && pendingEdits && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowEditsModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Modal header */}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-neutral-border">
+              <GitCompare className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-semibold text-neutral-text">Pending Profile Changes</h2>
+                <p className="text-xs text-neutral-text-muted mt-0.5">
+                  Submitted {new Date(pendingEdits.submittedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+                  {" · "}{Object.keys(pendingEdits.changes as object).length} field{Object.keys(pendingEdits.changes as object).length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <button onClick={() => setShowEditsModal(false)} className="p-1.5 rounded-lg hover:bg-neutral-bg-secondary text-neutral-text-muted hover:text-neutral-text transition-colors">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable diff list */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+              {(() => {
+                const FIELD_LABELS: Record<string, string> = {
+                  companyName: "Company Name", companyLogo: "Logo",
+                  companySize: "Company Size", companyIndustries: "Industries",
+                  website: "Website", foundedYear: "Founded Year",
+                  linkedInProfile: "LinkedIn", companyDescription: "Description",
+                  headquarters: "Headquarters", country: "Country",
+                  isKenyaBased: "Kenya Based", contactPersonName: "Contact Name",
+                  contactPersonTitle: "Contact Title", contactPersonPhone: "Contact Phone",
+                };
+                const fmt = (key: string, v: any) => {
+                  if (v === null || v === undefined || v === "") return <span className="italic text-neutral-text-muted">No value</span>;
+                  if (Array.isArray(v)) return <span>{v.join(", ")}</span>;
+                  if (key === "companyLogo") return <a href={String(v)} target="_blank" rel="noopener noreferrer" className="text-brand-orange underline break-all">View logo ↗</a>;
+                  if (typeof v === "boolean") return <span>{v ? "Yes" : "No"}</span>;
+                  return <span className="break-words">{String(v)}</span>;
+                };
+                return Object.entries(pendingEdits.changes as Record<string, any>)
+                  .filter(([key, proposed]) => JSON.stringify((profile as any)?.[key]) !== JSON.stringify(proposed))
+                  .map(([key, proposed]) => {
+                  const current = (profile as any)?.[key];
+                  const label = FIELD_LABELS[key] || key;
+                  return (
+                    <div key={key} className="rounded-lg border border-amber-200 overflow-hidden">
+                      <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide bg-amber-50 text-amber-800 border-b border-amber-200">
+                        {label}
+                      </div>
+                      <div className="grid grid-cols-2 divide-x divide-neutral-border">
+                        <div className="px-4 py-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-text-muted mb-1">Current</p>
+                          <p className="text-sm text-neutral-text-secondary leading-relaxed">{fmt(key, current)}</p>
+                        </div>
+                        <div className="px-4 py-3 bg-amber-50/60">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide mb-1 text-amber-700">Proposed</p>
+                          <p className="text-sm leading-relaxed font-medium text-amber-900">{fmt(key, proposed)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* Footer: reject note + actions */}
+            <div className="px-6 py-4 border-t border-neutral-border space-y-3">
+              {showRejectNoteInput && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-text mb-1.5">Rejection note (optional)</label>
+                  <input
+                    type="text"
+                    value={rejectNote}
+                    onChange={(e) => setRejectNote(e.target.value)}
+                    placeholder="Reason for rejection…"
+                    className="w-full px-3 py-2.5 border border-neutral-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                  />
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    setProcessingEdits(true);
+                    try {
+                      await approvePendingEdits({ editId: pendingEdits._id });
+                      setShowEditsModal(false);
+                      alert("Profile changes approved and applied successfully.");
+                    } catch (e) { console.error(e); alert("Failed to approve changes."); }
+                    setProcessingEdits(false);
+                  }}
+                  disabled={processingEdits}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                  Approve & Apply
+                </button>
+                {!showRejectNoteInput ? (
+                  <button
+                    onClick={() => setShowRejectNoteInput(true)}
+                    disabled={processingEdits}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    <XCircle className="w-4 h-4 flex-shrink-0" />
+                    Reject
+                  </button>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      setProcessingEdits(true);
+                      try {
+                        await rejectPendingEdits({ editId: pendingEdits._id, adminNote: rejectNote || undefined });
+                        setShowRejectNoteInput(false);
+                        setRejectNote("");
+                        setShowEditsModal(false);
+                        alert("Profile changes rejected.");
+                      } catch (e) { console.error(e); alert("Failed to reject changes."); }
+                      setProcessingEdits(false);
+                    }}
+                    disabled={processingEdits}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    <XCircle className="w-4 h-4 flex-shrink-0" />
+                    Confirm Reject
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending changes banner */}
+      {pendingEdits && (
+        <button
+          onClick={() => setShowEditsModal(true)}
+          className="w-full mb-6 flex items-center gap-3 px-5 py-3.5 bg-amber-50 border border-amber-300 rounded-lg hover:bg-amber-100 transition-colors text-left"
+        >
+          <span className="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <GitCompare className="w-4 h-4 text-amber-700 flex-shrink-0" />
+          <span className="flex-1 text-sm font-medium text-amber-900">
+            {Object.entries(pendingEdits.changes as Record<string, any>).filter(([k, v]) => JSON.stringify((profile as any)?.[k]) !== JSON.stringify(v)).length} profile field{Object.entries(pendingEdits.changes as Record<string, any>).filter(([k, v]) => JSON.stringify((profile as any)?.[k]) !== JSON.stringify(v)).length !== 1 ? "s" : ""} pending approval
+          </span>
+          <span className="text-xs text-amber-700 font-medium">Review →</span>
+        </button>
+      )}
+
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-lg border border-neutral-border p-6">
@@ -612,22 +786,13 @@ export default function EmployerDetailPage() {
                 <p className="text-sm font-medium text-neutral-text mb-3">Documents</p>
                 <div className="space-y-2">
                   {profile?.incorporationCertStorageId && (
-                    <div className="flex items-center justify-between p-2 rounded bg-neutral-bg-secondary">
-                      <span className="text-sm text-neutral-text">Incorporation Certificate</span>
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                    </div>
+                    <DocumentLink storageId={profile.incorporationCertStorageId} label="Incorporation Certificate" />
                   )}
                   {profile?.kraCertStorageId && (
-                    <div className="flex items-center justify-between p-2 rounded bg-neutral-bg-secondary">
-                      <span className="text-sm text-neutral-text">KRA Certificate</span>
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                    </div>
+                    <DocumentLink storageId={profile.kraCertStorageId} label="KRA Certificate" />
                   )}
                   {profile?.registrationDocStorageId && (
-                    <div className="flex items-center justify-between p-2 rounded bg-neutral-bg-secondary">
-                      <span className="text-sm text-neutral-text">Registration Document</span>
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                    </div>
+                    <DocumentLink storageId={profile.registrationDocStorageId} label="Registration Document" />
                   )}
                   {!profile?.incorporationCertStorageId && !profile?.kraCertStorageId && !profile?.registrationDocStorageId && (
                     <p className="text-sm text-neutral-text-muted">No documents uploaded</p>
@@ -653,76 +818,6 @@ export default function EmployerDetailPage() {
               )}
             </div>
           </div>
-
-          {/* Profile Change Requests */}
-          {changeRequests && changeRequests.length > 0 && (
-            <div className="bg-white rounded-lg border border-neutral-border p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Pencil className="w-5 h-5 text-brand-orange" />
-                <h3 className="text-lg font-semibold text-neutral-text">Profile Edit Requests</h3>
-              </div>
-              <div className="space-y-4">
-                {changeRequests.map((req: any) => (
-                  <div key={req._id} className={`p-4 rounded-lg border ${
-                    req.status === "pending" ? "border-yellow-200 bg-yellow-50" :
-                    req.status === "approved" ? "border-green-200 bg-green-50" :
-                    "border-red-200 bg-red-50"
-                  }`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                        req.status === "pending" ? "bg-yellow-100 text-yellow-800" :
-                        req.status === "approved" ? "bg-green-100 text-green-800" :
-                        "bg-red-100 text-red-800"
-                      }`}>
-                        {req.status === "pending" && <Clock className="w-3 h-3" />}
-                        {req.status === "approved" && <CheckCircle className="w-3 h-3" />}
-                        {req.status === "rejected" && <XCircle className="w-3 h-3" />}
-                        {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                      </span>
-                      <span className="text-xs text-neutral-text-muted">
-                        {new Date(req._creationTime).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-neutral-text mb-3">{req.reason}</p>
-                    {req.status === "pending" && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={async () => {
-                            setProcessingRequestId(req._id);
-                            try {
-                              await resolveChangeRequest({ requestId: req._id, status: "approved" });
-                            } catch (e) { console.error(e); }
-                            setProcessingRequestId(null);
-                          }}
-                          disabled={processingRequestId === req._id}
-                          className="flex-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={async () => {
-                            const note = prompt("Reason for rejection (optional):");
-                            setProcessingRequestId(req._id);
-                            try {
-                              await resolveChangeRequest({ requestId: req._id, status: "rejected", adminNote: note || undefined });
-                            } catch (e) { console.error(e); }
-                            setProcessingRequestId(null);
-                          }}
-                          disabled={processingRequestId === req._id}
-                          className="flex-1 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
-                    {req.adminNote && (
-                      <p className="text-xs text-neutral-text-muted mt-2 italic">Admin: {req.adminNote}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Account Info */}
           <div className="bg-white rounded-lg border border-neutral-border p-6">

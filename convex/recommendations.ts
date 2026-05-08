@@ -537,6 +537,7 @@ export const getSmartRecommendationsPaginated = query({
 /**
  * Get smart job recommendations with premium algorithm
  * Features: Multi-factor scoring, diversity, freshness, behavioral signals
+ * Uses same field-first filtering as getSmartRecommendationsPaginated for consistency
  */
 export const getSmartRecommendations = query({
   args: {
@@ -573,7 +574,7 @@ export const getSmartRecommendations = query({
 
     const userSkillNames = userSkills.map(s => s.skillName.toLowerCase().trim());
 
-    // Get user's applications (for behavioral signals)
+    // Get user's applications — explicitly exclude applied jobs
     const applications = await ctx.db
       .query("applications")
       .withIndex("by_job_seeker", (q) => q.eq("jobSeekerId", user._id))
@@ -583,7 +584,7 @@ export const getSmartRecommendations = query({
     
     // Get past application titles for pattern matching
     const pastApplicationTitles: string[] = [];
-    for (const app of applications.slice(0, 10)) { // Last 10 applications
+    for (const app of applications.slice(0, 10)) {
       const job = await ctx.db.get(app.jobId);
       if (job?.title) pastApplicationTitles.push(job.title);
     }
@@ -593,7 +594,7 @@ export const getSmartRecommendations = query({
       .query("jobViews")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .order("desc")
-      .take(50); // Recent 50 views
+      .take(50);
     
     const viewedJobIds = new Set(viewedJobs.map(view => view.jobId));
     
@@ -620,17 +621,53 @@ export const getSmartRecommendations = query({
       .collect();
 
     const now = Date.now();
-    
-    // Filter out expired jobs
-    const availableJobs = allJobs.filter(job => {
-      if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < now) {
-        return false;
-      }
+
+    // Step 1: Base filter — exclude applied jobs and expired jobs
+    const baseJobs = allJobs.filter(job => {
+      if (appliedJobIds.has(job._id)) return false;
+      if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < now) return false;
       return true;
     });
 
-    // Score all jobs
-    const scoredJobs = availableJobs.map(job => ({
+    // Step 2: Field-first filtering (same approach as getSmartRecommendationsPaginated)
+    let candidateJobs = baseJobs;
+    if (interestedFields.length > 0) {
+      const allRelatedFields = interestedFields.flatMap(f => getRelatedFields(f));
+
+      // Jobs matching interested fields (department or title)
+      const fieldMatchedJobs = baseJobs.filter(job => {
+        if (job.department) {
+          const jobDept = job.department.toLowerCase().trim();
+          if (allRelatedFields.some(field => jobDept.includes(field) || field.includes(jobDept))) {
+            return true;
+          }
+        }
+        if (job.title) {
+          const jobTitle = job.title.toLowerCase().trim();
+          if (allRelatedFields.some(field => jobTitle.includes(field) || field.includes(jobTitle))) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      // Also include jobs user has explicitly engaged with (viewed/saved) even if different field
+      const engagedJobIds = new Set(
+        baseJobs
+          .filter(job => viewedJobIds.has(job._id) || savedJobIds.has(job._id))
+          .map(j => j._id)
+      );
+
+      const combined = baseJobs.filter(
+        job => fieldMatchedJobs.some(j => j._id === job._id) || engagedJobIds.has(job._id)
+      );
+
+      // Use combined if there are candidates; fall back to all base jobs for empty profiles
+      candidateJobs = combined.length > 0 ? combined : baseJobs;
+    }
+
+    // Step 3: Score candidate jobs using the comprehensive algorithm
+    const scoredJobs = candidateJobs.map(job => ({
       ...job,
       score: calculateRecommendationScore({
         job,

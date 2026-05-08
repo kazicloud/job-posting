@@ -9,8 +9,8 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Check, Upload, X, FileText, Briefcase, MapPin, DollarSign, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function ApplyPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ApplyPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug: id } = use(params);
   const router = useRouter();
 
   // The "id" param may be a URL slug (contains hyphens) or a raw Convex ID.

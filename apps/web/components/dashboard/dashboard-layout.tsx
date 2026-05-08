@@ -3,6 +3,7 @@
 import { ReactNode, createContext, useContext, useState } from "react";
 import { Sidebar } from "./sidebar";
 import { DashboardTopNav } from "./top-nav";
+import { ContactSupportButton } from "@/components/contact-support-button";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -32,6 +33,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className={`min-h-screen bg-neutral-bg-secondary transition-all duration-200 ${collapsed ? "lg:pl-16" : "lg:pl-64"}`}>
         <DashboardTopNav />
         {children}
+        <ContactSupportButton inboxPath="/dashboard/inbox" />
       </div>
     </SidebarContext.Provider>
   );
