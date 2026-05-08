@@ -119,7 +119,7 @@ function formatDateRange(entry: ExperienceEntry) {
   const fmt = (d: string) => {
     if (!d) return "";
     const [y, m] = d.split("-");
-    return `${MONTHS[parseInt(m, 10) - 1] || ""} ${y}`;
+    return `${MONTHS[parseInt(m ?? "0", 10) - 1] || ""} ${y}`;
   };
   const start = fmt(entry.startDate);
   const end = entry.currentlyWorking ? "Present" : fmt(entry.endDate);

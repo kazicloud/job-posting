@@ -8,7 +8,8 @@ import { api } from "./_generated/api";
 // Shared modern email template
 // ---------------------------------------------------------------------------
 const getEmailTemplate = (content: string, preheader = "") => {
-  const logoUrl = process.env.LOGO_URL || "https://kazicloud.co.ke/images/kazicloud-logo.jpg";
+  const logoUrl = process.env.LOGO_URL || "https://kazicloud.com/images/kazicloud-logo.jpg";
+  const marketingUrl = process.env.NEXT_PUBLIC_MARKETING_URL || "https://kazicloud.com";
   const year = new Date().getFullYear();
 
   return `<!DOCTYPE html>
@@ -120,9 +121,9 @@ const getEmailTemplate = (content: string, preheader = "") => {
       <div class="footer">
         <p class="footer-text">© ${year} Kazicloud Platform. All rights reserved.</p>
         <p class="footer-text">
-          <a href="https://kazicloud.co.ke" class="footer-link">Visit Website</a>
+          <a href="${marketingUrl}" class="footer-link">Visit Website</a>
           &nbsp;•&nbsp;
-          <a href="mailto:support@contact.kazicloud.co.ke" class="footer-link">Support</a>
+          <a href="mailto:info@contact.kazicloud.co.ke" class="footer-link">Support</a>
         </p>
       </div>
     </div>
@@ -339,7 +340,7 @@ export const notifyEmployerVerified = action({
         </div>
 
         <p class="footer-note">
-          Questions? We're here to help — <a href="mailto:support@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">support@contact.kazicloud.co.ke</a>
+          Questions? We're here to help — <a href="mailto:info@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">info@contact.kazicloud.co.ke</a>
         </p>
       </div>
     `;
@@ -410,11 +411,11 @@ export const notifyEmployerRejected = action({
         </div>
 
         <div class="btn-wrap">
-          <a href="mailto:support@contact.kazicloud.co.ke" class="btn">Contact Support</a>
+          <a href="mailto:info@contact.kazicloud.co.ke" class="btn">Contact Support</a>
         </div>
 
         <p class="footer-note">
-          We're committed to keeping Kazicloud a safe platform. If you have questions, reach out at <a href="mailto:support@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">support@contact.kazicloud.co.ke</a>.
+          We're committed to keeping Kazicloud a safe platform. If you have questions, reach out at <a href="mailto:info@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">info@contact.kazicloud.co.ke</a>.
         </p>
       </div>
     `;
@@ -479,11 +480,11 @@ export const notifyUserDeleted = action({
         <p class="body-text">If you believe this was done in error, please reach out to our support team immediately.</p>
 
         <div class="btn-wrap">
-          <a href="mailto:support@contact.kazicloud.co.ke" class="btn">Contact Support</a>
+          <a href="mailto:info@contact.kazicloud.co.ke" class="btn">Contact Support</a>
         </div>
 
         <p class="footer-note">
-          This action was performed by the Kazicloud admin team. Questions? <a href="mailto:support@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">support@contact.kazicloud.co.ke</a>
+          This action was performed by the Kazicloud admin team. Questions? <a href="mailto:info@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">info@contact.kazicloud.co.ke</a>
         </p>
       </div>
     `;
@@ -563,6 +564,441 @@ export const notifyAdminProfileChangeRequest = action({
     } catch (error) {
       console.error("Error sending change request email:", error);
       return { success: false, error: "Failed to send email" };
+    }
+  },
+});
+
+// Notify admin that an employer has submitted pending profile edits
+export const notifyAdminPendingEdits = action({
+  args: {
+    employerName: v.string(),
+    companyName: v.string(),
+    employerEmail: v.string(),
+    fieldCount: v.number(),
+    employerId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminEmail = process.env.ADMIN_EMAIL || "kazicloudcareers@gmail.com";
+    const recipients = ["kazicloudcareers@gmail.com"];
+    if (adminEmail !== "kazicloudcareers@gmail.com") recipients.push(adminEmail);
+
+    const content = `
+      <div class="content">
+        <p class="greeting">Action required</p>
+        <h2 class="headline"><span class="accent">${args.companyName}</span> has submitted profile changes</h2>
+        <p class="body-text">An employer has updated their company profile. ${args.fieldCount} field${args.fieldCount !== 1 ? "s" : ""} have been changed and are awaiting your review and approval before going live.</p>
+
+        <div class="job-card">
+          <div class="job-card-header">
+            <div class="company-avatar" style="background:#FFF7ED;color:#DC842C;font-size:20px;">🏢</div>
+            <div>
+              <p class="job-title">${args.companyName}</p>
+              <p class="company-name">${args.employerName}</p>
+              <p class="job-meta">${args.employerEmail}</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid #f1f5f9;">
+            <span class="tag">✏️ ${args.fieldCount} field${args.fieldCount !== 1 ? "s" : ""} changed</span>
+            <span class="tag">📅 ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+            <span class="badge badge-orange">Pending Review</span>
+          </div>
+        </div>
+
+        <div class="btn-wrap">
+          <a href="${adminUrl}/employers/${args.employerId}" class="btn">Review Changes</a>
+        </div>
+
+        <p class="footer-note">
+          Please approve or reject the proposed changes from the employer's profile page in the admin dashboard.
+        </p>
+      </div>
+    `;
+
+    try {
+      const result = await resend.emails.send({
+        from: "Kazicloud <noreply@contact.kazicloud.co.ke>",
+        to: recipients,
+        subject: `Profile Changes Pending Review: ${args.companyName}`,
+        html: getEmailTemplate(content, `${args.companyName} has submitted profile changes for review`),
+      });
+      return { success: true, emailId: result.data?.id };
+    } catch (error) {
+      console.error("Error sending pending edits notification email:", error);
+      return { success: false, error: "Failed to send email" };
+    }
+  },
+});
+
+// Internal variant — called via ctx.scheduler from mutations
+export const notifyAdminPendingEditsInternal = internalAction({
+  args: {
+    employerName: v.string(),
+    companyName: v.string(),
+    employerEmail: v.string(),
+    fieldCount: v.number(),
+    employerId: v.id("users"),
+  },
+  handler: async (_ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminEmail = process.env.ADMIN_EMAIL || "kazicloudcareers@gmail.com";
+    const recipients = ["kazicloudcareers@gmail.com"];
+    if (adminEmail !== "kazicloudcareers@gmail.com") recipients.push(adminEmail);
+
+    const content = `
+      <div class="content">
+        <p class="greeting">Action required</p>
+        <h2 class="headline"><span class="accent">${args.companyName}</span> has submitted profile changes</h2>
+        <p class="body-text">An employer has updated their company profile. ${args.fieldCount} field${args.fieldCount !== 1 ? "s" : ""} have been changed and are awaiting your review and approval before going live.</p>
+
+        <div class="job-card">
+          <div class="job-card-header">
+            <div class="company-avatar" style="background:#FFF7ED;color:#DC842C;font-size:20px;">🏢</div>
+            <div>
+              <p class="job-title">${args.companyName}</p>
+              <p class="company-name">${args.employerName}</p>
+              <p class="job-meta">${args.employerEmail}</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid #f1f5f9;">
+            <span class="tag">✏️ ${args.fieldCount} field${args.fieldCount !== 1 ? "s" : ""} changed</span>
+            <span class="badge badge-orange">Pending Review</span>
+          </div>
+        </div>
+
+        <div class="btn-wrap">
+          <a href="${adminUrl}/employers/${args.employerId}" class="btn">Review Changes</a>
+        </div>
+
+        <p class="footer-note">
+          Please approve or reject the proposed changes from the employer's profile page in the admin dashboard.
+        </p>
+      </div>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: "Kazicloud <noreply@contact.kazicloud.co.ke>",
+        to: recipients,
+        subject: `Profile Changes Pending Review: ${args.companyName}`,
+        html: getEmailTemplate(content, `${args.companyName} has submitted profile changes for review`),
+      });
+    } catch (error) {
+      console.error("Error sending pending edits notification email:", error);
+    }
+  },
+});
+
+// Notify employer their profile edits were approved
+export const notifyEmployerEditsApproved = internalAction({
+  args: {
+    employerEmail: v.string(),
+    employerName: v.string(),
+    companyName: v.string(),
+    fieldCount: v.number(),
+    adminNote: v.optional(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+
+    const content = `
+      <div class="content">
+        <p class="greeting">Great news, ${args.employerName}!</p>
+        <h2 class="headline">Your profile changes are <span class="accent">live</span> ✓</h2>
+        <p class="body-text">
+          An admin has reviewed and approved your ${args.fieldCount} profile update${args.fieldCount !== 1 ? "s" : ""} for <strong>${args.companyName}</strong>.
+          The changes are now live on your profile.
+        </p>
+
+        ${args.adminNote ? `
+        <div class="alert alert-orange">
+          <p class="alert-title">Note from admin</p>
+          <p class="alert-text">${args.adminNote}</p>
+        </div>
+        ` : ""}
+
+        <div class="btn-wrap">
+          <a href="${dashboardUrl}/employer-dashboard/settings" class="btn">View Your Profile &rarr;</a>
+        </div>
+
+        <p class="footer-note">
+          Need to make more changes? Head to your <a href="${dashboardUrl}/employer-dashboard/settings" style="color:#DC842C;text-decoration:none;">profile settings</a> at any time.
+        </p>
+      </div>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: "Kazicloud <notifications@contact.kazicloud.co.ke>",
+        to: [args.employerEmail],
+        subject: `Profile Update Approved — ${args.companyName}`,
+        html: getEmailTemplate(content, `Your profile changes for ${args.companyName} are now live`),
+      });
+    } catch (error) {
+      console.error("Error sending employer edits approved email:", error);
+    }
+  },
+});
+
+// Notify employer their profile edits were rejected
+export const notifyEmployerEditsRejected = internalAction({
+  args: {
+    employerEmail: v.string(),
+    employerName: v.string(),
+    companyName: v.string(),
+    fieldCount: v.number(),
+    adminNote: v.optional(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+
+    const content = `
+      <div class="content">
+        <p class="greeting">Hello ${args.employerName},</p>
+        <h2 class="headline">Profile update for <span class="accent">${args.companyName}</span></h2>
+        <p class="body-text">
+          An admin has reviewed your ${args.fieldCount} profile update${args.fieldCount !== 1 ? "s" : ""} and was unable to approve them at this time.
+          Your live profile remains unchanged.
+        </p>
+
+        ${args.adminNote ? `
+        <div class="alert alert-red">
+          <p class="alert-title">Reason</p>
+          <p class="alert-text">${args.adminNote}</p>
+        </div>
+        ` : ""}
+
+        <div class="detail-card">
+          <p style="margin:0 0 10px;font-size:14px;font-weight:600;color:#0f172a;">What you can do next</p>
+          <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;">
+            <span style="font-size:16px;">✏️</span>
+            <p style="margin:0;font-size:14px;color:#475569;">Update your changes and re-submit them from your profile settings</p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start;">
+            <span style="font-size:16px;">📧</span>
+            <p style="margin:0;font-size:14px;color:#475569;">Contact support if you believe this is an error</p>
+          </div>
+        </div>
+
+        <div class="btn-wrap">
+          <a href="${dashboardUrl}/employer-dashboard/settings" class="btn">Edit Profile &rarr;</a>
+        </div>
+
+        <p class="footer-note">
+          Questions? Reach us at <a href="mailto:info@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">info@contact.kazicloud.co.ke</a>.
+        </p>
+      </div>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: "Kazicloud <notifications@contact.kazicloud.co.ke>",
+        to: [args.employerEmail],
+        subject: `Profile Update Not Approved — ${args.companyName}`,
+        html: getEmailTemplate(content, `An update on your profile changes for ${args.companyName}`),
+      });
+    } catch (error) {
+      console.error("Error sending employer edits rejected email:", error);
+    }
+  },
+});
+
+// Notify admin that an employer is requesting verification / following up
+export const notifyAdminVerificationReminder = action({
+  args: {
+    employerName: v.string(),
+    companyName: v.string(),
+    employerEmail: v.string(),
+    verificationStatus: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminEmail = process.env.ADMIN_EMAIL || "kazicloudcareers@gmail.com";
+    const recipients = ["kazicloudcareers@gmail.com"];
+    if (adminEmail !== "kazicloudcareers@gmail.com") recipients.push(adminEmail);
+
+    const statusLabel: Record<string, string> = {
+      pending: "Pending Submission",
+      documents_submitted: "Documents Submitted",
+      under_review: "Under Review",
+      rejected: "Rejected",
+    };
+    const currentStatus = statusLabel[args.verificationStatus] ?? args.verificationStatus;
+
+    const content = `
+      <div class="content">
+        <p class="greeting">Action required</p>
+        <h2 class="headline"><span class="accent">${args.companyName}</span> is requesting verification</h2>
+        <p class="body-text">An employer has submitted a verification reminder. Please review their account and process their verification at your earliest convenience.</p>
+
+        <div class="job-card">
+          <div class="job-card-header">
+            <div class="company-avatar" style="background:#FFF7ED;color:#DC842C;font-size:20px;">🏢</div>
+            <div>
+              <p class="job-title">${args.companyName}</p>
+              <p class="company-name">${args.employerName}</p>
+              <p class="job-meta">${args.employerEmail}</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid #f1f5f9;">
+            <span class="tag">📋 Current status: ${currentStatus}</span>
+            <span class="tag">📅 ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+            <span class="badge badge-orange">Verification Reminder</span>
+          </div>
+        </div>
+
+        <div class="btn-wrap">
+          <a href="${adminUrl}/employers" class="btn">Review Employer Account</a>
+        </div>
+
+        <p class="footer-note">
+          This reminder was triggered by the employer from their settings page. Please log in to the admin panel to review and verify or contact the employer if additional information is needed.
+        </p>
+      </div>
+    `;
+
+    try {
+      const result = await resend.emails.send({
+        from: "Kazicloud <notifications@contact.kazicloud.co.ke>",
+        to: recipients,
+        subject: `Verification Reminder: ${args.companyName}`,
+        html: getEmailTemplate(content, `${args.companyName} is requesting account verification`),
+      });
+
+      return { success: true, emailId: result.data?.id };
+    } catch (error) {
+      console.error("Error sending verification reminder email:", error);
+      return { success: false, error: "Failed to send email" };
+    }
+  },
+});
+
+// Reply to a contact message from the admin panel
+export const replyToContactMessage = action({
+  args: {
+    toEmail: v.string(),
+    toName: v.string(),
+    subject: v.string(),
+    replyText: v.string(),
+    adminName: v.string(),
+    // ── Thread context ──────────────────────────────────────────────────────
+    // "first_reply"       → admin replying to the user's first message
+    // "admin_followup"    → admin sending a second message before user replies
+    // "reply_to_user_reply" → admin replying after the user sent a follow-up
+    replyType: v.union(
+      v.literal("first_reply"),
+      v.literal("admin_followup"),
+      v.literal("reply_to_user_reply")
+    ),
+    // The specific message being quoted (not always the original)
+    messageBeingRepliedTo: v.string(),
+    messageBeingRepliedToAuthor: v.string(),
+    // SMTP threading — local part of the most recent outgoing Message-ID
+    previousEmailMessageId: v.optional(v.string()),
+    // All previous Message-IDs in the thread (for References header)
+    allEmailMessageIds: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    // ── Generate a unique SMTP Message-ID for this email ───────────────────
+    const msgLocalPart = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const messageId = `${msgLocalPart}@contact.kazicloud.co.ke`;
+
+    // ── Build SMTP threading headers ───────────────────────────────────────
+    const headers: Record<string, string> = {
+      "Message-ID": `<${messageId}>`,
+    };
+    if (args.previousEmailMessageId) {
+      headers["In-Reply-To"] = `<${args.previousEmailMessageId}>`;
+      const refs = [...(args.allEmailMessageIds ?? []), args.previousEmailMessageId]
+        .filter((id, i, arr) => arr.indexOf(id) === i)
+        .map((id) => `<${id}>`)
+        .join(" ");
+      headers["References"] = refs;
+    }
+
+    // ── Pick template copy based on reply type ─────────────────────────────
+    let introHeading: string;
+    let introText: string;
+    let quoteLabel: string;
+
+    if (args.replyType === "first_reply") {
+      introHeading = `Re: <span class="accent">${args.subject}</span>`;
+      introText = "Thank you for reaching out to us. Here is our response to your enquiry:";
+      quoteLabel = "YOUR MESSAGE";
+    } else if (args.replyType === "admin_followup") {
+      introHeading = `Following up on: <span class="accent">${args.subject}</span>`;
+      introText = "We wanted to follow up on our previous message regarding your enquiry. Here is some additional information:";
+      quoteLabel = "OUR PREVIOUS MESSAGE";
+    } else {
+      // reply_to_user_reply
+      introHeading = `Re: <span class="accent">${args.subject}</span>`;
+      introText = "Thank you for your follow-up. Here is our response:";
+      quoteLabel = `${args.messageBeingRepliedToAuthor.toUpperCase()}'S MESSAGE`;
+    }
+
+    const content = `
+      <div class="content">
+        <p class="greeting">Hi ${args.toName},</p>
+        <h2 class="headline">${introHeading}</h2>
+        <p class="body-text">${introText}</p>
+
+        <div class="detail-card" style="white-space:pre-wrap;">
+          ${args.replyText.replace(/\n/g, "<br/>")}
+        </div>
+
+        <div class="divider"></div>
+
+        <p style="font-size:13px;color:#94a3b8;margin:0 0 6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${quoteLabel}</p>
+        <div style="border-left:3px solid #e2e8f0;padding:12px 16px;color:#64748b;font-size:14px;line-height:1.6;white-space:pre-wrap;">
+          ${args.messageBeingRepliedTo.replace(/\n/g, "<br/>")}
+        </div>
+
+        <p class="footer-note">
+          If you have any further questions, feel free to reply to this email or contact us at <a href="mailto:info@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">info@contact.kazicloud.co.ke</a>.<br/><br/>
+          Regards,<br/>
+          <strong>${args.adminName}</strong><br/>
+          Kazicloud Team
+        </p>
+      </div>
+    `;
+
+    const preheader =
+      args.replyType === "admin_followup"
+        ? `Following up on your ${args.subject} enquiry`
+        : `Response to your enquiry: ${args.subject}`;
+
+    try {
+      const result = await resend.emails.send({
+        from: "Kazicloud <info@contact.kazicloud.co.ke>",
+        to: [args.toEmail],
+        replyTo: "info@contact.kazicloud.co.ke",
+        subject: `Re: ${args.subject}`,
+        html: getEmailTemplate(content, preheader),
+        headers,
+      });
+      // Return both Resend's internal ID and our SMTP Message-ID
+      return { success: true, emailId: result.data?.id, emailMessageId: messageId };
+    } catch (error) {
+      console.error("Error sending contact reply email:", error);
+      return { success: false, error: "Failed to send reply email" };
     }
   },
 });
@@ -949,5 +1385,226 @@ export const notifyJobSeekerRejected = internalAction({
       console.error("Error sending rejection notification:", error);
       return { success: false, error: String(error) };
     }
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Admin → User direct email (compose from admin panel)
+// ---------------------------------------------------------------------------
+export const sendDirectEmailToUser = action({
+  args: {
+    toEmail: v.string(),
+    toName: v.string(),
+    subject: v.string(),
+    body: v.string(),
+    adminName: v.string(),
+    category: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const categoryBadge: Record<string, string> = {
+      account: `<span class="badge badge-blue">Account Update</span>`,
+      announcement: `<span class="badge badge-green">Announcement</span>`,
+      policy: `<span class="badge badge-orange">Policy Notice</span>`,
+      support: `<span class="badge badge-orange">Support</span>`,
+      warning: `<span class="badge badge-red">Important Notice</span>`,
+    };
+    const badge = args.category ? (categoryBadge[args.category] ?? "") : "";
+    const recipientFirstName = args.toName?.split(" ")[0] || "there";
+    const bodyHtml = args.body
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br/>");
+
+    const content = `
+      <div class="content">
+        <p class="greeting">Hi ${recipientFirstName},</p>
+        ${badge ? `<p style="margin:0 0 20px;">${badge}</p>` : ""}
+        <div class="detail-card" style="font-size:15px;color:#475569;line-height:1.75;">
+          ${bodyHtml}
+        </div>
+
+        <p class="footer-note">
+          This message was sent directly by the Kazicloud admin team. If you have
+          any questions, reply to this email or reach us at
+          <a href="mailto:info@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">info@contact.kazicloud.co.ke</a>.<br/><br/>
+          Regards,<br/>
+          <strong>${args.adminName}</strong><br/>
+          Kazicloud Administration
+        </p>
+      </div>
+    `;
+
+    try {
+      const result = await resend.emails.send({
+        from: "Kazicloud <info@contact.kazicloud.co.ke>",
+        to: [args.toEmail],
+        replyTo: "info@contact.kazicloud.co.ke",
+        subject: args.subject,
+        html: getEmailTemplate(content, args.subject),
+      });
+      return { success: true, emailId: result.data?.id };
+    } catch (error) {
+      console.error("Error sending direct admin email:", error);
+      return { success: false, error: "Failed to send email" };
+    }
+  },
+});
+
+// ── Admin: bulk send to an explicit list of recipients ────────────────────────
+// Used for multi-recipient compose. Batches Resend calls with a small delay
+// after every 10 sends to stay within the free-tier rate limit (100 req/s).
+export const bulkSendEmailToList = action({
+  args: {
+    recipients: v.array(v.object({ email: v.string(), name: v.string() })),
+    subject: v.string(),
+    body: v.string(),
+    adminName: v.string(),
+    category: v.optional(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const categoryBadge: Record<string, string> = {
+      account: `<span class="badge badge-blue">Account Update</span>`,
+      announcement: `<span class="badge badge-green">Announcement</span>`,
+      policy: `<span class="badge badge-orange">Policy Notice</span>`,
+      support: `<span class="badge badge-orange">Support</span>`,
+      warning: `<span class="badge badge-red">Important Notice</span>`,
+    };
+    const badge = args.category ? (categoryBadge[args.category] ?? "") : "";
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const recipient of args.recipients) {
+      try {
+        const firstName = recipient.name?.split(" ")[0] || "there";
+        const bodyHtml = args.body
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br/>");
+
+        const content = `
+          <div class="content">
+            <p class="greeting">Hi ${firstName},</p>
+            ${badge ? `<p style="margin:0 0 20px;">${badge}</p>` : ""}
+            <div class="detail-card" style="font-size:15px;color:#475569;line-height:1.75;">
+              ${bodyHtml}
+            </div>
+            <p class="footer-note">
+              This message was sent directly by the Kazicloud admin team. If you have any questions,
+              reply to this email or reach us at
+              <a href="mailto:info@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">info@contact.kazicloud.co.ke</a>.<br/><br/>
+              Regards,<br/>
+              <strong>${args.adminName}</strong><br/>
+              Kazicloud Administration
+            </p>
+          </div>
+        `;
+
+        await resend.emails.send({
+          from: "Kazicloud <info@contact.kazicloud.co.ke>",
+          to: [recipient.email],
+          replyTo: "info@contact.kazicloud.co.ke",
+          subject: args.subject,
+          html: getEmailTemplate(content, args.subject),
+        });
+        sent++;
+
+        // Small back-off every 10 sends to respect Resend rate limits
+        if (sent % 10 === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      } catch (error) {
+        console.error(`Failed to send to ${recipient.email}:`, error);
+        failed++;
+      }
+    }
+
+    return { success: sent > 0, sent, failed };
+  },
+});
+
+// ── Admin: send to ALL platform users ─────────────────────────────────────────
+// Queries every non-admin user from DB then sends individually so each email
+// has a personalised greeting. Suitable for announcements / newsletters.
+export const sendToAllPlatformUsers = action({
+  args: {
+    subject: v.string(),
+    body: v.string(),
+    adminName: v.string(),
+    category: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ success: boolean; sent: number; failed: number; total: number }> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    // Pull all user emails via a trusted internal query
+    const users = (await ctx.runQuery(api.admin.getAllUserEmails, {})) as Array<{ email: string; name: string }>;
+
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const categoryBadge: Record<string, string> = {
+      account: `<span class="badge badge-blue">Account Update</span>`,
+      announcement: `<span class="badge badge-green">Announcement</span>`,
+      policy: `<span class="badge badge-orange">Policy Notice</span>`,
+      support: `<span class="badge badge-orange">Support</span>`,
+      warning: `<span class="badge badge-red">Important Notice</span>`,
+    };
+    const badge = args.category ? (categoryBadge[args.category] ?? "") : "";
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const user of users) {
+      try {
+        const firstName = user.name?.split(" ")[0] || "there";
+        const bodyHtml = args.body
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br/>");
+
+        const content = `
+          <div class="content">
+            <p class="greeting">Hi ${firstName},</p>
+            ${badge ? `<p style="margin:0 0 20px;">${badge}</p>` : ""}
+            <div class="detail-card" style="font-size:15px;color:#475569;line-height:1.75;">
+              ${bodyHtml}
+            </div>
+            <p class="footer-note">
+              Regards,<br/>
+              <strong>${args.adminName}</strong><br/>
+              Kazicloud Administration
+            </p>
+          </div>
+        `;
+
+        await resend.emails.send({
+          from: "Kazicloud <info@contact.kazicloud.co.ke>",
+          to: [user.email],
+          replyTo: "info@contact.kazicloud.co.ke",
+          subject: args.subject,
+          html: getEmailTemplate(content, args.subject),
+        });
+        sent++;
+
+        if (sent % 10 === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      } catch (error) {
+        console.error(`Failed to send to ${user.email}:`, error);
+        failed++;
+      }
+    }
+
+    return { success: sent > 0, sent, failed, total: users.length };
   },
 });

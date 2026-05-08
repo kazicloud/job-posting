@@ -256,7 +256,7 @@ export default function CareerHelpPage() {
           </div>
 
           {/* Services Grid */}
-          <div className="grid md:grid-cols-3 gap-6 mb-16">
+          <div id="cv-services" className="grid md:grid-cols-3 gap-6 mb-16 scroll-mt-20">
             {services.map((service) => {
               const IconComponent = service.icon
               return (
@@ -331,7 +331,7 @@ export default function CareerHelpPage() {
           </div>
 
           {/* Career Success Program */}
-          <div className="bg-white rounded-lg border border-neutral-border p-8">
+          <div id="career-success" className="bg-white rounded-lg border border-neutral-border p-8 scroll-mt-20">
             <div className="text-center mb-8">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-brand-orange/10 text-brand-orange text-sm font-medium mb-3">
                 <TrendingUp className="w-4 h-4" />

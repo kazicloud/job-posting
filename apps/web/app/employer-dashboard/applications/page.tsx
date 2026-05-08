@@ -2,9 +2,9 @@
 
 import { EmployerDashboardLayout } from "@/components/employer-dashboard/employer-dashboard-layout";
 import { InterviewModal, InterviewDetails } from "@/components/employer-dashboard/interview-modal";
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import { Search, Download, Star, MapPin, Briefcase, Calendar, FileText, ExternalLink, CheckCircle2, X, Mail, Phone, Users, ChevronDown, ArrowUpDown } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Search, Download, Star, MapPin, Briefcase, Calendar, FileText, ExternalLink, CheckCircle2, X, Mail, Phone, Users, ChevronDown, ArrowUpDown, PlusCircle, MessageSquare } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
@@ -13,6 +13,7 @@ import Link from "next/link";
 export default function EmployerApplicationsPage() {
   const searchParams = useSearchParams();
   const jobIdFromUrl = searchParams.get("jobId");
+  const router = useRouter();
   
   const [activeTab, setActiveTab] = useState<"all" | "submitted" | "shortlisted" | "interview" | "rejected">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,7 +77,8 @@ export default function EmployerApplicationsPage() {
   } | null>(null);
   const [isScheduling, setIsScheduling] = useState(false);
 
-  const isLoading = result === undefined || employerJobs === undefined || (selectedJobId !== "all" && counts === undefined);
+  const hasNoJobs = employerJobs !== undefined && employerJobs.length === 0;
+  const isLoading = !hasNoJobs && (result === undefined || employerJobs === undefined || (selectedJobId !== "all" && counts === undefined));
 
   const applications = result?.page || [];
 
@@ -106,6 +108,8 @@ export default function EmployerApplicationsPage() {
     }
   });
 
+  const getOrCreateConversation = useMutation(api.conversations.getOrCreateEmployerConversation);
+
   const handleStatusUpdate = async (applicationId: Id<"applications">, status: any) => {
     try {
       await updateStatus({ applicationId, status });
@@ -113,6 +117,15 @@ export default function EmployerApplicationsPage() {
       alert(error instanceof Error ? error.message : "Failed to update status");
     }
   };
+
+  const handleMessage = useCallback(async (jobSeekerId: Id<"users">, jobId: Id<"jobs">) => {
+    try {
+      const convId = await getOrCreateConversation({ jobSeekerId, jobId });
+      router.push(`/employer-dashboard/inbox?c=${convId}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not open conversation");
+    }
+  }, [getOrCreateConversation, router]);
 
   const handleInterviewConfirm = async (details: InterviewDetails) => {
     if (!interviewModal) return;
@@ -416,8 +429,30 @@ export default function EmployerApplicationsPage() {
           </div>
         </div>
 
+        {/* No Jobs Empty State */}
+        {hasNoJobs ? (
+          <div className="bg-white border border-neutral-border rounded-lg p-10 sm:p-16 text-center">
+            <div className="w-16 sm:w-20 h-16 sm:h-20 bg-brand-orange/10 rounded-full flex items-center justify-center mx-auto mb-5">
+              <Briefcase className="w-8 sm:w-10 h-8 sm:h-10 text-brand-orange" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-semibold text-neutral-text mb-3">
+              No job listings yet
+            </h3>
+            <p className="text-sm sm:text-base text-neutral-text-secondary max-w-md mx-auto mb-6">
+              Post your first job opening to start receiving applications from qualified candidates. Your applicant pipeline will appear here once you have an active listing.
+            </p>
+            <Link
+              href="/employer-dashboard/jobs"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-orange text-white text-sm font-semibold rounded-lg hover:bg-brand-orange/90 transition-colors shadow-sm shadow-orange-200"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Post a Job
+            </Link>
+          </div>
+        ) : null}
+
         {/* Applications Table */}
-        {isLoading ? (
+        {!hasNoJobs && isLoading ? (
           /* Loading Skeletons */
           <>
             {/* Desktop Table */}
@@ -512,6 +547,7 @@ export default function EmployerApplicationsPage() {
                         onScheduleInterview={(id, candidateName, jobTitle) =>
                           setInterviewModal({ applicationId: id, candidateName, jobTitle })
                         }
+                        onMessage={handleMessage}
                     />
                   ))}
                 </tbody>
@@ -551,10 +587,12 @@ function ApplicationRow({
   application,
   onStatusUpdate,
   onScheduleInterview,
+  onMessage,
 }: {
   application: any;
   onStatusUpdate: (id: Id<"applications">, status: string) => void;
   onScheduleInterview: (id: Id<"applications">, candidateName: string, jobTitle: string) => void;
+  onMessage: (jobSeekerId: Id<"users">, jobId: Id<"jobs">) => void;
 }) {
   const jobSeeker = application.jobSeeker;
   const job = application.job;
@@ -673,6 +711,14 @@ function ApplicationRow({
           >
             View
           </Link>
+
+          <button
+            onClick={() => onMessage(application.jobSeeker?._id, application.jobId)}
+            className="p-1.5 text-xs font-medium text-brand-orange border border-brand-orange/40 rounded-md hover:bg-brand-orange/5 transition-colors"
+            title="Message candidate"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+          </button>
           
           {application.status === "submitted" && (
             <>

@@ -913,3 +913,65 @@ export const adminPostJobOnBehalf = mutation({
     return { jobId, slug };
   },
 });
+
+// Search users by name or email (for admin compose-email autocomplete)
+export const searchUsers = query({
+  args: {
+    search: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") {
+      throw new Error("Unauthorized");
+    }
+
+    const q = args.search.trim().toLowerCase();
+    if (q.length < 2) return [];
+
+    const allUsers = await ctx.db.query("users").collect();
+    return allUsers
+      .filter(
+        (u) =>
+          (u.fullName?.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q)) &&
+          u.roles?.includes("admin") !== true &&
+          u.primaryRole !== "admin"
+      )
+      .slice(0, args.limit ?? 8)
+      .map((u) => ({
+        _id: u._id,
+        fullName: u.fullName,
+        email: u.email,
+        primaryRole: u.primaryRole,
+        profilePhoto: u.profilePhoto,
+      }));
+  },
+});
+
+// Get all non-admin user emails for bulk sending
+export const getAllUserEmails = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") {
+      throw new Error("Unauthorized");
+    }
+    const allUsers = await ctx.db.query("users").collect();
+    return allUsers
+      .filter((u) => u.primaryRole !== "admin" && !u.roles?.includes("admin"))
+      .map((u) => ({ email: u.email, name: u.fullName ?? "" }));
+  },
+});

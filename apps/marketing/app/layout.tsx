@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 import OrganizationSchema from '@/components/seo/OrganizationSchema'
+import { ConvexClientProvider } from '@/providers/ConvexClientProvider'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -158,7 +159,9 @@ export default function RootLayout({
       <body>
         {/* Site-wide Organization + WebSite + SearchAction JSON-LD (Google Sitelinks Searchbox) */}
         <OrganizationSchema />
-        {children}
+        <ConvexClientProvider>
+          {children}
+        </ConvexClientProvider>
       </body>
     </html>
   )

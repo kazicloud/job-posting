@@ -490,4 +490,95 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_status", ["status"]),
+
+  // Employer pending profile edits (staged changes awaiting admin approval)
+  employerPendingEdits: defineTable({
+    userId: v.id("users"),
+    changes: v.any(), // Partial employerProfiles snapshot of proposed values
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    submittedAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.id("users")),
+    adminNote: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"]),
+
+  // Contact messages from the marketing site
+  contactMessages: defineTable({
+    name: v.string(),
+    email: v.string(),
+    subject: v.string(),
+    message: v.string(),
+    status: v.union(
+      v.literal("unread"),
+      v.literal("read"),
+      v.literal("replied"),
+      v.literal("archived")
+    ),
+    // Legacy single-reply fields — kept for backward compat, new replies use the array below
+    adminReply: v.optional(v.string()),
+    repliedAt: v.optional(v.number()),
+    repliedBy: v.optional(v.string()),
+    // Full conversation thread: all admin ↔ user turns in order
+    replies: v.optional(
+      v.array(
+        v.object({
+          role: v.union(v.literal("admin"), v.literal("user")),
+          text: v.string(),
+          authorName: v.string(),
+          timestamp: v.number(),
+          // SMTP Message-ID set on outgoing admin emails — used for In-Reply-To threading
+          emailMessageId: v.optional(v.string()),
+        })
+      )
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_created_at", ["createdAt"])
+    .index("by_email", ["email"]),
+
+  // ── In-app messaging (LinkedIn-style) ────────────────────────────────────
+  // Rules:
+  //   • Anyone can open a conversation with admin
+  //   • Employer can open a conversation with a job seeker who applied to one of their jobs
+  //   • Job seeker can reply to an employer-initiated conversation (cannot cold-start)
+  conversations: defineTable({
+    // The two participants. participantA always = the initiator.
+    participantA: v.id("users"),
+    participantB: v.id("users"),
+    // Optionally linked to a specific job posting
+    jobId: v.optional(v.id("jobs")),
+    jobTitle: v.optional(v.string()),   // denormalised for display speed
+    companyName: v.optional(v.string()),
+    // Last message metadata for inbox list rendering
+    lastMessageAt: v.number(),
+    lastMessagePreview: v.string(),
+    // Unread counts (per participant — reset on read)
+    unreadA: v.number(),   // unread for participantA
+    unreadB: v.number(),   // unread for participantB
+    // Soft-delete per participant
+    deletedByA: v.optional(v.boolean()),
+    deletedByB: v.optional(v.boolean()),
+  })
+    .index("by_participant_a", ["participantA"])
+    .index("by_participant_b", ["participantB"])
+    .index("by_participants", ["participantA", "participantB"])
+    .index("by_last_message", ["lastMessageAt"]),
+
+  chatMessages: defineTable({
+    conversationId: v.id("conversations"),
+    senderId: v.id("users"),
+    text: v.string(),
+    createdAt: v.number(),
+    // True once the other participant has seen it
+    readAt: v.optional(v.number()),
+  })
+    .index("by_conversation", ["conversationId"])
+    .index("by_conversation_and_time", ["conversationId", "createdAt"]),
 });

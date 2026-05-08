@@ -1,9 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Send } from 'lucide-react'
+import { Send, CheckCircle } from 'lucide-react'
+import { useMutation } from 'convex/react'
+import { api } from '../../../../convex/_generated/api'
 
 export default function ContactForm() {
+  const submitMessage = useMutation(api.contactMessages.submit)
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -11,17 +15,47 @@ export default function ContactForm() {
     message: '',
   })
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [errorText, setErrorText] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('sending')
+    setErrorText('')
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await submitMessage({
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+      })
       setStatus('success')
       setFormData({ name: '', email: '', subject: '', message: '' })
-      setTimeout(() => setStatus('idle'), 3000)
-    }, 1000)
+    } catch (err: any) {
+      setStatus('error')
+      setErrorText(err?.message || 'Something went wrong. Please try again.')
+      setTimeout(() => setStatus('idle'), 4000)
+    }
+  }
+
+  if (status === 'success') {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+        <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+          <CheckCircle className="w-8 h-8 text-green-600" />
+        </div>
+        <h3 className="text-2xl font-bold text-text-primary">Message sent!</h3>
+        <p className="text-text-secondary max-w-sm">
+          Thank you for reaching out. Our team will review your message and get back to you as soon as possible.
+        </p>
+        <button
+          onClick={() => setStatus('idle')}
+          className="mt-4 px-6 py-2.5 rounded-lg border border-border text-text-primary text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          Send another message
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -73,11 +107,11 @@ export default function ContactForm() {
             className="w-full px-4 py-3 rounded-lg border border-border focus:border-brand-orange focus:outline-none"
           >
             <option value="">Select a subject</option>
-            <option value="general">General Inquiry</option>
-            <option value="support">Technical Support</option>
-            <option value="billing">Billing Question</option>
-            <option value="partnership">Partnership Opportunity</option>
-            <option value="feedback">Feedback</option>
+            <option value="General Inquiry">General Inquiry</option>
+            <option value="Technical Support">Technical Support</option>
+            <option value="Billing Question">Billing Question</option>
+            <option value="Partnership Opportunity">Partnership Opportunity</option>
+            <option value="Feedback">Feedback</option>
           </select>
         </div>
 
@@ -101,19 +135,13 @@ export default function ContactForm() {
           disabled={status === 'sending'}
           className="w-full px-8 py-4 rounded-lg bg-brand-orange text-white font-bold hover:bg-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
         >
-          {status === 'sending' ? 'Sending...' : 'Send Message'}
+          {status === 'sending' ? 'Sending…' : 'Send Message'}
           <Send className="w-5 h-5" />
         </button>
 
-        {status === 'success' && (
-          <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800">
-            Message sent successfully! We'll get back to you soon.
-          </div>
-        )}
-
         {status === 'error' && (
-          <div className="p-4 bg-red-50 border border-red-200 text-red-800">
-            Something went wrong. Please try again.
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+            {errorText}
           </div>
         )}
       </form>
