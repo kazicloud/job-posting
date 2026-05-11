@@ -395,7 +395,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         </div>
                         <div>
                           <p className="text-xs text-neutral-text-muted mb-0.5">Availability</p>
-                          <p className="text-sm font-medium text-neutral-text">{application.availability}</p>
+                          <p className="text-sm font-medium text-neutral-text">
+                            {({ immediately: "Immediately", "2-weeks": "2 weeks notice", "1-month": "1 month notice", "2-months": "2 months notice", negotiable: "Negotiable" } as Record<string, string>)[application.availability] ?? application.availability}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -430,7 +432,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         </div>
                         <div>
                           <p className="text-xs text-neutral-text-muted mb-0.5">Work Authorization</p>
-                          <p className="text-sm font-medium text-neutral-text">{application.workAuthorization}</p>
+                          <p className="text-sm font-medium text-neutral-text">
+                            {({ citizen: "Citizen", "permanent-resident": "Permanent Resident", "work-permit": "Work Permit", "require-sponsorship": "Requires Sponsorship" } as Record<string, string>)[application.workAuthorization] ?? application.workAuthorization}
+                          </p>
                         </div>
                       </div>
                     )}
