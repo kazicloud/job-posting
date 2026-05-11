@@ -7,7 +7,11 @@ import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { useRouter } from "next/navigation";
-import { KENYA_COUNTIES } from "@/lib/counties";
+import { formatLocation } from "@/lib/east-africa-locations";
+import { buildLocationArgs, type LocationEntry } from "@/lib/location-utils";
+import { LocationSection } from "@/components/location-picker";
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NewJobPage() {
   const router = useRouter();
@@ -24,9 +28,11 @@ export default function NewJobPage() {
     workplaceType: "",
     
     // Location
-    location: "",
+    country: "Kenya",
+    region: "",
+    city: "",
     multipleLocations: false,
-    locations: [] as Array<{ county: string; specificLocation?: string }>,
+    locations: [] as Array<{ country: string; region: string; city?: string }>,
     isRemote: false,
     
     // Description
@@ -41,7 +47,7 @@ export default function NewJobPage() {
     salaryDisclosure: "range", // range, undisclosed
     salaryMin: "",
     salaryMax: "",
-    currency: "KES",
+    currency: "KES", // auto-updated when country changes
     salaryPeriod: "year", // year, month, hour
     benefits: "",
     
@@ -84,6 +90,10 @@ export default function NewJobPage() {
     setFormData({ ...formData, [field]: value });
   };
 
+  const updateMultipleFields = (updates: Record<string, any>) => {
+    setFormData((prev) => ({ ...prev, ...updates }));
+  };
+
   const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 6));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
@@ -91,6 +101,7 @@ export default function NewJobPage() {
     if (!profile) return;
     setIsSubmitting(true);
     try {
+      const { location, county } = buildLocationArgs(formData);
       await createJob({
         employerId: profile._id,
         title: formData.title,
@@ -98,9 +109,8 @@ export default function NewJobPage() {
         department: formData.department === "other" ? formData.customDepartment : formData.department,
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
-        location: formData.multipleLocations 
-          ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
-          : formData.location,
+        location,
+        county,
         description: formData.description,
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
@@ -111,6 +121,7 @@ export default function NewJobPage() {
         salaryMin: formData.salaryMin ? parseInt(formData.salaryMin) : undefined,
         salaryMax: formData.salaryMax ? parseInt(formData.salaryMax) : undefined,
         currency: formData.currency,
+        salaryPeriod: formData.salaryPeriod,
         benefits: formData.benefits,
         applicationDeadline: formData.applicationDeadline,
         positions: parseInt(formData.positions),
@@ -145,6 +156,7 @@ export default function NewJobPage() {
     if (!profile) return;
     setIsSubmitting(true);
     try {
+      const { location, county } = buildLocationArgs(formData);
       await createJob({
         employerId: profile._id,
         title: formData.title,
@@ -152,9 +164,8 @@ export default function NewJobPage() {
         department: formData.department === "other" ? formData.customDepartment : formData.department,
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
-        location: formData.multipleLocations 
-          ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
-          : formData.location,
+        location,
+        county,
         description: formData.description,
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
@@ -165,6 +176,7 @@ export default function NewJobPage() {
         salaryMin: formData.salaryMin ? parseInt(formData.salaryMin) : undefined,
         salaryMax: formData.salaryMax ? parseInt(formData.salaryMax) : undefined,
         currency: formData.currency,
+        salaryPeriod: formData.salaryPeriod,
         benefits: formData.benefits,
         applicationDeadline: formData.applicationDeadline,
         positions: parseInt(formData.positions),
@@ -292,7 +304,7 @@ export default function NewJobPage() {
         <div className="max-w-4xl mx-auto">
           <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6 lg:p-8">
             {currentStep === 1 && (
-              <BasicInfoStep formData={formData} updateFormData={updateFormData} onNext={nextStep} />
+              <BasicInfoStep formData={formData} updateFormData={updateFormData} updateMultipleFields={updateMultipleFields} onNext={nextStep} />
             )}
             {currentStep === 2 && (
               <DescriptionStep formData={formData} updateFormData={updateFormData} onNext={nextStep} onBack={prevStep} />
@@ -313,6 +325,7 @@ export default function NewJobPage() {
                 onSaveDraft={handleSaveDraft}
                 onPublish={handlePublish}
                 isSubmitting={isSubmitting}
+                onJumpToStep={setCurrentStep}
               />
             )}
           </div>
@@ -322,7 +335,7 @@ export default function NewJobPage() {
   );
 }
 
-function BasicInfoStep({ formData, updateFormData, onNext }: any) {
+function BasicInfoStep({ formData, updateFormData, updateMultipleFields, onNext }: any) {
   const departments = [
     { value: "technology", label: "Technology & IT" },
     { value: "marketing", label: "Marketing & Sales" },
@@ -451,80 +464,16 @@ function BasicInfoStep({ formData, updateFormData, onNext }: any) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-neutral-text mb-2">
-          Location *
-        </label>
-        {!formData.multipleLocations ? (
-          <select
-            required
-            value={formData.location}
-            onChange={(e) => updateFormData("location", e.target.value)}
-            className="w-full px-4 py-3 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
-          >
-            <option value="">Select county</option>
-            {KENYA_COUNTIES.map((county) => (
-              <option key={county} value={county}>{county}</option>
-            ))}
-          </select>
-        ) : (
-          <p className="text-sm text-neutral-text-secondary italic px-4 py-3 border border-neutral-border rounded-md bg-neutral-bg-secondary">
-            Multiple locations selected below
-          </p>
-        )}
-      </div>
-
-      {/* Multiple Locations Option */}
-      <div className="border border-neutral-border rounded-lg p-4">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={formData.multipleLocations}
-            onChange={(e) => {
-              updateFormData("multipleLocations", e.target.checked);
-              if (!e.target.checked) {
-                updateFormData("locations", []);
-              }
-            }}
-            className="w-4 h-4 text-brand-orange rounded"
-          />
-          <div>
-            <p className="font-medium text-neutral-text">This job is available in multiple locations</p>
-            <p className="text-sm text-neutral-text-secondary">Select multiple counties where this role is available</p>
-          </div>
-        </label>
-
-        {formData.multipleLocations && (
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              Select Counties *
-            </label>
-            <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto border border-neutral-border rounded-md p-3 bg-white">
-              {KENYA_COUNTIES.map((county) => (
-                <label key={county} className="flex items-center gap-2 text-sm hover:bg-neutral-bg-secondary p-1 rounded">
-                  <input
-                    type="checkbox"
-                    checked={formData.locations.includes(county)}
-                    onChange={(e) => {
-                      const newLocations = e.target.checked
-                        ? [...formData.locations, county]
-                        : formData.locations.filter((l: string) => l !== county);
-                      updateFormData("locations", newLocations);
-                    }}
-                    className="w-4 h-4 text-brand-orange rounded"
-                  />
-                  <span className="text-neutral-text">{county}</span>
-                </label>
-              ))}
-            </div>
-            {formData.locations.length > 0 && (
-              <p className="text-sm text-green-600 mt-2 font-medium">
-                ✓ {formData.locations.length} {formData.locations.length === 1 ? 'county' : 'counties'} selected
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+      <LocationSection
+        country={formData.country}
+        region={formData.region}
+        city={formData.city}
+        multipleLocations={formData.multipleLocations}
+        locations={formData.locations}
+        onSingleChange={(updates) => updateMultipleFields(updates)}
+        onMultipleLocationsToggle={(checked) => updateFormData("multipleLocations", checked)}
+        onLocationsChange={(locs) => updateFormData("locations", locs)}
+      />
 
       <div>
         <label className="block text-sm font-medium text-neutral-text mb-2">
@@ -917,8 +866,33 @@ function RequirementsStep({ formData, updateFormData, onNext, onBack }: any) {
 }
 
 function CompensationStep({ formData, updateFormData, onNext, onBack }: any) {
+  const [salaryErrors, setSalaryErrors] = useState<{ min?: string; max?: string }>({});
+
+  const validateSalary = (): boolean => {
+    if (formData.salaryDisclosure !== "range") return true;
+    const min = Number(formData.salaryMin);
+    const max = Number(formData.salaryMax);
+    const errors: { min?: string; max?: string } = {};
+    if (!formData.salaryMin || isNaN(min) || min <= 0) {
+      errors.min = "Enter a valid minimum salary greater than 0";
+    }
+    if (!formData.salaryMax || isNaN(max) || max <= 0) {
+      errors.max = "Enter a valid maximum salary greater than 0";
+    }
+    if (!errors.min && !errors.max) {
+      if (min >= max) {
+        errors.max = "Maximum must be greater than minimum";
+      } else if (max > min * 15) {
+        errors.max = "Range seems very wide — maximum shouldn't exceed 15× the minimum";
+      }
+    }
+    setSalaryErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateSalary()) return;
     onNext();
   };
 
@@ -1011,12 +985,14 @@ function CompensationStep({ formData, updateFormData, onNext, onBack }: any) {
               </label>
               <input
                 type="number"
+                min="1"
                 required
                 value={formData.salaryMin}
-                onChange={(e) => updateFormData("salaryMin", e.target.value)}
+                onChange={(e) => { updateFormData("salaryMin", e.target.value); setSalaryErrors((p) => ({ ...p, min: undefined })); }}
                 placeholder="250000"
-                className="w-full px-4 py-3 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${salaryErrors.min ? "border-red-400" : "border-neutral-border"}`}
               />
+              {salaryErrors.min && <p className="mt-1 text-xs text-red-500">{salaryErrors.min}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-text mb-2">
@@ -1024,12 +1000,14 @@ function CompensationStep({ formData, updateFormData, onNext, onBack }: any) {
               </label>
               <input
                 type="number"
+                min="1"
                 required
                 value={formData.salaryMax}
-                onChange={(e) => updateFormData("salaryMax", e.target.value)}
+                onChange={(e) => { updateFormData("salaryMax", e.target.value); setSalaryErrors((p) => ({ ...p, max: undefined })); }}
                 placeholder="400000"
-                className="w-full px-4 py-3 border border-neutral-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
+                className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/20 ${salaryErrors.max ? "border-red-400" : "border-neutral-border"}`}
               />
+              {salaryErrors.max && <p className="mt-1 text-xs text-red-500">{salaryErrors.max}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-text mb-2">
@@ -1046,8 +1024,18 @@ function CompensationStep({ formData, updateFormData, onNext, onBack }: any) {
               </select>
             </div>
           </div>
+          {/* Live salary preview */}
+          {formData.salaryMin && formData.salaryMax && Number(formData.salaryMin) > 0 && Number(formData.salaryMax) > Number(formData.salaryMin) && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg">
+              <span className="text-xs text-green-700 font-medium">Preview:</span>
+              <span className="text-sm font-bold text-green-800">
+                {formData.currency} {Number(formData.salaryMin).toLocaleString()} – {Number(formData.salaryMax).toLocaleString()}
+                {" "}{formData.salaryPeriod === "year" ? "/ yr" : formData.salaryPeriod === "month" ? "/ mo" : "/ hr"}
+              </span>
+            </div>
+          )}
           <p className="text-xs text-neutral-text-muted">
-            💡 Tip: Use /year for full-time roles, /month for regional markets, /hour for freelance/contract work
+            💡 Tip: Use /yr for full-time roles, /mo for regional markets, /hr for freelance/contract work
           </p>
         </>
       )}
@@ -1369,7 +1357,7 @@ function ApplicationSettingsStep({ formData, updateFormData, onNext, onBack }: a
   );
 }
 
-function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }: any) {
+function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting, onJumpToStep }: any) {
   const profile = useQuery(api.profile.getCurrentUserProfile);
   
   const verificationStatus = profile?.employerProfile?.verificationStatus;
@@ -1377,7 +1365,13 @@ function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }:
   
   const getSalaryDisplay = () => {
     if (formData.salaryDisclosure === "range") {
-      return `${formData.currency} ${parseInt(formData.salaryMin).toLocaleString()} - ${parseInt(formData.salaryMax).toLocaleString()}`;
+      const min = parseInt(formData.salaryMin);
+      const max = parseInt(formData.salaryMax);
+      if (!isNaN(min) && !isNaN(max) && min > 0 && max > 0) {
+        const periodLabel: Record<string, string> = { year: "/ yr", month: "/ mo", hour: "/ hr" };
+        const period = periodLabel[formData.salaryPeriod] ?? "";
+        return `${formData.currency} ${min.toLocaleString()} – ${max.toLocaleString()} ${period}`.trim();
+      }
     }
     return "Salary undisclosed";
   };
@@ -1405,14 +1399,22 @@ function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }:
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-neutral-text mb-2">Preview Your Job Post</h2>
-        <p className="text-neutral-text-secondary">Review how your job will appear to candidates</p>
+        <p className="text-neutral-text-secondary">Review how your job will appear to candidates — click <strong>Edit</strong> on any section to jump back and make changes.</p>
       </div>
 
       {/* Job Preview - Matching actual job detail page */}
       <div className="border-2 border-neutral-border rounded-lg overflow-hidden">
         <div className="bg-white p-8">
-          {/* Job Header */}
-          <div className="flex items-start gap-4 mb-6">
+          {/* ── Job Header ── */}
+          <div className="relative group">
+            <button
+              type="button"
+              onClick={() => onJumpToStep(1)}
+              className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-medium text-brand-orange bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100"
+            >
+              ✏️ Edit basics
+            </button>
+            <div className="flex items-start gap-4 mb-6">
             <div className="w-16 h-16 bg-gradient-to-br from-brand-orange to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-orange-200">
               <span className="text-2xl font-bold text-white">
                 {profile?.employerProfile?.companyName?.charAt(0) || "C"}
@@ -1437,9 +1439,10 @@ function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }:
                 <div className="flex items-center gap-1.5">
                   <MapPin className="w-4 h-4 text-gray-400" />
                   <span>
-                    {formData.multipleLocations 
-                      ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
-                      : formData.location}
+                    {formData.multipleLocations
+                      ? formData.locations.slice(0, 5).map(formatLocation).join(" | ") +
+                        (formData.locations.length > 5 ? ` +${formData.locations.length - 5} more` : "")
+                      : formatLocation({ country: formData.country, region: formData.region, city: formData.city })}
                   </span>
                 </div>
                 <span className="text-gray-300">•</span>
@@ -1468,12 +1471,22 @@ function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }:
                   </span>
                 </div>
               )}
-            </div>
-          </div>
+            </div>{/* end flex-1 */}
+          </div>{/* end flex items-start row */}
+          </div>{/* end relative group - Job Header */}
 
           {/* Job Details Grid */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Job Details</h3>
+          <div className="relative group bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Job Details</h3>
+              <button
+                type="button"
+                onClick={() => onJumpToStep(1)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-medium text-brand-orange bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100"
+              >
+                ✏️ Edit
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
@@ -1482,9 +1495,10 @@ function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }:
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Location</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {formData.multipleLocations 
-                      ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
-                      : formData.location}
+                    {formData.multipleLocations
+                      ? formData.locations.slice(0, 5).map(formatLocation).join(" | ") +
+                        (formData.locations.length > 5 ? ` +${formData.locations.length - 5} more` : "")
+                      : formatLocation({ country: formData.country, region: formData.region, city: formData.city })}
                   </p>
                 </div>
               </div>
@@ -1591,40 +1605,175 @@ function PreviewStep({ formData, onBack, onSaveDraft, onPublish, isSubmitting }:
 
           {/* Job Content */}
           <div className="space-y-6">
-            {formData.description && (
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-3">About the Role</h4>
-                <p className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.description}</p>
+            {/* Description & Responsibilities — step 2 */}
+            {(formData.description || formData.responsibilities) && (
+              <div className="relative group">
+                <button
+                  type="button"
+                  onClick={() => onJumpToStep(2)}
+                  className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-medium text-brand-orange bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100"
+                >
+                  ✏️ Edit description
+                </button>
+                {formData.description && (
+                  <div className="mb-4">
+                    <h4 className="text-lg font-bold text-gray-900 mb-3">About the Role</h4>
+                    <p className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.description}</p>
+                  </div>
+                )}
+                {formData.responsibilities && (
+                  <div>
+                    <h4 className="text-lg font-bold text-gray-900 mb-3">Key Responsibilities</h4>
+                    <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.responsibilities}</div>
+                  </div>
+                )}
               </div>
             )}
 
-            {formData.responsibilities && (
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-3">Key Responsibilities</h4>
-                <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.responsibilities}</div>
+            {/* Requirements — step 3 */}
+            {(formData.requirements || formData.niceToHave || formData.benefits) && (
+              <div className="relative group">
+                <button
+                  type="button"
+                  onClick={() => onJumpToStep(3)}
+                  className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-medium text-brand-orange bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100"
+                >
+                  ✏️ Edit requirements
+                </button>
+                {formData.requirements && (
+                  <div className="mb-4">
+                    <h4 className="text-lg font-bold text-gray-900 mb-3">Requirements</h4>
+                    <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.requirements}</div>
+                  </div>
+                )}
+                {formData.niceToHave && (
+                  <div className="mb-4">
+                    <h4 className="text-lg font-bold text-gray-900 mb-3">Nice to Have</h4>
+                    <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.niceToHave}</div>
+                  </div>
+                )}
+                {formData.benefits && (
+                  <div>
+                    <h4 className="text-lg font-bold text-gray-900 mb-3">Benefits & Perks</h4>
+                    <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.benefits}</div>
+                  </div>
+                )}
               </div>
             )}
 
-            {formData.requirements && (
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-3">Requirements</h4>
-                <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.requirements}</div>
+            {/* Application Requirements — step 5 */}
+            <div className="relative group border border-gray-200 rounded-lg p-6 bg-gray-50">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-bold text-gray-900">Application Requirements</h4>
+                <button
+                  type="button"
+                  onClick={() => onJumpToStep(5)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-medium text-brand-orange bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100"
+                >
+                  ✏️ Edit settings
+                </button>
               </div>
-            )}
 
-            {formData.niceToHave && (
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-3">Nice to Have</h4>
-                <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.niceToHave}</div>
-              </div>
-            )}
+              {/* Required documents */}
+              {(() => {
+                const docs = [
+                  formData.applicationSettings?.requireResume && "Resume / CV",
+                  formData.applicationSettings?.requireCoverLetter && "Cover Letter",
+                  formData.applicationSettings?.requirePortfolio && "Portfolio",
+                  formData.applicationSettings?.requireLinkedIn && "LinkedIn Profile",
+                ].filter(Boolean) as string[];
+                return docs.length > 0 ? (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Required Documents</p>
+                    <div className="flex flex-wrap gap-2">
+                      {docs.map((label) => (
+                        <span key={label} className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-200 text-gray-700 text-sm rounded-full font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
 
-            {formData.benefits && (
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-3">Benefits & Perks</h4>
-                <div className="text-gray-700 whitespace-pre-line leading-relaxed">{formData.benefits}</div>
-              </div>
-            )}
+              {/* Screening Questions */}
+              {(() => {
+                const predefined: Array<{ question: string; type: string; required: boolean; options?: string[] }> = [];
+                if (formData.applicationSettings?.requireAvailability) {
+                  predefined.push({ question: "When are you available to start?", type: "text", required: true });
+                }
+                if (formData.applicationSettings?.requireSalaryExpectations) {
+                  predefined.push({ question: "What are your salary expectations for this role?", type: "text", required: true });
+                }
+                if (formData.applicationSettings?.requireWorkAuthorization) {
+                  predefined.push({ question: "Are you currently authorized to work in Kenya?", type: "radio", required: true, options: ["Yes", "No"] });
+                }
+                if (formData.applicationSettings?.requireWillingToRelocate) {
+                  predefined.push({ question: "Are you willing to relocate for this position?", type: "radio", required: true, options: ["Yes", "No", "Open to discussion"] });
+                }
+                const custom: any[] = formData.applicationSettings?.customQuestions ?? [];
+                const allQ = [...predefined, ...custom];
+                if (allQ.length === 0) return null;
+                const renderInput = (q: any) => {
+                  if (q.type === "text") return <input readOnly disabled placeholder="Applicant's answer…" className="w-full mt-2 px-3 py-2 border border-gray-200 bg-white rounded-lg text-sm text-gray-400 cursor-not-allowed" />;
+                  if (q.type === "textarea") return <textarea readOnly disabled rows={2} placeholder="Applicant's answer…" className="w-full mt-2 px-3 py-2 border border-gray-200 bg-white rounded-lg text-sm text-gray-400 cursor-not-allowed resize-none" />;
+                  if (q.type === "select") return (
+                    <select disabled className="w-full mt-2 px-3 py-2 border border-gray-200 bg-white rounded-lg text-sm text-gray-400 cursor-not-allowed">
+                      <option>Select an option…</option>
+                      {(q.options ?? []).map((o: string) => <option key={o}>{o}</option>)}
+                    </select>
+                  );
+                  if (q.type === "radio") return (
+                    <div className="mt-2 space-y-2">
+                      {(q.options ?? []).length > 0
+                        ? (q.options ?? []).map((o: string) => (
+                          <label key={o} className="flex items-center gap-2.5 cursor-not-allowed">
+                            <input type="radio" disabled className="w-4 h-4 accent-orange-500" /><span className="text-sm text-gray-600">{o}</span>
+                          </label>
+                        ))
+                        : <p className="text-xs text-gray-400 italic">No options defined</p>
+                      }
+                    </div>
+                  );
+                  if (q.type === "checkbox") return (
+                    <div className="mt-2 space-y-2">
+                      {(q.options ?? []).length > 0
+                        ? (q.options ?? []).map((o: string) => (
+                          <label key={o} className="flex items-center gap-2.5 cursor-not-allowed">
+                            <input type="checkbox" disabled className="w-4 h-4 accent-orange-500 rounded" /><span className="text-sm text-gray-600">{o}</span>
+                          </label>
+                        ))
+                        : <p className="text-xs text-gray-400 italic">No options defined</p>
+                      }
+                    </div>
+                  );
+                  return null;
+                };
+                return (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Screening Questions ({allQ.length})</p>
+                    {allQ.map((q, i) => (
+                      <div key={i} className="p-4 bg-white border border-gray-200 rounded-xl">
+                        <div className="flex items-start gap-3 mb-2">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-orange/10 text-brand-orange text-xs font-bold flex items-center justify-center">{i + 1}</span>
+                          <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {q.question}
+                              {q.required && <span className="ml-1 text-red-500 text-xs font-normal">*required</span>}
+                            </p>
+                            {i < predefined.length
+                              ? <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-semibold rounded border border-blue-100 uppercase tracking-wide">Standard</span>
+                              : <span className="px-1.5 py-0.5 bg-purple-50 text-purple-600 text-[10px] font-semibold rounded border border-purple-100 uppercase tracking-wide">Custom</span>
+                            }
+                          </div>
+                        </div>
+                        <div className="ml-9">{renderInput(q)}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
       </div>

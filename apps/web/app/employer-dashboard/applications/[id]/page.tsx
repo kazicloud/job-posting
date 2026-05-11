@@ -26,7 +26,15 @@ import {
   FileText,
   Award,
   Building2,
-  Link2
+  Link2,
+  Globe,
+  Linkedin,
+  Languages,
+  DollarSign,
+  Target,
+  Video,
+  Users,
+  ArrowRight,
 } from "lucide-react";
 
 // Helper function to calculate duration
@@ -190,11 +198,20 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               {/* Candidate Header */}
               <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6">
                 <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-brand-orange to-orange-600 rounded-full flex items-center justify-center flex-shrink-0 text-xl sm:text-2xl font-bold text-white">
-                    {jobSeeker.name?.split(" ").map(n => n[0]).join("") || "?"}
-                  </div>
+                  {/* Avatar */}
+                  {jobSeeker.profilePhoto ? (
+                    <img
+                      src={jobSeeker.profilePhoto}
+                      alt={jobSeeker.name || "Candidate"}
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover flex-shrink-0 border-2 border-gray-100"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-brand-orange to-orange-600 rounded-full flex items-center justify-center flex-shrink-0 text-xl sm:text-2xl font-bold text-white">
+                      {jobSeeker.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2) || "?"}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-1">
                       <h1 className="text-xl sm:text-2xl font-bold text-neutral-text truncate">{jobSeeker.name}</h1>
                       {application.matchScore > 0 && (
                         <span className={`inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-semibold rounded-full flex-shrink-0 ${
@@ -205,19 +222,40 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           {application.matchScore}% Match
                         </span>
                       )}
+                      {jobSeeker.openToWork && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full flex-shrink-0">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Open to Work
+                        </span>
+                      )}
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-neutral-text-secondary mb-3 sm:mb-4">
+                    {jobSeeker.headline && (
+                      <p className="text-sm text-neutral-text-secondary mb-2 font-medium">{jobSeeker.headline}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs sm:text-sm text-neutral-text-muted mb-3">
                       {jobSeeker.email && (
-                        <a href={`mailto:${jobSeeker.email}`} className="flex items-center gap-1 hover:text-brand-orange transition-colors truncate">
-                          <Mail className="w-3.5 sm:w-4 h-3.5 sm:h-4 flex-shrink-0" />
-                          <span className="truncate">{jobSeeker.email}</span>
+                        <a href={`mailto:${jobSeeker.email}`} className="flex items-center gap-1 hover:text-brand-orange transition-colors">
+                          <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate max-w-[180px]">{jobSeeker.email}</span>
                         </a>
                       )}
                       {jobSeeker.phone && (
                         <a href={`tel:${jobSeeker.phone}`} className="flex items-center gap-1 hover:text-brand-orange transition-colors">
-                          <Phone className="w-4 h-4" />
+                          <Phone className="w-3.5 h-3.5" />
                           {jobSeeker.phone}
                         </a>
+                      )}
+                      {jobSeeker.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5" />
+                          {jobSeeker.location}
+                        </span>
+                      )}
+                      {jobSeeker.yearsOfExperience !== undefined && (
+                        <span className="flex items-center gap-1">
+                          <Briefcase className="w-3.5 h-3.5" />
+                          {jobSeeker.yearsOfExperience} {jobSeeker.yearsOfExperience === 1 ? "yr" : "yrs"} experience
+                        </span>
                       )}
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -225,14 +263,75 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         <MessageSquare className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
                         <span className="whitespace-nowrap">Message Candidate</span>
                       </button>
-                      <button className="px-3 sm:px-4 py-2 border border-neutral-border text-neutral-text text-xs sm:text-sm font-medium rounded-lg hover:bg-neutral-bg-secondary transition-colors flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setShowInterviewModal(true)}
+                        className="px-3 sm:px-4 py-2 border border-neutral-border text-neutral-text text-xs sm:text-sm font-medium rounded-lg hover:bg-neutral-bg-secondary transition-colors flex items-center justify-center gap-2"
+                      >
                         <Calendar className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
                         <span className="whitespace-nowrap">Schedule Interview</span>
                       </button>
                     </div>
                   </div>
                 </div>
+
+                {/* About / Bio */}
+                {jobSeeker.about && (
+                  <div className="mt-5 pt-5 border-t border-neutral-border">
+                    <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider mb-2">About</p>
+                    <p className="text-sm text-neutral-text-secondary leading-relaxed">{jobSeeker.about}</p>
+                  </div>
+                )}
               </div>
+
+              {/* Interview Details (shown when status is "interview") */}
+              {application.status === "interview" && application.interviewDetails && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                  <h3 className="text-base font-semibold text-orange-900 mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Scheduled Interview
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-medium text-orange-700 mb-1">Date & Time</p>
+                      <p className="text-sm text-orange-900 font-semibold">
+                        {application.interviewDetails.date} at {application.interviewDetails.time}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-orange-700 mb-1">Format</p>
+                      <p className="text-sm text-orange-900 font-semibold capitalize">
+                        {application.interviewDetails.format === "virtual" ? "Virtual / Video Call" :
+                         application.interviewDetails.format === "phone" ? "Phone Call" : "In Person"}
+                      </p>
+                    </div>
+                    {application.interviewDetails.location && (
+                      <div>
+                        <p className="text-xs font-medium text-orange-700 mb-1">Location</p>
+                        <p className="text-sm text-orange-900">{application.interviewDetails.location}</p>
+                      </div>
+                    )}
+                    {application.interviewDetails.meetingLink && (
+                      <div>
+                        <p className="text-xs font-medium text-orange-700 mb-1">Meeting Link</p>
+                        <a
+                          href={application.interviewDetails.meetingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-brand-orange hover:underline inline-flex items-center gap-1"
+                        >
+                          Join Meeting <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                    {application.interviewDetails.interviewerName && (
+                      <div>
+                        <p className="text-xs font-medium text-orange-700 mb-1">Interviewer</p>
+                        <p className="text-sm text-orange-900">{application.interviewDetails.interviewerName}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Cover Letter */}
               {application.coverLetter && (
@@ -242,6 +341,100 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                     Cover Letter
                   </h3>
                   <p className="text-neutral-text-secondary whitespace-pre-wrap">{application.coverLetter}</p>
+                </div>
+              )}
+
+              {/* Application Details (links, availability, salary from application form) */}
+              {(application.linkedInUrl || application.portfolioUrl || application.availability || application.salaryExpectations || application.willingToRelocate !== undefined || application.workAuthorization) && (
+                <div className="bg-white border border-neutral-border rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-neutral-text mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Application Details
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {application.linkedInUrl && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Linkedin className="w-4 h-4 text-blue-700" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-neutral-text-muted mb-0.5">LinkedIn</p>
+                          <a
+                            href={application.linkedInUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-brand-orange hover:underline inline-flex items-center gap-1"
+                          >
+                            View Profile <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    {application.portfolioUrl && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Globe className="w-4 h-4 text-purple-700" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-neutral-text-muted mb-0.5">Portfolio</p>
+                          <a
+                            href={application.portfolioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-brand-orange hover:underline inline-flex items-center gap-1"
+                          >
+                            View Portfolio <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    {application.availability && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Clock className="w-4 h-4 text-green-700" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-neutral-text-muted mb-0.5">Availability</p>
+                          <p className="text-sm font-medium text-neutral-text">{application.availability}</p>
+                        </div>
+                      </div>
+                    )}
+                    {application.salaryExpectations && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <DollarSign className="w-4 h-4 text-orange-700" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-neutral-text-muted mb-0.5">Salary Expectation</p>
+                          <p className="text-sm font-medium text-neutral-text">{application.salaryExpectations}</p>
+                        </div>
+                      </div>
+                    )}
+                    {application.willingToRelocate !== undefined && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <MapPin className="w-4 h-4 text-gray-600" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-neutral-text-muted mb-0.5">Willing to Relocate</p>
+                          <p className="text-sm font-medium text-neutral-text">
+                            {application.willingToRelocate ? "Yes" : "No"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {application.workAuthorization && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Award className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-neutral-text-muted mb-0.5">Work Authorization</p>
+                          <p className="text-sm font-medium text-neutral-text">{application.workAuthorization}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -408,6 +601,68 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   </div>
                 </div>
               )}
+
+              {/* Languages */}
+              {jobSeeker.languages && jobSeeker.languages.length > 0 && (
+                <div className="bg-white border border-neutral-border rounded-lg p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-lg font-semibold text-neutral-text flex items-center gap-2">
+                      <Languages className="w-5 h-5" />
+                      Languages
+                    </h3>
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">from profile</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {jobSeeker.languages.map((lang: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-neutral-bg-secondary border border-neutral-border">
+                        <span className="text-sm font-medium text-neutral-text">{lang.language}</span>
+                        <span className="text-xs text-neutral-text-muted capitalize">{lang.proficiency || "N/A"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Question Answers */}
+              {application.customAnswers && application.customAnswers.length > 0 && job.applicationSettings?.customQuestions && job.applicationSettings.customQuestions.length > 0 && (
+                <div className="bg-white border border-neutral-border rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-neutral-text mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Screening Questions
+                  </h3>
+                  <div className="space-y-5">
+                    {application.customAnswers.map((item: any, idx: number) => {
+                      const question = job.applicationSettings!.customQuestions![item.questionIndex];
+                      if (!question) return null;
+                      return (
+                        <div key={idx}>
+                          <p className="text-sm font-semibold text-neutral-text mb-1.5">{question.question}</p>
+                          {Array.isArray(item.answer) ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {item.answer.map((a: string, i: number) => (
+                                <span key={i} className="px-2.5 py-1 bg-neutral-bg-secondary text-neutral-text text-xs rounded-lg border border-neutral-border">
+                                  {a}
+                                </span>
+                              ))}
+                            </div>
+                          ) : item.fileUrl ? (
+                            <a
+                              href={item.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-brand-orange hover:underline inline-flex items-center gap-1"
+                            >
+                              View File <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            <p className="text-sm text-neutral-text-secondary leading-relaxed">{item.answer}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right Sidebar */}
@@ -420,7 +675,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   value={application.status}
                   onChange={(e) => handleStatusChange(e.target.value)}
                   disabled={isUpdating}
-                  className="w-full px-4 py-2.5 border border-neutral-border rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange bg-white mb-4"
+                  className="w-full px-4 py-2.5 border border-neutral-border rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange bg-white mb-5"
                 >
                   <option value="submitted">Submitted</option>
                   <option value="shortlisted">Shortlisted</option>
@@ -429,24 +684,71 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   <option value="rejected">Regret</option>
                 </select>
 
-                {/* Timeline */}
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-start gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getStatusColor(application.status)}`}>
-                      {getStatusIcon(application.status)}
+                {/* Application Progress Timeline */}
+                {(() => {
+                  const stages = [
+                    { key: "submitted", label: "Applied" },
+                    { key: "shortlisted", label: "Shortlisted" },
+                    { key: "interview", label: "Interview" },
+                    { key: "accepted", label: "Offered" },
+                  ];
+                  const isRejected = application.status === "rejected";
+                  const currentIdx = stages.findIndex(s => s.key === application.status);
+                  return (
+                    <div className="mb-5">
+                      {isRejected ? (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+                          <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                          <span className="text-sm font-medium text-red-700">Application Regretted</span>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <div className="flex items-center justify-between mb-2">
+                            {stages.map((stage, idx) => (
+                              <div key={stage.key} className="flex flex-col items-center gap-1" style={{ flex: 1 }}>
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center z-10 relative ${
+                                  idx <= currentIdx
+                                    ? "bg-brand-orange text-white"
+                                    : "bg-gray-100 text-gray-400 border border-gray-200"
+                                }`}>
+                                  {idx < currentIdx ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                  ) : idx === currentIdx ? (
+                                    <div className="w-2.5 h-2.5 rounded-full bg-white" />
+                                  ) : (
+                                    <div className="w-2 h-2 rounded-full bg-gray-300" />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {/* connector line */}
+                          <div className="absolute top-3.5 left-[14px] right-[14px] h-0.5 bg-gray-200 -z-0" />
+                          <div
+                            className="absolute top-3.5 left-[14px] h-0.5 bg-brand-orange -z-0 transition-all"
+                            style={{ width: currentIdx === 0 ? 0 : `${(currentIdx / (stages.length - 1)) * 100}%` }}
+                          />
+                          <div className="flex items-center justify-between">
+                            {stages.map((stage, idx) => (
+                              <div key={stage.key} className="flex justify-center" style={{ flex: 1 }}>
+                                <span className={`text-[10px] font-medium text-center ${
+                                  idx <= currentIdx ? "text-brand-orange" : "text-neutral-text-muted"
+                                }`}>
+                                  {stage.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-neutral-text capitalize">{application.status.replace('_', ' ')}</p>
-                      <p className="text-xs text-neutral-text-muted">
-                        {new Date(application._creationTime).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
+
+                {/* Applied Date */}
+                <p className="text-xs text-neutral-text-muted mb-5">
+                  Applied {new Date(application._creationTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </p>
 
                 {/* Quick Actions */}
                 <div className="space-y-2">
@@ -470,6 +772,16 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                       <span className="whitespace-nowrap">Schedule Interview</span>
                     </button>
                   )}
+                  {["submitted", "shortlisted", "interview"].includes(application.status) && (
+                    <button
+                      onClick={() => handleStatusChange("accepted")}
+                      disabled={isUpdating}
+                      className="w-full px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      Offer Position
+                    </button>
+                  )}
                   {application.status !== "rejected" && (
                     <button
                       onClick={() => handleStatusChange("rejected")}
@@ -482,6 +794,54 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   )}
                 </div>
               </div>
+
+              {/* Resume / CV */}
+              {jobSeeker.resumeStorageId && (
+                <ResumeCard storageId={jobSeeker.resumeStorageId} />
+              )}
+
+              {/* Candidate Profile Summary */}
+              {(jobSeeker.desiredJobTitle || jobSeeker.salaryMin || jobSeeker.profileAvailability || jobSeeker.currentStatus) && (
+                <div className="bg-white border border-neutral-border rounded-lg p-5">
+                  <h3 className="text-sm font-semibold text-neutral-text mb-4 flex items-center gap-2">
+                    <Target className="w-4 h-4 text-brand-orange" />
+                    Candidate Preferences
+                  </h3>
+                  <div className="space-y-3">
+                    {jobSeeker.desiredJobTitle && (
+                      <div>
+                        <p className="text-xs text-neutral-text-muted mb-0.5">Desired Role</p>
+                        <p className="text-sm font-medium text-neutral-text">{jobSeeker.desiredJobTitle}</p>
+                      </div>
+                    )}
+                    {jobSeeker.salaryMin && (
+                      <div>
+                        <p className="text-xs text-neutral-text-muted mb-0.5">Expected Salary</p>
+                        <p className="text-sm font-medium text-neutral-text">
+                          {jobSeeker.salaryCurrency || "KES"} {jobSeeker.salaryMin.toLocaleString()}+
+                        </p>
+                      </div>
+                    )}
+                    {jobSeeker.profileAvailability && (
+                      <div>
+                        <p className="text-xs text-neutral-text-muted mb-0.5">Availability</p>
+                        <p className="text-sm font-medium text-neutral-text capitalize">
+                          {jobSeeker.profileAvailability === "immediate" ? "Immediately available" :
+                           jobSeeker.profileAvailability === "1_month" ? "1 month notice" :
+                           jobSeeker.profileAvailability === "2_months" ? "2 months notice" :
+                           "3 months notice"}
+                        </p>
+                      </div>
+                    )}
+                    {jobSeeker.currentStatus && (
+                      <div>
+                        <p className="text-xs text-neutral-text-muted mb-0.5">Current Status</p>
+                        <p className="text-sm font-medium text-neutral-text capitalize">{jobSeeker.currentStatus}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Internal Notes */}
               <div className="bg-white border border-neutral-border rounded-lg p-6">
@@ -560,5 +920,35 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         isLoading={isScheduling}
       />
     </EmployerDashboardLayout>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function ResumeCard({ storageId }: { storageId: string }) {
+  const url = useQuery(api.serviceOrders.getFileUrl, { storageId });
+  return (
+    <div className="bg-white border border-neutral-border rounded-lg p-5">
+      <h3 className="text-sm font-semibold text-neutral-text mb-3 flex items-center gap-2">
+        <FileText className="w-4 h-4 text-brand-orange" />
+        Resume / CV
+      </h3>
+      {url ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          View Resume
+        </a>
+      ) : (
+        <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gray-100 text-neutral-text-muted text-sm">
+          <FileText className="w-4 h-4" />
+          Loading resume…
+        </div>
+      )}
+    </div>
   );
 }

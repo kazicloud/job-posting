@@ -19,6 +19,15 @@ import {
   Info,
 } from "lucide-react";
 
+import {
+  EAST_AFRICA_COUNTRIES,
+  REGIONS_BY_COUNTRY,
+  CURRENCY_BY_COUNTRY,
+  getRegionLabel,
+  formatLocation,
+  getRegionGroups,
+} from "@repo/lib/east-africa-locations";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PostJobDrawerProps {
@@ -33,16 +42,6 @@ interface FormErrors {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const KENYA_COUNTIES = [
-  "Mombasa","Kwale","Kilifi","Tana River","Lamu","Taita-Taveta","Garissa",
-  "Wajir","Mandera","Marsabit","Isiolo","Meru","Tharaka Nithi","Embu",
-  "Kitui","Machakos","Makueni","Nyandarua","Nyeri","Kirinyaga","Murang'a",
-  "Kiambu","Turkana","West Pokot","Samburu","Trans-Nzoia","Uasin Gishu",
-  "Elgeyo-Marakwet","Nandi","Baringo","Laikipia","Nakuru","Narok","Kajiado",
-  "Kericho","Bomet","Kakamega","Vihiga","Bungoma","Busia","Siaya","Kisumu",
-  "Homa Bay","Migori","Kisii","Nyamira","Nairobi",
-];
 
 const EMPLOYMENT_TYPES = [
   { value: "full_time", label: "Full-time" },
@@ -83,8 +82,9 @@ const defaultForm = {
   department: "",
   employmentType: "",
   workplaceType: "",
-  location: "",
-  county: "",
+  country: "Kenya",
+  region: "",
+  city: "",
   positions: "1",
   experienceLevel: "",
   applicationDeadline: "",
@@ -179,7 +179,7 @@ export function PostJobDrawer({ isOpen, onClose, employerId, companyName }: Post
       if (!form.title.trim()) errs.title = "Job title is required";
       if (!form.employmentType) errs.employmentType = "Employment type is required";
       if (!form.workplaceType) errs.workplaceType = "Workplace type is required";
-      if (!form.location.trim()) errs.location = "Location is required";
+      if (!form.region) errs.region = "Region / district is required";
       if (!form.experienceLevel) errs.experienceLevel = "Experience level is required";
       const pos = parseInt(form.positions);
       if (isNaN(pos) || pos < 1) errs.positions = "Must be at least 1";
@@ -224,8 +224,8 @@ export function PostJobDrawer({ isOpen, onClose, employerId, companyName }: Post
         department: form.department || undefined,
         employmentType: form.employmentType,
         workplaceType: form.workplaceType,
-        location: form.location.trim(),
-        county: form.county || undefined,
+        location: formatLocation({ country: form.country, region: form.region, city: form.city }),
+        county: form.region || undefined,
         description: form.description.trim(),
         responsibilities: form.responsibilities.trim(),
         requirements: form.requirements.trim(),
@@ -419,23 +419,51 @@ export function PostJobDrawer({ isOpen, onClose, employerId, companyName }: Post
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Location (City / Area)" required error={errors.location}>
-                  <input
-                    type="text"
-                    value={form.location}
-                    onChange={(e) => set("location", e.target.value)}
-                    placeholder="e.g. Nairobi CBD"
-                    className={inputClass(!!errors.location)}
-                  />
+                <Field label="Country" required error={errors.country}>
+                  <select
+                    value={form.country}
+                    onChange={(e) => {
+                      const newCountry = e.target.value;
+                      const newCurrency = CURRENCY_BY_COUNTRY[newCountry]?.code ?? "KES";
+                      setForm((prev) => ({ ...prev, country: newCountry, region: "", city: "", currency: newCurrency }));
+                    }}
+                    className={inputClass(false)}
+                  >
+                    {EAST_AFRICA_COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
+                    ))}
+                  </select>
                 </Field>
 
-                <Field label="County" error={errors.county}>
-                  <select value={form.county} onChange={(e) => set("county", e.target.value)} className={inputClass(false)}>
-                    <option value="">Select county</option>
-                    {KENYA_COUNTIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                <Field label={getRegionLabel(form.country)} required error={errors.region}>
+                  <select
+                    value={form.region}
+                    onChange={(e) => set("region", e.target.value)}
+                    className={inputClass(!!errors.region)}
+                  >
+                    <option value="">Select {getRegionLabel(form.country).toLowerCase()}</option>
+                    {getRegionGroups(form.country).map((group) => (
+                      <optgroup key={group} label={group}>
+                        {(REGIONS_BY_COUNTRY[form.country] ?? [])
+                          .filter((r) => r.group === group)
+                          .map((r) => (
+                            <option key={r.name} value={r.name}>{r.name}</option>
+                          ))}
+                      </optgroup>
+                    ))}
                   </select>
                 </Field>
               </div>
+
+              <Field label="City / Town" error={errors.city}>
+                <input
+                  type="text"
+                  value={form.city}
+                  onChange={(e) => set("city", e.target.value)}
+                  placeholder={`e.g. ${form.country === "Kenya" ? "Westlands" : form.country === "Uganda" ? "Kololo" : form.country === "Tanzania" ? "Mwenge" : "Kimironko"}`}
+                  className={inputClass(false)}
+                />
+              </Field>
 
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Experience Level" required error={errors.experienceLevel}>

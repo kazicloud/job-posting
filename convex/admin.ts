@@ -452,8 +452,57 @@ export const getAllJobs = query({
   },
 });
 
+export const getAllUserEmails = query({
+  args: {},
+  handler: async (ctx): Promise<Array<{ email: string; name: string }>> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+    const caller = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!caller || (caller.primaryRole !== "admin" && !caller.roles?.includes("admin"))) {
+      throw new Error("Admin access required");
+    }
+    const users = await ctx.db.query("users").collect();
+    return users
+      .filter((u) => !!u.email)
+      .map((u) => ({ email: u.email, name: u.fullName ?? u.email }));
+  },
+});
+
+export const searchUsers = query({
+  args: { search: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args): Promise<Array<{ _id: string; email: string; fullName?: string; primaryRole?: string }>> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+    const caller = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!caller || (caller.primaryRole !== "admin" && !caller.roles?.includes("admin"))) {
+      throw new Error("Admin access required");
+    }
+    const q = args.search.toLowerCase();
+    const limit = args.limit ?? 8;
+    const users = await ctx.db.query("users").collect();
+    return users
+      .filter((u) => !!u.email && (
+        u.email.toLowerCase().includes(q) ||
+        (u.fullName ?? "").toLowerCase().includes(q)
+      ))
+      .slice(0, limit)
+      .map((u) => ({
+        _id: u._id,
+        email: u.email,
+        fullName: u.fullName,
+        primaryRole: u.primaryRole,
+      }));
+  },
+});
+
 export const getAllApplications = query({
-  args: { 
+  args: {
     status: v.optional(v.string()),
     search: v.optional(v.string()),
     page: v.number(),
@@ -825,6 +874,16 @@ export const forcePublishJob = mutation({
       expiresAt,
     });
 
+    if (job.employerId) {
+      await ctx.scheduler.runAfter(0, internal.emails.notifyEmployerJobAction, {
+        jobId: args.jobId,
+        jobTitle: job.title,
+        employerId: job.employerId,
+        action: "published",
+        expiresAt,
+      });
+    }
+
     return { success: true, expiresAt };
   },
 });
@@ -914,64 +973,217 @@ export const adminPostJobOnBehalf = mutation({
   },
 });
 
-// Search users by name or email (for admin compose-email autocomplete)
-export const searchUsers = query({
-  args: {
-    search: v.string(),
-    limit: v.optional(v.number()),
-  },
+// ─── Admin auth guard helper (inline) ─────────────────────────────────────────
+async function requireAdmin(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Not authenticated");
+  const admin = await ctx.db
+    .query("users")
+    .withIndex("by_clerk_id", (q: any) => q.eq("clerkId", identity.subject))
+    .first();
+  if (!admin || (!admin.roles?.includes("admin") && admin.primaryRole !== "admin")) {
+    throw new Error("Admin access required");
+  }
+  return admin;
+}
+
+// ─── Get a single job by ID (admin) ──────────────────────────────────────────
+export const adminGetJob = query({
+  args: { jobId: v.id("jobs") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthorized");
-
+    if (!identity) throw new Error("Not authenticated");
     const admin = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
-
-    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") {
-      throw new Error("Unauthorized");
+    if (!admin || (!admin.roles?.includes("admin") && admin.primaryRole !== "admin")) {
+      throw new Error("Admin access required");
     }
-
-    const q = args.search.trim().toLowerCase();
-    if (q.length < 2) return [];
-
-    const allUsers = await ctx.db.query("users").collect();
-    return allUsers
-      .filter(
-        (u) =>
-          (u.fullName?.toLowerCase().includes(q) ||
-            u.email.toLowerCase().includes(q)) &&
-          u.roles?.includes("admin") !== true &&
-          u.primaryRole !== "admin"
-      )
-      .slice(0, args.limit ?? 8)
-      .map((u) => ({
-        _id: u._id,
-        fullName: u.fullName,
-        email: u.email,
-        primaryRole: u.primaryRole,
-        profilePhoto: u.profilePhoto,
-      }));
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Job not found");
+    const [applicationsCount, viewsCount] = await Promise.all([
+      ctx.db
+        .query("applications")
+        .withIndex("by_job", (q) => q.eq("jobId", args.jobId))
+        .collect()
+        .then((a) => a.length),
+      ctx.db
+        .query("jobViews")
+        .withIndex("by_job", (q) => q.eq("jobId", args.jobId))
+        .collect()
+        .then((v) => v.length),
+    ]);
+    // Fetch employer profile for company logo
+    let companyLogoUrl: string | undefined;
+    let companyName: string | undefined;
+    if (job.employerId) {
+      const employerProfile = await ctx.db
+        .query("employerProfiles")
+        .withIndex("by_user", (q) => q.eq("userId", job.employerId as any))
+        .first();
+      if (employerProfile) {
+        companyName = employerProfile.companyName;
+        if (employerProfile.companyLogoStorageId) {
+          companyLogoUrl = (await ctx.storage.getUrl(employerProfile.companyLogoStorageId)) || undefined;
+        } else if (employerProfile.companyLogo) {
+          companyLogoUrl = employerProfile.companyLogo;
+        }
+      }
+    }
+    return { ...job, applicationsCount, viewsCount, companyLogoUrl, employerCompanyName: companyName };
   },
 });
 
-// Get all non-admin user emails for bulk sending
-export const getAllUserEmails = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthorized");
-    const admin = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") {
-      throw new Error("Unauthorized");
+// ─── Close / unpublish a job ──────────────────────────────────────────────────
+export const adminCloseJob = mutation({
+  args: { jobId: v.id("jobs") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Job not found");
+    await ctx.db.patch(args.jobId, { status: "closed", updatedAt: Date.now() });
+    if (job.employerId) {
+      await ctx.scheduler.runAfter(0, internal.emails.notifyEmployerJobAction, {
+        jobId: args.jobId,
+        jobTitle: job.title,
+        employerId: job.employerId,
+        action: "closed",
+      });
     }
-    const allUsers = await ctx.db.query("users").collect();
-    return allUsers
-      .filter((u) => u.primaryRole !== "admin" && !u.roles?.includes("admin"))
-      .map((u) => ({ email: u.email, name: u.fullName ?? "" }));
+    return { success: true };
+  },
+});
+
+// ─── Archive a job ────────────────────────────────────────────────────────────
+export const adminArchiveJob = mutation({
+  args: { jobId: v.id("jobs") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Job not found");
+    await ctx.db.patch(args.jobId, { status: "archived", updatedAt: Date.now() });
+    if (job.employerId) {
+      await ctx.scheduler.runAfter(0, internal.emails.notifyEmployerJobAction, {
+        jobId: args.jobId,
+        jobTitle: job.title,
+        employerId: job.employerId,
+        action: "archived",
+      });
+    }
+    return { success: true };
+  },
+});
+
+// ─── Toggle featured status ───────────────────────────────────────────────────
+export const adminFeatureJob = mutation({
+  args: { jobId: v.id("jobs"), featured: v.boolean() },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Job not found");
+    await ctx.db.patch(args.jobId, { featured: args.featured, updatedAt: Date.now() });
+    if (job.employerId) {
+      await ctx.scheduler.runAfter(0, internal.emails.notifyEmployerJobAction, {
+        jobId: args.jobId,
+        jobTitle: job.title,
+        employerId: job.employerId,
+        action: args.featured ? "featured" : "unfeatured",
+      });
+    }
+    return { success: true };
+  },
+});
+
+// ─── Flag a job for policy review ────────────────────────────────────────────
+export const adminFlagJob = mutation({
+  args: { jobId: v.id("jobs"), reason: v.optional(v.string()), clear: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Job not found");
+    if (args.clear) {
+      await ctx.db.patch(args.jobId, { flagged: false, flagReason: undefined, updatedAt: Date.now() });
+      if (job.employerId) {
+        await ctx.scheduler.runAfter(0, internal.emails.notifyEmployerJobAction, {
+          jobId: args.jobId,
+          jobTitle: job.title,
+          employerId: job.employerId,
+          action: "flag_cleared",
+        });
+      }
+    } else {
+      await ctx.db.patch(args.jobId, {
+        flagged: true,
+        flagReason: args.reason ?? "Flagged by admin",
+        status: "closed",
+        updatedAt: Date.now(),
+      });
+      if (job.employerId) {
+        await ctx.scheduler.runAfter(0, internal.emails.notifyEmployerJobAction, {
+          jobId: args.jobId,
+          jobTitle: job.title,
+          employerId: job.employerId,
+          action: "flagged",
+          flagReason: args.reason,
+        });
+      }
+    }
+    return { success: true };
+  },
+});
+
+// ─── Extend job expiry by N days ─────────────────────────────────────────────
+export const adminExtendJobExpiry = mutation({
+  args: { jobId: v.id("jobs"), days: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Job not found");
+    const days = args.days ?? 30;
+    const base = job.expiresAt && job.expiresAt > Date.now() ? job.expiresAt : Date.now();
+    const expiresAt = base + days * 24 * 60 * 60 * 1000;
+    await ctx.db.patch(args.jobId, {
+      expiresAt,
+      status: "published",
+      updatedAt: Date.now(),
+    });
+    if (job.employerId) {
+      await ctx.scheduler.runAfter(0, internal.emails.notifyEmployerJobAction, {
+        jobId: args.jobId,
+        jobTitle: job.title,
+        employerId: job.employerId,
+        action: "extended",
+        expiresAt,
+      });
+    }
+    return { success: true, expiresAt };
+  },
+});
+
+// ─── Hard delete a job ────────────────────────────────────────────────────────
+export const adminDeleteJob = mutation({
+  args: { jobId: v.id("jobs") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Job not found");
+    // Notify employer before deleting
+    if (job.employerId) {
+      await ctx.scheduler.runAfter(0, internal.emails.notifyEmployerJobAction, {
+        jobId: args.jobId,
+        jobTitle: job.title,
+        employerId: job.employerId,
+        action: "deleted",
+      });
+    }
+    // Delete all applications for this job first
+    const applications = await ctx.db
+      .query("applications")
+      .withIndex("by_job", (q) => q.eq("jobId", args.jobId))
+      .collect();
+    await Promise.all(applications.map((a) => ctx.db.delete(a._id)));
+    await ctx.db.delete(args.jobId);
+    return { success: true };
   },
 });
