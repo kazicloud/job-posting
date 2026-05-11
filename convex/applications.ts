@@ -1,4 +1,4 @@
-import { mutation, query, action, internalMutation, ActionCtx } from "./_generated/server";
+import { mutation, query, action, internalMutation, internalQuery, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -61,6 +61,7 @@ export const applyWithDetails = action({
   args: {
     jobId: v.id("jobs"),
     coverLetter: v.optional(v.string()),
+    applicationResumeStorageId: v.optional(v.string()),
     portfolioUrl: v.optional(v.string()),
     linkedInUrl: v.optional(v.string()),
     availability: v.optional(v.string()),
@@ -89,6 +90,7 @@ export const applyWithDetailsInternal = internalMutation({
   args: {
     jobId: v.id("jobs"),
     coverLetter: v.optional(v.string()),
+    applicationResumeStorageId: v.optional(v.string()),
     portfolioUrl: v.optional(v.string()),
     linkedInUrl: v.optional(v.string()),
     availability: v.optional(v.string()),
@@ -125,6 +127,7 @@ export const applyWithDetailsInternal = internalMutation({
       jobSeekerId: user._id,
       status: "submitted",
       coverLetter: args.coverLetter,
+      applicationResumeStorageId: args.applicationResumeStorageId,
       portfolioUrl: args.portfolioUrl,
       linkedInUrl: args.linkedInUrl,
       availability: args.availability,
@@ -560,6 +563,44 @@ export const getApplicationById = query({
         }),
       },
       matchScore,
+    };
+  },
+});
+
+/**
+ * Internal (no-auth) version of getApplicationById for use inside internalActions
+ * such as email notifications and scheduled jobs.
+ */
+export const getApplicationByIdInternal = internalQuery({
+  args: { applicationId: v.id("applications") },
+  handler: async (ctx, args) => {
+    const application = await ctx.db.get(args.applicationId);
+    if (!application) return null;
+
+    const job = await ctx.db.get(application.jobId);
+    if (!job) return null;
+
+    const employer = await ctx.db.get(job.employerId);
+    const jobSeeker = await ctx.db.get(application.jobSeekerId);
+    if (!jobSeeker) return null;
+
+    const jobSeekerProfile = await ctx.db
+      .query("jobSeekerProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", jobSeeker._id))
+      .first();
+
+    return {
+      ...application,
+      job,
+      employer: employer
+        ? { _id: employer._id, fullName: employer.fullName, email: employer.email }
+        : null,
+      jobSeeker: {
+        _id: jobSeeker._id,
+        name: jobSeeker.fullName,
+        email: jobSeeker.email,
+        headline: jobSeekerProfile?.headline,
+      },
     };
   },
 });

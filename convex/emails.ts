@@ -2,7 +2,7 @@
 
 import { internalAction, action } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 // ---------------------------------------------------------------------------
 // Shared modern email template
@@ -1188,22 +1188,63 @@ export const notifyJobSeekerInterview = internalAction({
     }),
   },
   handler: async (ctx, args) => {
-    const application = await ctx.runQuery(api.applications.getApplicationById, { applicationId: args.applicationId });
+    // Use internal query — no Clerk session available in background actions
+    const application = await ctx.runQuery(internal.applications.getApplicationByIdInternal, { applicationId: args.applicationId });
     if (!application) return { success: false, error: "Application not found" };
 
     const jobSeeker = application.jobSeeker;
     if (!jobSeeker?.email) return { success: false, error: "Job seeker email not found" };
 
     const job = application.job;
+    const employer = application.employer;
     const d = args.interviewDetails;
+
+    const formatIcon: Record<string, string> = { "in-person": "🏢", "virtual": "💻", "phone": "📞" };
+    const formatLabel: Record<string, string> = { "in-person": "In-Person", "virtual": "Virtual / Video Call", "phone": "Phone Call" };
+
+    // ── In-app inbox message ──────────────────────────────────────────────────
+    if (employer?._id) {
+      const locationLine = d.format === "virtual" && d.meetingLink
+        ? `Meeting Link: ${d.meetingLink}`
+        : d.location
+        ? `Location: ${d.location}`
+        : "";
+
+      const inboxMessage = [
+        `📅 Interview Invitation — ${job.title}`,
+        ``,
+        `Hi ${jobSeeker.name?.split(" ")[0] || "there"},`,
+        ``,
+        `You have been invited to an interview for the ${job.title} position${(job as any).companyName ? ` at ${(job as any).companyName}` : ""}.`,
+        ``,
+        `📌 Interview Details`,
+        `Date: ${d.date}`,
+        `Time: ${d.time}`,
+        `Format: ${formatIcon[d.format] || ""} ${formatLabel[d.format] || d.format}`,
+        locationLine,
+        d.interviewerName ? `Interviewer: ${d.interviewerName}` : "",
+        d.additionalNotes ? `\nNotes from employer:\n${d.additionalNotes}` : "",
+        ``,
+        `Please confirm your availability and ensure you are prepared. Good luck! 🌟`,
+      ]
+        .filter((line) => line !== undefined && line !== "")
+        .join("\n");
+
+      await ctx.runMutation(internal.conversations.sendMessageInternal, {
+        senderId: employer._id,
+        recipientId: jobSeeker._id,
+        text: inboxMessage,
+        jobTitle: job.title,
+        companyName: (job as any).companyName,
+      });
+    }
+
+    // ── Email ─────────────────────────────────────────────────────────────────
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
     const applicationsUrl = `${webUrl}/dashboard/applications`;
-
-    const formatIcon: Record<string, string> = { "in-person": "🏢", "virtual": "💻", "phone": "📞" };
-    const formatLabel: Record<string, string> = { "in-person": "In-Person", "virtual": "Virtual / Video Call", "phone": "Phone Call" };
 
     const locationOrLink = d.format === "virtual" && d.meetingLink
       ? `<a href="${d.meetingLink}" style="color:#DC842C;text-decoration:none;">${d.meetingLink}</a>`

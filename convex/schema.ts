@@ -323,6 +323,7 @@ export default defineSchema({
     ),
     coverLetter: v.optional(v.string()),
     resumeUrl: v.optional(v.string()),
+    applicationResumeStorageId: v.optional(v.string()), // custom resume uploaded at apply time
     
     // Additional application data (NEW)
     portfolioUrl: v.optional(v.string()),

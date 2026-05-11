@@ -5,8 +5,9 @@ import { InterviewModal, InterviewDetails } from "@/components/employer-dashboar
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
-import { use, useState } from "react";
+import { use, useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   ChevronLeft, 
   Mail, 
@@ -35,6 +36,7 @@ import {
   Video,
   Users,
   ArrowRight,
+  User,
 } from "lucide-react";
 
 // Helper function to calculate duration
@@ -53,11 +55,13 @@ function calculateDuration(startDate: string, endDate: string) {
 export default function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const applicationId = id as Id<"applications">;
+  const router = useRouter();
   
   const application = useQuery(api.applications.getApplicationById, { applicationId });
   const notes = useQuery(api.applications.getApplicationNotes, { applicationId });
   const updateStatus = useMutation(api.applications.updateStatus);
   const addNote = useMutation(api.applications.addApplicationNote);
+  const getOrCreateConversation = useMutation(api.conversations.getOrCreateEmployerConversation);
   
   const [isUpdating, setIsUpdating] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
@@ -65,14 +69,133 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [showInterviewModal, setShowInterviewModal] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [isMessaging, setIsMessaging] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setSuccessToast(msg);
+    toastTimer.current = setTimeout(() => setSuccessToast(null), 5000);
+  };
 
   if (!application) {
     return (
       <EmployerDashboardLayout>
-        <div className="p-4 sm:p-6 lg:p-8">
-          <div className="animate-pulse space-y-4 sm:space-y-6">
-            <div className="h-6 sm:h-8 bg-gray-200 rounded w-1/2 sm:w-1/3"></div>
-            <div className="h-48 sm:h-64 bg-gray-200 rounded"></div>
+        <div className="min-h-screen bg-neutral-bg-secondary animate-pulse">
+          {/* Top bar */}
+          <div className="bg-white border-b border-neutral-border">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
+              <div className="h-5 w-20 bg-gray-200 rounded" />
+              <div className="flex gap-2">
+                <div className="h-9 w-9 bg-gray-200 rounded-lg" />
+                <div className="h-9 w-9 bg-gray-200 rounded-lg" />
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main column */}
+              <div className="lg:col-span-2 space-y-4">
+                {/* Candidate card */}
+                <div className="bg-white rounded-xl border border-neutral-border p-5 sm:p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 rounded-full bg-gray-200 shrink-0" />
+                    <div className="flex-1 space-y-2.5">
+                      <div className="h-5 w-40 bg-gray-200 rounded" />
+                      <div className="h-3.5 w-56 bg-gray-100 rounded" />
+                      <div className="flex gap-2">
+                        <div className="h-5 w-20 bg-gray-100 rounded-full" />
+                        <div className="h-5 w-24 bg-gray-100 rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-5 pt-5 border-t border-neutral-border">
+                    <div className="h-9 flex-1 bg-gray-200 rounded-lg" />
+                    <div className="h-9 flex-1 bg-gray-100 rounded-lg" />
+                    <div className="h-9 flex-1 bg-gray-100 rounded-lg" />
+                  </div>
+                </div>
+
+                {/* Application details card */}
+                <div className="bg-white rounded-xl border border-neutral-border p-5 sm:p-6 space-y-4">
+                  <div className="h-4 w-36 bg-gray-200 rounded" />
+                  <div className="grid grid-cols-2 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="space-y-1.5">
+                        <div className="h-3 w-20 bg-gray-100 rounded" />
+                        <div className="h-4 w-28 bg-gray-200 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cover letter card */}
+                <div className="bg-white rounded-xl border border-neutral-border p-5 sm:p-6 space-y-3">
+                  <div className="h-4 w-28 bg-gray-200 rounded" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-full bg-gray-100 rounded" />
+                    <div className="h-3 w-5/6 bg-gray-100 rounded" />
+                    <div className="h-3 w-4/6 bg-gray-100 rounded" />
+                  </div>
+                </div>
+
+                {/* Work experience card */}
+                <div className="bg-white rounded-xl border border-neutral-border p-5 sm:p-6 space-y-4">
+                  <div className="h-4 w-32 bg-gray-200 rounded" />
+                  {[1, 2].map((i) => (
+                    <div key={i} className="flex gap-3 pt-3 border-t border-neutral-border first:border-0 first:pt-0">
+                      <div className="w-9 h-9 rounded-lg bg-gray-100 shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-4 w-36 bg-gray-200 rounded" />
+                        <div className="h-3 w-24 bg-gray-100 rounded" />
+                        <div className="h-3 w-16 bg-gray-100 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sidebar */}
+              <div className="space-y-4">
+                {/* Status card */}
+                <div className="bg-white rounded-xl border border-neutral-border p-5 space-y-3">
+                  <div className="h-4 w-24 bg-gray-200 rounded" />
+                  <div className="h-9 w-full bg-gray-100 rounded-lg" />
+                  <div className="grid grid-cols-2 gap-2">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="h-8 bg-gray-100 rounded-lg" />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Resume card */}
+                <div className="bg-white rounded-xl border border-neutral-border p-5 space-y-3">
+                  <div className="h-4 w-16 bg-gray-200 rounded" />
+                  <div className="h-10 w-full bg-gray-100 rounded-lg" />
+                </div>
+
+                {/* Skills card */}
+                <div className="bg-white rounded-xl border border-neutral-border p-5 space-y-3">
+                  <div className="h-4 w-28 bg-gray-200 rounded" />
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="h-6 w-16 bg-gray-100 rounded-full" />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Notes card */}
+                <div className="bg-white rounded-xl border border-neutral-border p-5 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div className="h-4 w-20 bg-gray-200 rounded" />
+                    <div className="h-7 w-20 bg-gray-100 rounded-lg" />
+                  </div>
+                  <div className="h-16 w-full bg-gray-50 rounded-lg" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </EmployerDashboardLayout>
@@ -104,11 +227,28 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     }
   };
 
+  const handleMessageCandidate = async () => {
+    if (!jobSeeker?._id) return;
+    setIsMessaging(true);
+    try {
+      const conversationId = await getOrCreateConversation({
+        jobSeekerId: jobSeeker._id as Id<"users">,
+        jobId: application?.job?._id,
+      });
+      router.push(`/employer-dashboard/inbox?c=${conversationId}`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to open conversation");
+    } finally {
+      setIsMessaging(false);
+    }
+  };
+
   const handleInterviewConfirm = async (details: InterviewDetails) => {
     setIsScheduling(true);
     try {
       await updateStatus({ applicationId, status: "interview", interviewDetails: details });
       setShowInterviewModal(false);
+      showToast(`Interview scheduled for ${jobSeeker?.name || "the candidate"} on ${details.date} at ${details.time}. A notification email and inbox message have been sent to the candidate.`);
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to schedule interview");
     } finally {
@@ -259,9 +399,13 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                       )}
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <button className="px-3 sm:px-4 py-2 bg-brand-orange text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center justify-center gap-2">
+                      <button
+                        onClick={handleMessageCandidate}
+                        disabled={isMessaging}
+                        className="px-3 sm:px-4 py-2 bg-brand-orange text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-brand-orange/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                      >
                         <MessageSquare className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
-                        <span className="whitespace-nowrap">Message Candidate</span>
+                        <span className="whitespace-nowrap">{isMessaging ? "Opening…" : "Message Candidate"}</span>
                       </button>
                       <button
                         onClick={() => setShowInterviewModal(true)}
@@ -270,6 +414,13 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         <Calendar className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
                         <span className="whitespace-nowrap">Schedule Interview</span>
                       </button>
+                                            <Link
+                        href={`/employer-dashboard/applications/${id}/candidate`}
+                        className="px-3 sm:px-4 py-2 bg-neutral-text text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-neutral-text/90 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <User className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+                        <span className="whitespace-nowrap">View Full Profile</span>
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -800,9 +951,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               </div>
 
               {/* Resume / CV */}
-              {jobSeeker.resumeStorageId && (
-                <ResumeCard storageId={jobSeeker.resumeStorageId} />
-              )}
+              <ResumeCard
+                applicationResumeStorageId={(application as any).applicationResumeStorageId}
+                profileResumeStorageId={jobSeeker.resumeStorageId}
+              />
 
               {/* Candidate Profile Summary */}
               {(jobSeeker.desiredJobTitle || jobSeeker.salaryMin || jobSeeker.profileAvailability || jobSeeker.currentStatus) && (
@@ -818,9 +970,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         <p className="text-sm font-medium text-neutral-text">{jobSeeker.desiredJobTitle}</p>
                       </div>
                     )}
-                    {jobSeeker.salaryMin && (
+                    {jobSeeker.salaryMin && !application.salaryExpectations && (
                       <div>
-                        <p className="text-xs text-neutral-text-muted mb-0.5">Expected Salary</p>
+                        <p className="text-xs text-neutral-text-muted mb-0.5">Expected Salary (from profile)</p>
                         <p className="text-sm font-medium text-neutral-text">
                           {jobSeeker.salaryCurrency || "KES"} {jobSeeker.salaryMin.toLocaleString()}+
                         </p>
@@ -923,30 +1075,74 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         onConfirm={handleInterviewConfirm}
         isLoading={isScheduling}
       />
+
+      {/* Success Toast */}
+      {successToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-full px-4">
+          <div className="flex items-start gap-3 bg-neutral-text text-white px-4 py-3.5 rounded-xl shadow-xl">
+            <div className="w-5 h-5 rounded-full bg-green-400 flex items-center justify-center shrink-0 mt-0.5">
+              <CheckCircle2 className="w-3 h-3 text-white" />
+            </div>
+            <p className="text-sm leading-snug flex-1">{successToast}</p>
+            <button onClick={() => setSuccessToast(null)} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </EmployerDashboardLayout>
   );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ResumeCard({ storageId }: { storageId: string }) {
-  const url = useQuery(api.serviceOrders.getFileUrl, { storageId });
+function ResumeCard({ applicationResumeStorageId, profileResumeStorageId }: {
+  applicationResumeStorageId?: string;
+  profileResumeStorageId?: string;
+}) {
+  const activeStorageId = applicationResumeStorageId || profileResumeStorageId;
+  const isCustom = !!applicationResumeStorageId;
+  const url = useQuery(
+    api.serviceOrders.getFileUrl,
+    activeStorageId ? { storageId: activeStorageId } : "skip"
+  );
+
+  if (!activeStorageId) return null;
+
   return (
     <div className="bg-white border border-neutral-border rounded-lg p-5">
-      <h3 className="text-sm font-semibold text-neutral-text mb-3 flex items-center gap-2">
-        <FileText className="w-4 h-4 text-brand-orange" />
-        Resume / CV
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-neutral-text flex items-center gap-2">
+          <FileText className="w-4 h-4 text-brand-orange" />
+          Resume / CV
+        </h3>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+          isCustom
+            ? "bg-brand-orange/10 text-brand-orange"
+            : "bg-gray-100 text-gray-500"
+        }`}>
+          {isCustom ? "Application resume" : "Profile resume"}
+        </span>
+      </div>
       {url ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          View Resume
-        </a>
+        <div className="flex gap-2">
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors"
+          >
+            <FileText className="w-4 h-4" />
+            View Resume
+          </a>
+          <a
+            href={url}
+            download
+            className="flex items-center justify-center gap-2 px-3 py-2.5 border border-neutral-border text-neutral-text text-sm font-medium rounded-lg hover:bg-neutral-bg-secondary transition-colors"
+          >
+            <Download className="w-4 h-4" />
+          </a>
+        </div>
       ) : (
         <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gray-100 text-neutral-text-muted text-sm">
           <FileText className="w-4 h-4" />

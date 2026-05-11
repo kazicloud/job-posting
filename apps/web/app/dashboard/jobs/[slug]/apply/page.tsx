@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "../../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../../convex/_generated/dataModel";
 import { use, useState, useEffect } from "react";
@@ -31,6 +31,7 @@ export default function ApplyPage({ params }: { params: Promise<{ slug: string }
   const profile = useQuery(api.profile.getCurrentUserProfile);
   const hasApplied = useQuery(api.applications.hasApplied, jobId ? { jobId } : "skip");
   const apply = useAction(api.applications.applyWithDetails);
+  const generateUploadUrl = useMutation(api.cvUpload.generateUploadUrl);
   
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -253,8 +254,24 @@ export default function ApplyPage({ params }: { params: Promise<{ slug: string }
     if (!jobId) return;
     setIsSubmitting(true);
     try {
+      let applicationResumeStorageId: string | undefined;
+
+      // Upload custom resume if provided
+      if (formData.resumeOption === "upload" && formData.resumeFile) {
+        const uploadUrl = await generateUploadUrl();
+        const result = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": formData.resumeFile.type },
+          body: formData.resumeFile,
+        });
+        if (!result.ok) throw new Error("Failed to upload resume");
+        const { storageId } = await result.json();
+        applicationResumeStorageId = storageId;
+      }
+
       await apply({
         jobId,
+        applicationResumeStorageId,
         coverLetter: formData.coverLetter || undefined,
         portfolioUrl: formData.portfolioUrl || undefined,
         linkedInUrl: formData.linkedInUrl || undefined,
@@ -984,7 +1001,7 @@ function ReviewStep({ formData, job, settings }: any) {
                 <p><span className="text-neutral-text-secondary">Availability:</span> {formData.availability}</p>
               )}
               {formData.salaryExpectations && (
-                <p><span className="text-neutral-text-secondary">Salary Expectations:</span> {formData.salaryExpectations}</p>
+                <p><span className="text-neutral-text-secondary">Salary Expectations:</span> {formData.salaryCurrency} {formData.salaryExpectations}</p>
               )}
               {formData.workAuthorization && (
                 <p><span className="text-neutral-text-secondary">Work Authorization:</span> {formData.workAuthorization}</p>
