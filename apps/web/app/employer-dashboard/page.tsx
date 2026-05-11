@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Briefcase, Users, Eye, CheckCircle, Clock, XCircle, AlertCircle, Plus, ArrowRight } from "lucide-react";
+import { Briefcase, Users, Eye, CheckCircle, Clock, XCircle, AlertCircle, Plus, MapPin, TrendingUp } from "lucide-react";
 import { EmployerDashboardLayout } from "@/components/employer-dashboard/employer-dashboard-layout";
 import Link from "next/link";
 
@@ -14,8 +14,13 @@ export default function EmployerDashboardPage() {
   const router = useRouter();
   const profile = useQuery(api.profile.getCurrentUserProfile);
   const employerAnalytics = useQuery(api.analytics.getEmployerAnalytics, {});
+  const allJobsResult = useQuery(api.jobs.list, { paginationOpts: { numItems: 50, cursor: null }, sortBy: "newest" });
 
-  const isLoading = profile === undefined || employerAnalytics === undefined;
+  const allJobs = allJobsResult?.page || [];
+  const publishedJobs = allJobs.filter((j) => j.status === "published");
+  const recentActiveJobs = publishedJobs.slice(0, 3);
+
+  const isLoading = profile === undefined || employerAnalytics === undefined || allJobsResult === undefined;
 
   // Calculate employer profile completeness
   const calculateProfileCompleteness = () => {
@@ -95,7 +100,7 @@ export default function EmployerDashboardPage() {
   const isVerified = verificationStatus === "verified";
 
   // Get stats from analytics
-  const activeJobs = employerAnalytics?.totalJobs || 0;
+  const activeJobs = publishedJobs.length;
   const totalApplications = employerAnalytics?.totalApplications || 0;
   const totalViews = employerAnalytics?.totalViews || 0;
 
@@ -218,36 +223,66 @@ export default function EmployerDashboardPage() {
                   )}
                 </div>
               </div>
-              <div className="p-8 text-center">
-                {isVerified ? (
-                  <>
-                    <div className="w-16 h-16 mx-auto mb-4 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
-                      <Briefcase className="w-8 h-8 text-neutral-text-muted" />
+              {/* Active jobs list or empty states */}
+              {recentActiveJobs.length > 0 ? (
+                <div className="divide-y divide-neutral-border">
+                  {recentActiveJobs.map((job) => {
+                    const jobStats = employerAnalytics?.jobAnalytics?.find(
+                      (a) => a.jobId === job._id
+                    );
+                    return (
+                      <ActiveJobMiniCard
+                        key={job._id}
+                        jobId={job._id}
+                        title={job.title}
+                        location={job.location}
+                        employmentType={job.employmentType}
+                        postedAt={job.createdAt}
+                        views={jobStats?.viewCount || 0}
+                        applications={jobStats?.applicationCount || 0}
+                        conversionRate={jobStats?.conversionRate || 0}
+                      />
+                    );
+                  })}
+                  {publishedJobs.length > 3 && (
+                    <div className="px-4 sm:px-6 py-4">
+                      <Link
+                        href="/employer-dashboard/jobs"
+                        className="text-sm font-medium text-brand-orange hover:text-brand-orange/80 transition-colors"
+                      >
+                        View all {publishedJobs.length} active jobs →
+                      </Link>
                     </div>
-                    <h3 className="text-lg font-semibold text-neutral-text mb-2">No active jobs yet</h3>
-                    <p className="text-neutral-text-secondary mb-6 max-w-sm mx-auto">
-                      Start attracting top talent by posting your first job opening
-                    </p>
-                    <Link
-                      href="/employer-dashboard/jobs/new"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
-                    >
-                      <Plus className="w-5 h-5" />
-                      Post Your First Job
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-16 h-16 mx-auto mb-4 bg-yellow-50 rounded-full flex items-center justify-center">
-                      <Clock className="w-8 h-8 text-yellow-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-neutral-text mb-2">Verification Required</h3>
-                    <p className="text-neutral-text-secondary max-w-sm mx-auto">
-                      Complete verification to start posting jobs and attracting candidates
-                    </p>
-                  </>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : isVerified ? (
+                <div className="p-8 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
+                    <Briefcase className="w-8 h-8 text-neutral-text-muted" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-neutral-text mb-2">No active jobs yet</h3>
+                  <p className="text-neutral-text-secondary mb-6 max-w-sm mx-auto">
+                    Start attracting top talent by posting your first job opening
+                  </p>
+                  <Link
+                    href="/employer-dashboard/jobs/new"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-brand-orange text-white font-medium rounded-md hover:bg-brand-orange/90 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Post Your First Job
+                  </Link>
+                </div>
+              ) : (
+                <div className="p-8 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-yellow-50 rounded-full flex items-center justify-center">
+                    <Clock className="w-8 h-8 text-yellow-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-neutral-text mb-2">Verification Required</h3>
+                  <p className="text-neutral-text-secondary max-w-sm mx-auto">
+                    Complete verification to start posting jobs and attracting candidates
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Recent Applications */}
@@ -364,6 +399,90 @@ export default function EmployerDashboardPage() {
         </div>
       </div>
     </EmployerDashboardLayout>
+  );
+}
+
+function ActiveJobMiniCard({
+  jobId,
+  title,
+  location,
+  employmentType,
+  postedAt,
+  views,
+  applications,
+  conversionRate,
+}: {
+  jobId: string;
+  title: string;
+  location: string;
+  employmentType: string;
+  postedAt: number;
+  views: number;
+  applications: number;
+  conversionRate: number;
+}) {
+  const daysAgo = Math.floor((Date.now() - postedAt) / (1000 * 60 * 60 * 24));
+  const postedLabel = daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : `${daysAgo}d ago`;
+
+  return (
+    <div className="px-4 sm:px-6 py-4 hover:bg-neutral-bg-secondary/50 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="text-sm font-semibold text-neutral-text truncate">{title}</h4>
+            <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded-full bg-green-50 text-green-700">
+              Active
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-text-secondary">
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              <span className="truncate max-w-[120px]">{location}</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <Briefcase className="w-3 h-3" />
+              {employmentType}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {postedLabel}
+            </span>
+          </div>
+        </div>
+        {/* Eye button → applications */}
+        <Link
+          href={`/employer-dashboard/applications?jobId=${jobId}`}
+          className="flex-shrink-0 p-2 rounded-md border border-neutral-border text-neutral-text-secondary hover:text-brand-orange hover:border-brand-orange hover:bg-orange-50 transition-colors"
+          title="View applications"
+        >
+          <Eye className="w-4 h-4" />
+        </Link>
+      </div>
+      {/* Stats row */}
+      <div className="mt-3 flex items-center gap-4 sm:gap-6">
+        <div className="flex items-center gap-1.5 text-xs">
+          <Eye className="w-3.5 h-3.5 text-neutral-text-muted" />
+          <span className="font-semibold text-neutral-text">{views}</span>
+          <span className="text-neutral-text-secondary">views</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs">
+          <Users className="w-3.5 h-3.5 text-neutral-text-muted" />
+          <span className="font-semibold text-neutral-text">{applications}</span>
+          <span className="text-neutral-text-secondary">applicants</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs">
+          <TrendingUp className="w-3.5 h-3.5 text-neutral-text-muted" />
+          <span className="font-semibold text-neutral-text">{conversionRate}%</span>
+          <span className="text-neutral-text-secondary">conversion</span>
+        </div>
+        <Link
+          href={`/employer-dashboard/jobs/${jobId}/preview`}
+          className="ml-auto text-xs font-medium text-neutral-text-secondary hover:text-brand-orange transition-colors"
+        >
+          Preview
+        </Link>
+      </div>
+    </div>
   );
 }
 

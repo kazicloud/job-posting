@@ -1608,3 +1608,183 @@ export const sendToAllPlatformUsers = action({
     return { success: sent > 0, sent, failed, total: users.length };
   },
 });
+
+// ---------------------------------------------------------------------------
+// Notify employer when admin performs an action on their job
+// ---------------------------------------------------------------------------
+export const notifyEmployerJobAction = internalAction({
+  args: {
+    jobId: v.string(),
+    jobTitle: v.string(),
+    employerId: v.id("users"),
+    action: v.union(
+      v.literal("published"),
+      v.literal("closed"),
+      v.literal("archived"),
+      v.literal("featured"),
+      v.literal("unfeatured"),
+      v.literal("flagged"),
+      v.literal("flag_cleared"),
+      v.literal("extended"),
+      v.literal("deleted"),
+    ),
+    flagReason: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const employer = await ctx.runQuery(api.users.get, { id: args.employerId });
+    if (!employer?.email) return { success: false, error: "Employer email not found" };
+
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const contactName = employer.fullName?.split(" ")[0] || "there";
+    const jobTitle = args.jobTitle;
+
+    type ActionConfig = {
+      subject: string;
+      badge: string;
+      headline: string;
+      body: string;
+      alert?: { type: "orange" | "red" | "green"; title: string; text: string };
+      cta?: { href: string; label: string };
+    };
+
+    const actionConfig: ActionConfig = (() => {
+      switch (args.action) {
+        case "published":
+          return {
+            subject: `Your job is now live — ${jobTitle}`,
+            badge: `<span style="display:inline-block;padding:4px 12px;border-radius:99px;background:#DCFCE7;color:#16a34a;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Published</span>`,
+            headline: `<strong>${jobTitle}</strong> is now <span class="accent">live</span> ✓`,
+            body: `Your job posting has been reviewed and published by the Kazicloud team. It is now visible to thousands of qualified candidates across our platform.`,
+            alert: {
+              type: "green",
+              title: "Your posting is active",
+              text: "Candidates can now discover and apply for this role. We recommend responding to applications within 48 hours to improve your hiring rate.",
+            },
+            cta: { href: `${dashboardUrl}/employer-dashboard/jobs`, label: "Manage Your Jobs →" },
+          };
+        case "closed":
+          return {
+            subject: `Job posting closed — ${jobTitle}`,
+            badge: `<span style="display:inline-block;padding:4px 12px;border-radius:99px;background:#FFF7ED;color:#c2410c;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Closed</span>`,
+            headline: `Your job posting for <strong>${jobTitle}</strong> has been <span style="color:#c2410c;">closed</span>`,
+            body: `This job posting has been closed and is no longer accepting new applications. Existing applications are still accessible in your dashboard.`,
+            cta: { href: `${dashboardUrl}/employer-dashboard/jobs`, label: "View Your Jobs →" },
+          };
+        case "archived":
+          return {
+            subject: `Job posting archived — ${jobTitle}`,
+            badge: `<span style="display:inline-block;padding:4px 12px;border-radius:99px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Archived</span>`,
+            headline: `<strong>${jobTitle}</strong> has been archived`,
+            body: `Your job posting has been archived by the Kazicloud team. Archived jobs are removed from public listings but all application data is retained.`,
+            cta: { href: `${dashboardUrl}/employer-dashboard/jobs`, label: "View Your Jobs →" },
+          };
+        case "featured":
+          return {
+            subject: `🌟 Your job is now featured — ${jobTitle}`,
+            badge: `<span style="display:inline-block;padding:4px 12px;border-radius:99px;background:#FFFBEB;color:#b45309;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Featured</span>`,
+            headline: `<strong>${jobTitle}</strong> is now a <span class="accent">Featured</span> posting ⭐`,
+            body: `Congratulations! The Kazicloud admin team has selected your job posting to be featured on our platform. Featured jobs appear at the top of search results and receive significantly more visibility.`,
+            alert: {
+              type: "orange",
+              title: "What this means for you",
+              text: "Featured postings typically receive 3–5× more applications. Make sure your job description is complete and your company profile is up to date.",
+            },
+            cta: { href: `${dashboardUrl}/employer-dashboard/jobs`, label: "View Posting →" },
+          };
+        case "unfeatured":
+          return {
+            subject: `Featured status removed — ${jobTitle}`,
+            badge: `<span style="display:inline-block;padding:4px 12px;border-radius:99px;background:#F1F5F9;color:#475569;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Update</span>`,
+            headline: `Featured status removed from <strong>${jobTitle}</strong>`,
+            body: `The featured badge has been removed from your job posting. Your listing remains active and visible to candidates on the platform.`,
+            cta: { href: `${dashboardUrl}/employer-dashboard/jobs`, label: "View Your Jobs →" },
+          };
+        case "flagged":
+          return {
+            subject: `Action required: Job posting flagged — ${jobTitle}`,
+            badge: `<span style="display:inline-block;padding:4px 12px;border-radius:99px;background:#FEF2F2;color:#dc2626;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Flagged</span>`,
+            headline: `Your job posting has been <span style="color:#dc2626;">flagged for review</span>`,
+            body: `Our moderation team has flagged your job posting for <strong>${jobTitle}</strong> and it has been temporarily removed from public listings.${args.flagReason ? ` Reason: <em>${args.flagReason}</em>.` : ""} Please review our posting guidelines and contact support if you believe this was in error.`,
+            alert: {
+              type: "red",
+              title: "What happens next?",
+              text: "Our team will review your posting within 1–2 business days. You may be contacted for more information. To appeal, reply to this email or contact info@contact.kazicloud.co.ke.",
+            },
+            cta: { href: `${dashboardUrl}/employer-dashboard/jobs`, label: "View Your Jobs →" },
+          };
+        case "flag_cleared":
+          return {
+            subject: `Flag cleared — ${jobTitle} is active again`,
+            badge: `<span style="display:inline-block;padding:4px 12px;border-radius:99px;background:#DCFCE7;color:#16a34a;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Cleared</span>`,
+            headline: `The flag on <strong>${jobTitle}</strong> has been cleared ✓`,
+            body: `After review, the flag on your job posting has been removed. Your posting is active and visible to candidates again.`,
+            cta: { href: `${dashboardUrl}/employer-dashboard/jobs`, label: "View Your Jobs →" },
+          };
+        case "extended":
+          return {
+            subject: `Job posting extended — ${jobTitle}`,
+            badge: `<span style="display:inline-block;padding:4px 12px;border-radius:99px;background:#EFF6FF;color:#1d4ed8;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Extended</span>`,
+            headline: `<strong>${jobTitle}</strong> has been extended`,
+            body: `Your job posting has been extended by the Kazicloud admin team.${args.expiresAt ? ` The new expiry date is <strong>${new Date(args.expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>.` : ""}`,
+            cta: { href: `${dashboardUrl}/employer-dashboard/jobs`, label: "View Your Jobs →" },
+          };
+        case "deleted":
+          return {
+            subject: `Job posting removed — ${jobTitle}`,
+            badge: `<span style="display:inline-block;padding:4px 12px;border-radius:99px;background:#FEF2F2;color:#dc2626;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Removed</span>`,
+            headline: `Your job posting for <strong>${jobTitle}</strong> has been removed`,
+            body: `Your job posting has been permanently removed from the Kazicloud platform by our moderation team. If you believe this was in error, please contact our support team.`,
+            alert: {
+              type: "red",
+              title: "Need help?",
+              text: "Contact our support team at info@contact.kazicloud.co.ke and we will be happy to assist.",
+            },
+            cta: { href: `${dashboardUrl}/employer-dashboard`, label: "Go to Dashboard →" },
+          };
+      }
+    })();
+
+    const alertHtml = actionConfig.alert
+      ? `<div class="alert alert-${actionConfig.alert.type}" style="margin:20px 0;">
+          <p class="alert-title">${actionConfig.alert.title}</p>
+          <p class="alert-text">${actionConfig.alert.text}</p>
+        </div>`
+      : "";
+
+    const ctaHtml = actionConfig.cta
+      ? `<div class="btn-wrap"><a href="${actionConfig.cta.href}" class="btn">${actionConfig.cta.label}</a></div>`
+      : "";
+
+    const content = `
+      <div class="content">
+        <p class="greeting">Hi ${contactName},</p>
+        <p style="margin:0 0 20px;">${actionConfig.badge}</p>
+        <h2 class="headline">${actionConfig.headline}</h2>
+        <p class="body-text">${actionConfig.body}</p>
+        ${alertHtml}
+        ${ctaHtml}
+        <p class="footer-note">
+          Questions? We're here to help — <a href="mailto:info@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">info@contact.kazicloud.co.ke</a>
+        </p>
+      </div>
+    `;
+
+    try {
+      const result = await resend.emails.send({
+        from: "Kazicloud <notifications@contact.kazicloud.co.ke>",
+        to: [employer.email],
+        subject: actionConfig.subject,
+        html: getEmailTemplate(content, actionConfig.subject),
+      });
+      console.log(`Job action email sent (${args.action}):`, result);
+      return { success: true, emailId: result.data?.id };
+    } catch (error) {
+      console.error("Error sending job action email:", error);
+      return { success: false, error: "Failed to send email" };
+    }
+  },
+});

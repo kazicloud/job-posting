@@ -2,25 +2,40 @@
 
 import { EmployerDashboardLayout } from "@/components/employer-dashboard/employer-dashboard-layout";
 import { useState } from "react";
-import { Plus, Search, Filter, MoreVertical, Eye, Users, Clock, MapPin, DollarSign, Briefcase, ChevronDown } from "lucide-react";
+import { Plus, Search, Filter, MoreVertical, Eye, Users, Clock, MapPin, DollarSign, Briefcase, ChevronDown, AlertTriangle, Archive, TimerOff } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 
 export default function EmployerJobsPage() {
-  const [activeTab, setActiveTab] = useState<"active" | "draft" | "closed">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "draft" | "closed" | "archived" | "expired" | "flagged">("active");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "alphabetical" | "views" | "applications">("newest");
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [paginationOpts, setPaginationOpts] = useState({ numItems: 10, cursor: null as string | null });
+  const [paginationOpts, setPaginationOpts] = useState({ numItems: 50, cursor: null as string | null });
   
   const result = useQuery(api.jobs.list, { paginationOpts, sortBy });
   const allJobs = result?.page || [];
-  const activeJobs = allJobs.filter(job => job.status === "published");
-  const draftJobs = allJobs.filter(job => job.status === "draft");
-  const closedJobs = allJobs.filter(job => job.status === "closed");
+  const activeJobs = allJobs.filter(job => job.status === "published" && !job.flagged);
+  const draftJobs = allJobs.filter(job => job.status === "draft" && !job.flagged);
+  const closedJobs = allJobs.filter(job => job.status === "closed" && !job.flagged);
+  const archivedJobs = allJobs.filter(job => job.status === "archived" && !job.flagged);
+  const expiredJobs = allJobs.filter(job => job.status === "expired" && !job.flagged);
+  const flaggedJobs = allJobs.filter(job => job.flagged === true);
 
-  const displayJobs = activeTab === "active" ? activeJobs : activeTab === "draft" ? draftJobs : closedJobs;
+  const tabJobMap = {
+    active: activeJobs,
+    draft: draftJobs,
+    closed: closedJobs,
+    archived: archivedJobs,
+    expired: expiredJobs,
+    flagged: flaggedJobs,
+  };
+
+  const allDisplayJobs = tabJobMap[activeTab];
+  const displayJobs = searchQuery.trim()
+    ? allDisplayJobs.filter(j => j.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : allDisplayJobs;
   
   const isLoading = result === undefined;
 
@@ -51,37 +66,39 @@ export default function EmployerJobsPage() {
 
         {/* Tabs */}
         <div className="bg-white border-b border-neutral-border mb-4 sm:mb-6 -mx-4 sm:mx-0">
-          <div className="flex items-center gap-4 sm:gap-8 px-4 sm:px-6 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab("active")}
-              className={`pb-3 sm:pb-4 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === "active"
-                  ? "border-neutral-text text-neutral-text"
-                  : "border-transparent text-neutral-text-muted hover:text-neutral-text"
-              }`}
-            >
-              Active ({activeJobs.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("draft")}
-              className={`pb-3 sm:pb-4 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === "draft"
-                  ? "border-neutral-text text-neutral-text"
-                  : "border-transparent text-neutral-text-muted hover:text-neutral-text"
-              }`}
-            >
-              Drafts ({draftJobs.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("closed")}
-              className={`pb-3 sm:pb-4 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === "closed"
-                  ? "border-neutral-text text-neutral-text"
-                  : "border-transparent text-neutral-text-muted hover:text-neutral-text"
-              }`}
-            >
-              Closed ({closedJobs.length})
-            </button>
+          <div className="flex items-center gap-4 sm:gap-6 px-4 sm:px-6 overflow-x-auto scrollbar-hide">
+            {([
+              { key: "active", label: "Active", count: activeJobs.length },
+              { key: "draft", label: "Drafts", count: draftJobs.length },
+              { key: "closed", label: "Closed", count: closedJobs.length },
+              { key: "archived", label: "Archived", count: archivedJobs.length },
+              { key: "expired", label: "Expired", count: expiredJobs.length },
+              { key: "flagged", label: "Flagged", count: flaggedJobs.length },
+            ] as const).map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`pb-3 sm:pb-4 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === key
+                    ? "border-neutral-text text-neutral-text"
+                    : "border-transparent text-neutral-text-muted hover:text-neutral-text"
+                }`}
+              >
+                {key === "flagged" && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                {label}
+                {count > 0 && (
+                  <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                    key === "flagged"
+                      ? "bg-red-100 text-red-700"
+                      : activeTab === key
+                      ? "bg-neutral-text text-white"
+                      : "bg-neutral-bg-secondary text-neutral-text-secondary"
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -173,16 +190,35 @@ export default function EmployerJobsPage() {
           ) : displayJobs.length === 0 ? (
             /* Empty State */
             <div className="bg-white border border-neutral-border rounded-lg p-8 sm:p-12 text-center">
-              <Briefcase className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-neutral-text-muted" />
+              {activeTab === "flagged" ? (
+                <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-red-400" />
+              ) : activeTab === "archived" ? (
+                <Archive className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-neutral-text-muted" />
+              ) : activeTab === "expired" ? (
+                <TimerOff className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-neutral-text-muted" />
+              ) : (
+                <Briefcase className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-neutral-text-muted" />
+              )}
               <h3 className="text-base sm:text-lg font-semibold text-neutral-text mb-2">
-                {activeTab === "active" ? "No active jobs" : activeTab === "draft" ? "No drafts" : "No closed jobs"}
+                {activeTab === "active" ? "No active jobs" :
+                 activeTab === "draft" ? "No drafts" :
+                 activeTab === "closed" ? "No closed jobs" :
+                 activeTab === "archived" ? "No archived jobs" :
+                 activeTab === "expired" ? "No expired jobs" :
+                 "No flagged jobs"}
               </h3>
               <p className="text-sm sm:text-base text-neutral-text-secondary mb-4 sm:mb-6">
-                {activeTab === "active" 
+                {activeTab === "active"
                   ? "Start attracting top talent by posting your first job"
                   : activeTab === "draft"
-                  ? "Draft jobs will appear here"
-                  : "Closed jobs will appear here"}
+                  ? "Jobs saved as drafts will appear here"
+                  : activeTab === "closed"
+                  ? "Jobs you've closed will appear here"
+                  : activeTab === "archived"
+                  ? "Archived jobs are hidden from candidates but preserved for records"
+                  : activeTab === "expired"
+                  ? "Jobs that passed their expiry date will appear here — you can republish them"
+                  : "Jobs flagged by admins for policy review will appear here"}
               </p>
               {activeTab === "active" && (
                 <Link
@@ -212,6 +248,8 @@ export default function EmployerJobsPage() {
                   }
                   postedDate={new Date(job.createdAt).toLocaleDateString()}
                   status={job.status}
+                  flagged={job.flagged}
+                  flagReason={job.flagReason}
                 />
               ))}
               
@@ -241,6 +279,8 @@ function JobCard({
   salary,
   postedDate,
   status,
+  flagged,
+  flagReason,
 }: {
   jobId: string;
   title: string;
@@ -249,33 +289,50 @@ function JobCard({
   salary: string;
   postedDate: string;
   status: "published" | "draft" | "closed" | "archived" | "expired";
+  flagged?: boolean;
+  flagReason?: string;
 }) {
   // Fetch real analytics for this job
   const analytics = useQuery(api.analytics.getJobAnalytics, { jobId: jobId as any });
   
   const views = analytics?.viewCount || 0;
   const applications = analytics?.applicationCount || 0;
-  const statusDisplay = status === "published" ? "active" : status;
-  const canEdit = status === "draft" || applications < 10;
+
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    published: { label: "Active", className: "bg-green-50 text-green-700" },
+    draft: { label: "Draft", className: "bg-yellow-50 text-yellow-700" },
+    closed: { label: "Closed", className: "bg-gray-50 text-gray-600" },
+    archived: { label: "Archived", className: "bg-slate-100 text-slate-600" },
+    expired: { label: "Expired", className: "bg-red-50 text-red-600" },
+  };
+  const statusInfo = statusConfig[status] ?? { label: status, className: "bg-gray-50 text-gray-600" };
+
+  // LinkedIn-style edit: always allowed, but show informational note for published jobs
+  const canEdit = status !== "archived";
   
   return (
-    <div className="bg-white border border-neutral-border rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow">
+    <div className={`bg-white border rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow ${flagged ? "border-red-200" : "border-neutral-border"}`}>
+      {/* Flagged admin notice */}
+      {flagged && (
+        <div className="flex items-start gap-2 mb-3 p-3 bg-red-50 rounded-md border border-red-200">
+          <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-red-700">Flagged for review by admin</p>
+            {flagReason && <p className="text-xs text-red-600 mt-0.5">{flagReason}</p>}
+          </div>
+        </div>
+      )}
       <div className="flex items-start justify-between mb-3 sm:mb-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 sm:gap-3 mb-2">
-            <h3 className="text-base sm:text-lg font-semibold text-neutral-text hover:text-brand-orange cursor-pointer truncate">
-              {title}
-            </h3>
-            <span
-              className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium rounded-full flex-shrink-0 ${
-                statusDisplay === "active"
-                  ? "bg-green-50 text-green-700"
-                  : statusDisplay === "draft"
-                  ? "bg-yellow-50 text-yellow-700"
-                  : "bg-gray-50 text-gray-700"
-              }`}
+            <Link
+              href={`/employer-dashboard/jobs/${jobId}/preview`}
+              className="text-base sm:text-lg font-semibold text-neutral-text hover:text-brand-orange truncate"
             >
-              {statusDisplay.charAt(0).toUpperCase() + statusDisplay.slice(1)}
+              {title}
+            </Link>
+            <span className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-medium rounded-full flex-shrink-0 ${statusInfo.className}`}>
+              {statusInfo.label}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-neutral-text-secondary">
@@ -316,6 +373,13 @@ function JobCard({
           </span>
         </div>
         <div className="ml-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <Link
+            href={`/employer-dashboard/jobs/${jobId}/preview`}
+            className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-neutral-text border border-neutral-border rounded-md hover:bg-neutral-bg-secondary transition-colors text-center flex items-center justify-center gap-1.5"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Preview
+          </Link>
           {canEdit ? (
             <Link
               href={`/employer-dashboard/jobs/${jobId}/edit`}
@@ -324,17 +388,9 @@ function JobCard({
               Edit
             </Link>
           ) : (
-            <div className="relative group">
-              <button
-                disabled
-                className="w-full px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-neutral-text-muted border border-neutral-border rounded-md opacity-50 cursor-not-allowed"
-              >
-                Edit
-              </button>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-neutral-text text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                Cannot edit job with 10+ applications
-              </div>
-            </div>
+            <span className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-neutral-text-muted border border-neutral-border rounded-md opacity-50 cursor-not-allowed text-center">
+              Edit
+            </span>
           )}
           <Link
             href={`/employer-dashboard/applications?jobId=${jobId}`}

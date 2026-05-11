@@ -33,3 +33,4 @@ export function formatRelativeTime(timestamp: number): string {
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(" ");
 }
+export * from "./east-africa-locations";

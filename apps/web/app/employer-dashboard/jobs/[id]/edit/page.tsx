@@ -6,7 +6,8 @@ import { useRouter, useParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../../convex/_generated/dataModel";
-import { KENYA_COUNTIES } from "@/lib/counties";
+import { buildLocationArgs, parseStoredLocation, type LocationEntry } from "@/lib/location-utils";
+import { LocationSection } from "@/components/location-picker";
 
 export default function EditJobPage() {
   const router = useRouter();
@@ -28,9 +29,12 @@ export default function EditJobPage() {
     customDepartment: "",
     employmentType: "full-time",
     workplaceType: "on-site",
-    location: "",
+    // Location — new structured fields
+    country: "Kenya",
+    region: "",
+    city: "",
     multipleLocations: false,
-    locations: [] as string[],
+    locations: [] as LocationEntry[],
     description: "",
     responsibilities: "",
     requirements: "",
@@ -67,22 +71,19 @@ export default function EditJobPage() {
 
   useEffect(() => {
     if (job) {
-      // Parse location to check if it has multiple locations
-      const locationStr = job.location;
-      const hasMultiple = locationStr.includes(",");
-      const locationsList = hasMultiple 
-        ? locationStr.replace(/\s*\+\d+\s*more$/, "").split(",").map((l: string) => l.trim())
-        : [];
-      
+      const parsed = parseStoredLocation(job.location);
+
       setFormData({
         title: job.title,
         department: job.department || "",
         customDepartment: "",
         employmentType: job.employmentType,
         workplaceType: job.workplaceType,
-        location: hasMultiple ? "" : locationStr,
-        multipleLocations: hasMultiple,
-        locations: locationsList,
+        country: parsed.country,
+        region: parsed.region,
+        city: parsed.city,
+        multipleLocations: parsed.multipleLocations,
+        locations: parsed.locations,
         description: job.description,
         responsibilities: job.responsibilities,
         requirements: job.requirements,
@@ -189,44 +190,22 @@ export default function EditJobPage() {
     );
   }
 
-  if (job.applicationCount >= 10) {
-    return (
-      <EmployerDashboardLayout>
-        <div className="p-4 sm:p-6 lg:p-8">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6 text-center">
-            <h2 className="text-lg sm:text-xl font-semibold text-neutral-text mb-2">Cannot Edit This Job</h2>
-            <p className="text-sm sm:text-base text-neutral-text-secondary mb-4">
-              This job has {job.applicationCount} applications. Jobs with 10 or more applications cannot be edited.
-            </p>
-            <p className="text-xs sm:text-sm text-neutral-text-muted mb-4">
-              To make changes, close this job and create a new posting.
-            </p>
-            <button
-              onClick={() => router.push("/employer-dashboard/jobs")}
-              className="px-4 sm:px-6 py-2 text-sm sm:text-base bg-neutral-text text-white rounded-md hover:bg-neutral-text/90"
-            >
-              Back to Jobs
-            </button>
-          </div>
-        </div>
-      </EmployerDashboardLayout>
-    );
-  }
+  // High-application jobs: still editable — warning shown in the form banner above
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
+      const { location, county } = buildLocationArgs(formData);
       await updateJob({
         id: jobId,
         title: formData.title,
         department: formData.department === "other" ? formData.customDepartment : formData.department,
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
-        location: formData.multipleLocations 
-          ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
-          : formData.location,
+        location,
+        county,
         description: formData.description,
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
@@ -256,15 +235,15 @@ export default function EditJobPage() {
     setIsSubmitting(true);
     try {
       // First update the job with latest changes
+      const { location: publishLocation, county: publishCounty } = buildLocationArgs(formData);
       await updateJob({
         id: jobId,
         title: formData.title,
         department: formData.department === "other" ? formData.customDepartment : formData.department,
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
-        location: formData.multipleLocations 
-          ? formData.locations.slice(0, 7).join(", ") + (formData.locations.length > 7 ? ` +${formData.locations.length - 7} more` : "")
-          : formData.location,
+        location: publishLocation,
+        county: publishCounty,
         description: formData.description,
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
@@ -320,10 +299,15 @@ export default function EditJobPage() {
       <div className="p-4 sm:p-6 lg:p-8 pb-12 sm:pb-8">
         <div className="mb-4 sm:mb-6">
           <h1 className="text-xl sm:text-2xl font-semibold text-neutral-text mb-2">Edit Job Posting</h1>
-          {job.applicationCount > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs sm:text-sm text-yellow-800">
-              ⚠️ This job has {job.applicationCount} application{job.applicationCount !== 1 ? 's' : ''}. 
-              Changes will update the live posting.
+          {job.status === "published" && (
+            <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-md p-3 text-xs sm:text-sm text-blue-800">
+              <span className="text-base leading-none">ℹ️</span>
+              <div>
+                <strong>This job is live.</strong> Changes save immediately and are visible to all new visitors.{" "}
+                {job.applicationCount > 0 && (
+                  <>Existing applicants ({job.applicationCount}) have already seen the original listing — significant changes (title, requirements) may affect their expectations.</>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -427,86 +411,16 @@ export default function EditJobPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-neutral-text mb-2">
-                    Location *
-                  </label>
-                  {!formData.multipleLocations ? (
-                    <select
-                      required
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      className="w-full px-4 py-2 border border-neutral-border rounded-md"
-                    >
-                      <option value="">Select county</option>
-                      {KENYA_COUNTIES.map((county) => (
-                        <option key={county} value={county}>{county}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="px-4 py-2 border border-neutral-border rounded-md bg-neutral-bg-secondary text-sm text-neutral-text-secondary">
-                      Multiple locations selected below
-                    </p>
-                  )}
-                </div>
-
-                {/* Multiple Locations Option */}
-                <div className="border border-neutral-border rounded-lg p-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.multipleLocations}
-                      onChange={(e) => {
-                        setFormData({
-                          ...formData,
-                          multipleLocations: e.target.checked,
-                          locations: e.target.checked ? formData.locations : [],
-                        });
-                      }}
-                      className="w-4 h-4 text-brand-orange rounded"
-                    />
-                    <div>
-                      <p className="font-medium text-neutral-text">This job is available in multiple locations</p>
-                      <p className="text-sm text-neutral-text-secondary">Select multiple counties where this role is available</p>
-                    </div>
-                  </label>
-
-                  {formData.multipleLocations && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-neutral-text mb-2">
-                        Select Counties *
-                      </label>
-                      <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto border border-neutral-border rounded-md p-3 bg-white">
-                        {KENYA_COUNTIES.map((county) => (
-                          <label key={county} className="flex items-center gap-2 text-sm hover:bg-neutral-bg-secondary p-1 rounded">
-                            <input
-                              type="checkbox"
-                              checked={formData.locations.includes(county)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setFormData({
-                                    ...formData,
-                                    locations: [...formData.locations, county]
-                                  });
-                                } else {
-                                  setFormData({
-                                    ...formData,
-                                    locations: formData.locations.filter(l => l !== county)
-                                  });
-                                }
-                              }}
-                              className="w-4 h-4 text-brand-orange rounded"
-                            />
-                            <span>{county}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <p className="text-xs text-neutral-text-muted mt-2">
-                        {formData.locations.length} location{formData.locations.length !== 1 ? 's' : ''} selected
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <LocationSection
+                  country={formData.country}
+                  region={formData.region}
+                  city={formData.city}
+                  multipleLocations={formData.multipleLocations}
+                  locations={formData.locations}
+                  onSingleChange={(updates) => setFormData((prev) => ({ ...prev, ...updates }))}
+                  onMultipleLocationsToggle={(checked) => setFormData((prev) => ({ ...prev, multipleLocations: checked }))}
+                  onLocationsChange={(locs) => setFormData((prev) => ({ ...prev, locations: locs }))}
+                />
 
                 <div>
                   <label className="block text-sm font-medium text-neutral-text mb-2">Experience Level *</label>
@@ -705,10 +619,13 @@ export default function EditJobPage() {
                         onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                         className="w-full px-4 py-2 border border-neutral-border rounded-md"
                       >
-                        <option value="KES">KES</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
+                        <option value="KES">KES (Kenyan Shilling)</option>
+                        <option value="UGX">UGX (Ugandan Shilling)</option>
+                        <option value="TZS">TZS (Tanzanian Shilling)</option>
+                        <option value="RWF">RWF (Rwandan Franc)</option>
+                        <option value="USD">USD (US Dollar)</option>
+                        <option value="EUR">EUR (Euro)</option>
+                        <option value="GBP">GBP (British Pound)</option>
                       </select>
                     </div>
                     <div>

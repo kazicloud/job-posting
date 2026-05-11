@@ -526,9 +526,20 @@ export const getApplicationById = query({
         name: jobSeeker.fullName,
         email: jobSeeker.email,
         phone: jobSeeker.phone,
+        location: jobSeeker.location,
+        profilePhoto: jobSeeker.profilePhoto,
+        resumeStorageId: jobSeeker.resumeStorageId,
         skills: skills.map(s => s.skillName),
         headline: jobSeekerProfile?.headline,
         about: jobSeekerProfile?.about,
+        openToWork: jobSeekerProfile?.openToWork,
+        yearsOfExperience: jobSeekerProfile?.yearsOfExperience,
+        currentStatus: jobSeekerProfile?.currentStatus,
+        profileAvailability: jobSeekerProfile?.availability,
+        desiredJobTitle: jobSeekerProfile?.desiredJobTitle,
+        salaryMin: jobSeekerProfile?.salaryMin,
+        salaryCurrency: jobSeekerProfile?.salaryCurrency,
+        languages: jobSeekerProfile?.languages,
         workExperience: workExperience.sort((a, b) => {
           // Sort by start date, most recent first
           const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
