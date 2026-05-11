@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "../../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../../convex/_generated/dataModel";
 import { use, useState, useEffect } from "react";
@@ -31,6 +31,7 @@ export default function ApplyPage({ params }: { params: Promise<{ slug: string }
   const profile = useQuery(api.profile.getCurrentUserProfile);
   const hasApplied = useQuery(api.applications.hasApplied, jobId ? { jobId } : "skip");
   const apply = useAction(api.applications.applyWithDetails);
+  const generateUploadUrl = useMutation(api.cvUpload.generateUploadUrl);
   
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +54,7 @@ export default function ApplyPage({ params }: { params: Promise<{ slug: string }
     coverLetter: "",
     linkedInUrl: "",
     availability: "",
+    salaryCurrency: "KES",
     salaryExpectations: "",
     workAuthorization: "",
     willingToRelocate: false,
@@ -157,14 +159,17 @@ export default function ApplyPage({ params }: { params: Promise<{ slug: string }
     { title: "Resume & Documents", icon: <FileText className="w-5 h-5" /> },
   ];
 
-  // Add additional info step if any optional fields are required
-  if (settings.requireCoverLetter || settings.requireLinkedIn || settings.requireAvailability || 
-      settings.requireSalaryExpectations || settings.requireWorkAuthorization || settings.requireWillingToRelocate) {
-    steps.push({ title: "Additional Information", icon: <FileText className="w-5 h-5" /> });
-  }
+  // Add unified additional questions step if any extra info or custom questions are required
+  const hasAdditionalQuestions =
+    settings.requireCoverLetter ||
+    settings.requireLinkedIn ||
+    settings.requireAvailability ||
+    settings.requireSalaryExpectations ||
+    settings.requireWorkAuthorization ||
+    settings.requireWillingToRelocate ||
+    (settings.customQuestions && settings.customQuestions.length > 0);
 
-  // Add custom questions step if exists
-  if (settings.customQuestions && settings.customQuestions.length > 0) {
+  if (hasAdditionalQuestions) {
     steps.push({ title: "Additional Questions", icon: <FileText className="w-5 h-5" /> });
   }
 
@@ -197,8 +202,8 @@ export default function ApplyPage({ params }: { params: Promise<{ slug: string }
       }
     }
 
-    if (step === 2 && steps[2]?.title === "Additional Information") {
-      // Additional Information
+    if (steps[step]?.title === "Additional Questions") {
+      // Standard required fields
       if (settings.requireCoverLetter && !formData.coverLetter.trim()) {
         newErrors.coverLetter = "Cover letter is required";
       }
@@ -215,6 +220,16 @@ export default function ApplyPage({ params }: { params: Promise<{ slug: string }
       }
       if (settings.requireWorkAuthorization && !formData.workAuthorization) {
         newErrors.workAuthorization = "Work authorization is required";
+      }
+      // Custom questions — validate required ones
+      if (settings.customQuestions) {
+        settings.customQuestions.forEach((q: any, idx: number) => {
+          if (q.required) {
+            const answer = formData.customAnswers[idx];
+            const isEmpty = !answer || (Array.isArray(answer) ? answer.length === 0 : !String(answer).trim());
+            if (isEmpty) newErrors[`custom_${idx}`] = `${q.question} is required`;
+          }
+        });
       }
     }
 
@@ -239,13 +254,31 @@ export default function ApplyPage({ params }: { params: Promise<{ slug: string }
     if (!jobId) return;
     setIsSubmitting(true);
     try {
+      let applicationResumeStorageId: string | undefined;
+
+      // Upload custom resume if provided
+      if (formData.resumeOption === "upload" && formData.resumeFile) {
+        const uploadUrl = await generateUploadUrl();
+        const result = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": formData.resumeFile.type },
+          body: formData.resumeFile,
+        });
+        if (!result.ok) throw new Error("Failed to upload resume");
+        const { storageId } = await result.json();
+        applicationResumeStorageId = storageId;
+      }
+
       await apply({
         jobId,
+        applicationResumeStorageId,
         coverLetter: formData.coverLetter || undefined,
         portfolioUrl: formData.portfolioUrl || undefined,
         linkedInUrl: formData.linkedInUrl || undefined,
         availability: formData.availability || undefined,
-        salaryExpectations: formData.salaryExpectations || undefined,
+        salaryExpectations: formData.salaryExpectations
+          ? `${formData.salaryCurrency} ${formData.salaryExpectations}`
+          : undefined,
         workAuthorization: formData.workAuthorization || undefined,
         willingToRelocate: formData.willingToRelocate || undefined,
         customAnswers: Object.entries(formData.customAnswers).map(([index, answer]) => ({
@@ -370,11 +403,8 @@ export default function ApplyPage({ params }: { params: Promise<{ slug: string }
               <div className="bg-white border border-neutral-border rounded-lg p-8">
                 {currentStep === 0 && <PersonalDetailsStep formData={formData} setFormData={setFormData} errors={errors} />}
                 {currentStep === 1 && <ResumeStep formData={formData} setFormData={setFormData} settings={settings} errors={errors} />}
-                {currentStep === 2 && steps[2]?.title === "Additional Information" && (
-                  <AdditionalInfoStep formData={formData} setFormData={setFormData} settings={settings} errors={errors} />
-                )}
-                {currentStep === 3 && steps[3]?.title === "Additional Questions" && (
-                  <CustomQuestionsStep formData={formData} setFormData={setFormData} settings={settings} />
+                {steps[currentStep]?.title === "Additional Questions" && currentStep !== steps.length - 1 && (
+                  <AdditionalQuestionsStep formData={formData} setFormData={setFormData} settings={settings} errors={errors} />
                 )}
                 {currentStep === steps.length - 1 && (
                   <ReviewStep formData={formData} job={job} settings={settings} />
@@ -652,120 +682,7 @@ function ResumeStep({ formData, setFormData, settings, errors }: any) {
   );
 }
 
-function AdditionalInfoStep({ formData, setFormData, settings }: any) {
-  return (
-    <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-neutral-text mb-2">Additional Information</h2>
-      <p className="text-neutral-text-secondary mb-6">
-        Provide additional details about your application
-      </p>
-
-      <div className="space-y-6">
-        {settings.requireCoverLetter && (
-          <div>
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              Cover Letter <span className="text-red-600">*</span>
-            </label>
-            <textarea
-              value={formData.coverLetter}
-              onChange={(e) => setFormData({ ...formData, coverLetter: e.target.value })}
-              rows={8}
-              placeholder="Tell us why you're interested in this position..."
-              className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange resize-none"
-            />
-          </div>
-        )}
-
-        {settings.requireLinkedIn && (
-          <div>
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              LinkedIn Profile <span className="text-red-600">*</span>
-            </label>
-            <input
-              type="url"
-              value={formData.linkedInUrl}
-              onChange={(e) => setFormData({ ...formData, linkedInUrl: e.target.value })}
-              placeholder="https://linkedin.com/in/yourprofile"
-              className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
-            />
-          </div>
-        )}
-
-        {settings.requireAvailability && (
-          <div>
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              Availability to Start <span className="text-red-600">*</span>
-            </label>
-            <select
-              value={formData.availability}
-              onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
-              className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
-            >
-              <option value="">Select availability</option>
-              <option value="immediately">Immediately</option>
-              <option value="2-weeks">2 weeks notice</option>
-              <option value="1-month">1 month notice</option>
-              <option value="2-months">2 months notice</option>
-              <option value="negotiable">Negotiable</option>
-            </select>
-          </div>
-        )}
-
-        {settings.requireSalaryExpectations && (
-          <div>
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              Salary Expectations <span className="text-red-600">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.salaryExpectations}
-              onChange={(e) => setFormData({ ...formData, salaryExpectations: e.target.value })}
-              placeholder="e.g., KES 200,000 - 250,000"
-              className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
-            />
-          </div>
-        )}
-
-        {settings.requireWorkAuthorization && (
-          <div>
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              Work Authorization <span className="text-red-600">*</span>
-            </label>
-            <select
-              value={formData.workAuthorization}
-              onChange={(e) => setFormData({ ...formData, workAuthorization: e.target.value })}
-              className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
-            >
-              <option value="">Select status</option>
-              <option value="citizen">Citizen</option>
-              <option value="permanent-resident">Permanent Resident</option>
-              <option value="work-permit">Work Permit</option>
-              <option value="require-sponsorship">Require Sponsorship</option>
-            </select>
-          </div>
-        )}
-
-        {settings.requireWillingToRelocate && (
-          <div>
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={formData.willingToRelocate}
-                onChange={(e) => setFormData({ ...formData, willingToRelocate: e.target.checked })}
-                className="w-4 h-4 text-brand-orange rounded"
-              />
-              <span className="text-sm font-medium text-neutral-text">
-                I am willing to relocate for this position <span className="text-red-600">*</span>
-              </span>
-            </label>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CustomQuestionsStep({ formData, setFormData, settings }: any) {
+function AdditionalQuestionsStep({ formData, setFormData, settings, errors }: any) {
   const customQuestions = settings.customQuestions || [];
 
   const handleAnswerChange = (index: number, answer: string | string[]) => {
@@ -778,101 +695,263 @@ function CustomQuestionsStep({ formData, setFormData, settings }: any) {
     });
   };
 
+  const hasStandardFields =
+    settings.requireCoverLetter ||
+    settings.requireLinkedIn ||
+    settings.requireAvailability ||
+    settings.requireSalaryExpectations ||
+    settings.requireWorkAuthorization ||
+    settings.requireWillingToRelocate;
+
   return (
     <div>
       <h2 className="text-xl sm:text-2xl font-bold text-neutral-text mb-2">Additional Questions</h2>
       <p className="text-neutral-text-secondary mb-6">
-        Please answer the following questions from the employer
+        Please provide the following information requested by the employer
       </p>
 
       <div className="space-y-6">
-        {customQuestions.map((question: any, index: number) => (
-          <div key={index}>
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              {question.question} {question.required && <span className="text-red-600">*</span>}
-            </label>
-
-            {question.type === "text" && (
-              <input
-                type="text"
-                value={formData.customAnswers[index] || ""}
-                onChange={(e) => handleAnswerChange(index, e.target.value)}
-                maxLength={question.maxLength}
-                className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
-                required={question.required}
-              />
-            )}
-
-            {question.type === "textarea" && (
-              <textarea
-                value={formData.customAnswers[index] || ""}
-                onChange={(e) => handleAnswerChange(index, e.target.value)}
-                maxLength={question.maxLength}
-                rows={4}
-                className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange resize-none"
-                required={question.required}
-              />
-            )}
-
-            {question.type === "select" && (
-              <select
-                value={formData.customAnswers[index] || ""}
-                onChange={(e) => handleAnswerChange(index, e.target.value)}
-                className="w-full px-4 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange"
-                required={question.required}
-              >
-                <option value="">Select an option</option>
-                {question.options?.map((option: string, i: number) => (
-                  <option key={i} value={option}>{option}</option>
-                ))}
-              </select>
-            )}
-
-            {question.type === "radio" && (
-              <div className="space-y-2">
-                {question.options?.map((option: string, i: number) => (
-                  <label key={i} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name={`question-${index}`}
-                      value={option}
-                      checked={formData.customAnswers[index] === option}
-                      onChange={(e) => handleAnswerChange(index, e.target.value)}
-                      className="w-4 h-4 text-brand-orange"
-                      required={question.required}
-                    />
-                    <span className="text-sm text-neutral-text">{option}</span>
-                  </label>
-                ))}
+        {/* ── Standard required fields ── */}
+        {hasStandardFields && (
+          <div className="space-y-5">
+            {settings.requireCoverLetter && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  Cover Letter <span className="text-red-600">*</span>
+                </label>
+                <textarea
+                  value={formData.coverLetter}
+                  onChange={(e) => setFormData({ ...formData, coverLetter: e.target.value })}
+                  rows={8}
+                  placeholder="Tell us why you're interested in this position..."
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange resize-none ${
+                    errors.coverLetter ? "border-red-400" : "border-neutral-border"
+                  }`}
+                />
+                {errors.coverLetter && <p className="text-xs text-red-600 mt-1">{errors.coverLetter}</p>}
               </div>
             )}
 
-            {question.type === "checkbox" && (
-              <div className="space-y-2">
-                {question.options?.map((option: string, i: number) => {
-                  const currentAnswers = (formData.customAnswers[index] as string[]) || [];
-                  return (
-                    <label key={i} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        value={option}
-                        checked={currentAnswers.includes(option)}
-                        onChange={(e) => {
-                          const newAnswers = e.target.checked
-                            ? [...currentAnswers, option]
-                            : currentAnswers.filter((a: string) => a !== option);
-                          handleAnswerChange(index, newAnswers);
-                        }}
-                        className="w-4 h-4 text-brand-orange rounded"
-                      />
-                      <span className="text-sm text-neutral-text">{option}</span>
-                    </label>
-                  );
-                })}
+            {settings.requireLinkedIn && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  LinkedIn Profile <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="url"
+                  value={formData.linkedInUrl}
+                  onChange={(e) => setFormData({ ...formData, linkedInUrl: e.target.value })}
+                  placeholder="https://linkedin.com/in/yourprofile"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+                    errors.linkedInUrl ? "border-red-400" : "border-neutral-border"
+                  }`}
+                />
+                {errors.linkedInUrl && <p className="text-xs text-red-600 mt-1">{errors.linkedInUrl}</p>}
+              </div>
+            )}
+
+            {settings.requireAvailability && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  Availability to Start <span className="text-red-600">*</span>
+                </label>
+                <select
+                  value={formData.availability}
+                  onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+                    errors.availability ? "border-red-400" : "border-neutral-border"
+                  }`}
+                >
+                  <option value="">Select availability</option>
+                  <option value="immediately">Immediately</option>
+                  <option value="2-weeks">2 weeks notice</option>
+                  <option value="1-month">1 month notice</option>
+                  <option value="2-months">2 months notice</option>
+                  <option value="negotiable">Negotiable</option>
+                </select>
+                {errors.availability && <p className="text-xs text-red-600 mt-1">{errors.availability}</p>}
+              </div>
+            )}
+
+            {settings.requireSalaryExpectations && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  Salary Expectations <span className="text-red-600">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.salaryCurrency}
+                    onChange={(e) => setFormData({ ...formData, salaryCurrency: e.target.value })}
+                    className="px-3 py-2.5 border border-neutral-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange bg-white text-sm"
+                  >
+                    <option value="KES">KES</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="TZS">TZS</option>
+                    <option value="UGX">UGX</option>
+                    <option value="ZAR">ZAR</option>
+                    <option value="NGN">NGN</option>
+                    <option value="GHS">GHS</option>
+                    <option value="EGP">EGP</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={formData.salaryExpectations}
+                    onChange={(e) => setFormData({ ...formData, salaryExpectations: e.target.value })}
+                    placeholder="e.g., 200,000 - 250,000"
+                    className={`flex-1 px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+                      errors.salaryExpectations ? "border-red-400" : "border-neutral-border"
+                    }`}
+                  />
+                </div>
+                {errors.salaryExpectations && <p className="text-xs text-red-600 mt-1">{errors.salaryExpectations}</p>}
+              </div>
+            )}
+
+            {settings.requireWorkAuthorization && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  Work Authorization <span className="text-red-600">*</span>
+                </label>
+                <select
+                  value={formData.workAuthorization}
+                  onChange={(e) => setFormData({ ...formData, workAuthorization: e.target.value })}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+                    errors.workAuthorization ? "border-red-400" : "border-neutral-border"
+                  }`}
+                >
+                  <option value="">Select status</option>
+                  <option value="citizen">Citizen</option>
+                  <option value="permanent-resident">Permanent Resident</option>
+                  <option value="work-permit">Work Permit</option>
+                  <option value="require-sponsorship">Require Sponsorship</option>
+                </select>
+                {errors.workAuthorization && <p className="text-xs text-red-600 mt-1">{errors.workAuthorization}</p>}
+              </div>
+            )}
+
+            {settings.requireWillingToRelocate && (
+              <div>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={formData.willingToRelocate}
+                    onChange={(e) => setFormData({ ...formData, willingToRelocate: e.target.checked })}
+                    className="w-4 h-4 text-brand-orange rounded"
+                  />
+                  <span className="text-sm font-medium text-neutral-text">
+                    I am willing to relocate for this position <span className="text-red-600">*</span>
+                  </span>
+                </label>
               </div>
             )}
           </div>
-        ))}
+        )}
+
+        {/* ── Custom employer questions ── */}
+        {customQuestions.length > 0 && (
+          <div className={hasStandardFields ? "pt-4 border-t border-neutral-border space-y-5" : "space-y-5"}>
+            {hasStandardFields && (
+              <p className="text-sm font-semibold text-neutral-text-secondary uppercase tracking-wide">
+                Employer Questions
+              </p>
+            )}
+            {customQuestions.map((question: any, index: number) => (
+              <div key={index}>
+                <label className="block text-sm font-medium text-neutral-text mb-2">
+                  {question.question} {question.required && <span className="text-red-600">*</span>}
+                </label>
+
+                {question.type === "text" && (
+                  <input
+                    type="text"
+                    value={formData.customAnswers[index] || ""}
+                    onChange={(e) => handleAnswerChange(index, e.target.value)}
+                    maxLength={question.maxLength}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+                      errors[`custom_${index}`] ? "border-red-400" : "border-neutral-border"
+                    }`}
+                  />
+                )}
+
+                {question.type === "textarea" && (
+                  <textarea
+                    value={formData.customAnswers[index] || ""}
+                    onChange={(e) => handleAnswerChange(index, e.target.value)}
+                    maxLength={question.maxLength}
+                    rows={4}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange resize-none ${
+                      errors[`custom_${index}`] ? "border-red-400" : "border-neutral-border"
+                    }`}
+                  />
+                )}
+
+                {question.type === "select" && (
+                  <select
+                    value={formData.customAnswers[index] || ""}
+                    onChange={(e) => handleAnswerChange(index, e.target.value)}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange ${
+                      errors[`custom_${index}`] ? "border-red-400" : "border-neutral-border"
+                    }`}
+                  >
+                    <option value="">Select an option</option>
+                    {question.options?.map((option: string, i: number) => (
+                      <option key={i} value={option}>{option}</option>
+                    ))}
+                  </select>
+                )}
+
+                {question.type === "radio" && (
+                  <div className="space-y-2">
+                    {question.options?.map((option: string, i: number) => (
+                      <label key={i} className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name={`question-${index}`}
+                          value={option}
+                          checked={formData.customAnswers[index] === option}
+                          onChange={(e) => handleAnswerChange(index, e.target.value)}
+                          className="w-4 h-4 text-brand-orange"
+                        />
+                        <span className="text-sm text-neutral-text">{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {question.type === "checkbox" && (
+                  <div className="space-y-2">
+                    {question.options?.map((option: string, i: number) => {
+                      const currentAnswers = (formData.customAnswers[index] as string[]) || [];
+                      return (
+                        <label key={i} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            value={option}
+                            checked={currentAnswers.includes(option)}
+                            onChange={(e) => {
+                              const newAnswers = e.target.checked
+                                ? [...currentAnswers, option]
+                                : currentAnswers.filter((a: string) => a !== option);
+                              handleAnswerChange(index, newAnswers);
+                            }}
+                            className="w-4 h-4 text-brand-orange rounded"
+                          />
+                          <span className="text-sm text-neutral-text">{option}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {errors[`custom_${index}`] && (
+                  <p className="text-xs text-red-600 mt-1">{errors[`custom_${index}`]}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -905,29 +984,39 @@ function ReviewStep({ formData, job, settings }: any) {
           </div>
         </div>
 
-        {(formData.coverLetter || formData.linkedInUrl || formData.availability) && (
-          <div className="p-4 bg-neutral-bg-secondary rounded-lg">
-            <h3 className="font-semibold text-neutral-text mb-3">Additional Information</h3>
-            <div className="space-y-2 text-sm">
-              {formData.coverLetter && <p><span className="text-neutral-text-secondary">Cover Letter:</span> Provided</p>}
-              {formData.linkedInUrl && <p><span className="text-neutral-text-secondary">LinkedIn:</span> {formData.linkedInUrl}</p>}
-              {formData.availability && <p><span className="text-neutral-text-secondary">Availability:</span> {formData.availability}</p>}
-              {formData.salaryExpectations && <p><span className="text-neutral-text-secondary">Salary:</span> {formData.salaryExpectations}</p>}
-            </div>
-          </div>
-        )}
-
-        {settings.customQuestions && settings.customQuestions.length > 0 && Object.keys(formData.customAnswers).length > 0 && (
+        {/* All additional answers — standard fields + custom questions in one block */}
+        {(formData.coverLetter || formData.linkedInUrl || formData.availability ||
+          formData.salaryExpectations || formData.workAuthorization || formData.willingToRelocate ||
+          Object.keys(formData.customAnswers).length > 0) && (
           <div className="p-4 bg-neutral-bg-secondary rounded-lg">
             <h3 className="font-semibold text-neutral-text mb-3">Additional Questions</h3>
-            <div className="space-y-3 text-sm">
-              {settings.customQuestions.map((question: any, index: number) => {
+            <div className="space-y-2 text-sm">
+              {formData.coverLetter && (
+                <p><span className="text-neutral-text-secondary">Cover Letter:</span> Provided</p>
+              )}
+              {formData.linkedInUrl && (
+                <p><span className="text-neutral-text-secondary">LinkedIn:</span> {formData.linkedInUrl}</p>
+              )}
+              {formData.availability && (
+                <p><span className="text-neutral-text-secondary">Availability:</span> {formData.availability}</p>
+              )}
+              {formData.salaryExpectations && (
+                <p><span className="text-neutral-text-secondary">Salary Expectations:</span> {formData.salaryCurrency} {formData.salaryExpectations}</p>
+              )}
+              {formData.workAuthorization && (
+                <p><span className="text-neutral-text-secondary">Work Authorization:</span> {formData.workAuthorization}</p>
+              )}
+              {formData.willingToRelocate !== undefined && formData.willingToRelocate && (
+                <p><span className="text-neutral-text-secondary">Willing to Relocate:</span> Yes</p>
+              )}
+              {settings.customQuestions && settings.customQuestions.map((question: any, index: number) => {
                 const answer = formData.customAnswers[index];
-                if (!answer) return null;
+                if (!answer && !Array.isArray(answer)) return null;
+                if (Array.isArray(answer) && answer.length === 0) return null;
                 return (
                   <div key={index}>
                     <p className="text-neutral-text-secondary font-medium">{question.question}</p>
-                    <p className="text-neutral-text mt-1">
+                    <p className="text-neutral-text mt-0.5">
                       {Array.isArray(answer) ? answer.join(", ") : answer}
                     </p>
                   </div>

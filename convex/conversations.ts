@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -361,6 +361,83 @@ export const markConversationRead = mutation({
     await ctx.db.patch(args.conversationId, {
       unreadA: isA ? 0 : conv.unreadA,
       unreadB: isB ? 0 : conv.unreadB,
+    });
+  },
+});
+
+/**
+ * Internal mutation: post a system/automated message on behalf of a given sender.
+ * Used by background actions (e.g. interview scheduled notifications).
+ */
+export const sendMessageInternal = internalMutation({
+  args: {
+    senderId: v.id("users"),
+    recipientId: v.id("users"),
+    text: v.string(),
+    jobId: v.optional(v.id("jobs")),
+    jobTitle: v.optional(v.string()),
+    companyName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const text = args.text.trim();
+    if (!text) return;
+
+    // Find or create conversation
+    const existing =
+      (await ctx.db
+        .query("conversations")
+        .withIndex("by_participants", (q) =>
+          q.eq("participantA", args.senderId).eq("participantB", args.recipientId)
+        )
+        .first()) ??
+      (await ctx.db
+        .query("conversations")
+        .withIndex("by_participants", (q) =>
+          q.eq("participantA", args.recipientId).eq("participantB", args.senderId)
+        )
+        .first());
+
+    const convId = existing
+      ? existing._id
+      : await ctx.db.insert("conversations", {
+          participantA: args.senderId,
+          participantB: args.recipientId,
+          jobId: args.jobId,
+          jobTitle: args.jobTitle,
+          companyName: args.companyName,
+          lastMessageAt: Date.now(),
+          lastMessagePreview: "",
+          unreadA: 0,
+          unreadB: 0,
+        });
+
+    // If conversation already existed but jobTitle changed, update it
+    if (existing && args.jobTitle && existing.jobTitle !== args.jobTitle) {
+      await ctx.db.patch(convId, { jobTitle: args.jobTitle, companyName: args.companyName });
+    }
+
+    const conv = await ctx.db.get(convId);
+    if (!conv) return;
+
+    const isA = conv.participantA === args.senderId;
+    const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
+    const now = Date.now();
+
+    await ctx.db.insert("chatMessages", {
+      conversationId: convId,
+      senderId: args.senderId,
+      text,
+      createdAt: now,
+    });
+
+    await ctx.db.patch(convId, {
+      lastMessageAt: now,
+      lastMessagePreview: preview,
+      // Recipient always gets an unread increment
+      unreadA: isA ? conv.unreadA : conv.unreadA + 1,
+      unreadB: isA ? conv.unreadB + 1 : conv.unreadB,
+      deletedByA: false,
+      deletedByB: false,
     });
   },
 });

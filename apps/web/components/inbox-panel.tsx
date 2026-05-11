@@ -96,7 +96,13 @@ function ConversationList({
     <ul className="divide-y divide-neutral-border">
       {conversations.map((conv) => {
         const isAdmin = conv.otherUser?.primaryRole === "admin";
-        const name = isAdmin ? "Kazicloud Support" : (conv.otherUser?.fullName ?? "Unknown");
+        const isOtherEmployer = conv.otherUser?.primaryRole === "employer";
+        // Job seekers identify an employer by company name, not personal name
+        const name = isAdmin
+          ? "Kazicloud Support"
+          : isOtherEmployer
+          ? (conv.companyName ?? conv.otherUser?.fullName ?? "Unknown")
+          : (conv.otherUser?.fullName ?? "Unknown");
         const photo = isAdmin ? "/images/kazicloud-logo.jpg" : conv.otherUser?.profilePhoto;
         const isSelected = conv._id === selectedId;
         return (
@@ -120,10 +126,23 @@ function ConversationList({
                   </span>
                   <span className="text-[11px] text-neutral-text-muted shrink-0">{timeAgo(conv.lastMessageAt)}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <RoleChip role={conv.otherUser?.primaryRole ?? ""} />
-                  {conv.jobTitle && (
-                    <span className="text-[11px] text-neutral-text-muted truncate">{conv.jobTitle}</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isOtherEmployer ? (
+                    // Job seeker view: "Employer" badge + job title
+                    <>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 shrink-0">
+                        <Briefcase className="w-2.5 h-2.5" />
+                        Employer
+                      </span>
+                      {conv.jobTitle && (
+                        <span className="text-[11px] text-neutral-text-muted truncate">{conv.jobTitle}</span>
+                      )}
+                    </>
+                  ) : (
+                    // Employer view: job title is the context separator
+                    conv.jobTitle && !isAdmin && (
+                      <span className="text-[11px] text-neutral-text-muted truncate">For: {conv.jobTitle}</span>
+                    )
                   )}
                 </div>
                 <p className={`text-xs mt-0.5 truncate ${conv.myUnread > 0 ? "text-neutral-text font-medium" : "text-neutral-text-muted"}`}>
@@ -221,8 +240,16 @@ function ChatWindow({
           <ArrowLeft className="w-4 h-4 text-neutral-text-secondary" />
         </button>
         <div className="flex-1 min-w-0">
-          {conv.jobTitle && (
-            <p className="text-[11px] text-neutral-text-muted truncate">{conv.jobTitle} · {conv.companyName}</p>
+          {!isOtherAdmin && otherUserRole === "employer" ? (
+            // Job seeker's view: company name already in list, show job context here
+            conv.jobTitle && (
+              <p className="text-[11px] text-neutral-text-muted truncate">Regarding: {conv.jobTitle}</p>
+            )
+          ) : (
+            // Employer's view: show job title so they know which role this is for
+            conv.jobTitle && !isOtherAdmin && (
+              <p className="text-[11px] text-neutral-text-muted truncate">For: {conv.jobTitle}</p>
+            )
           )}
         </div>
       </div>

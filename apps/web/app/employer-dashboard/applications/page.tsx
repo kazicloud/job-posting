@@ -2,7 +2,7 @@
 
 import { EmployerDashboardLayout } from "@/components/employer-dashboard/employer-dashboard-layout";
 import { InterviewModal, InterviewDetails } from "@/components/employer-dashboard/interview-modal";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Search, Download, Star, MapPin, Briefcase, Calendar, FileText, ExternalLink, CheckCircle2, X, Mail, Phone, Users, ChevronDown, ArrowUpDown, PlusCircle, MessageSquare } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
@@ -76,6 +76,14 @@ export default function EmployerApplicationsPage() {
     jobTitle: string;
   } | null>(null);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setSuccessToast(msg);
+    toastTimer.current = setTimeout(() => setSuccessToast(null), 5000);
+  };
 
   const hasNoJobs = employerJobs !== undefined && employerJobs.length === 0;
   const isLoading = !hasNoJobs && (result === undefined || employerJobs === undefined || (selectedJobId !== "all" && counts === undefined));
@@ -133,6 +141,7 @@ export default function EmployerApplicationsPage() {
     try {
       await updateStatus({ applicationId: interviewModal.applicationId, status: "interview", interviewDetails: details });
       setInterviewModal(null);
+      showToast(`Interview scheduled for ${interviewModal.candidateName} on ${details.date} at ${details.time}. A notification email and inbox message have been sent to the candidate.`);
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to schedule interview");
     } finally {
@@ -579,6 +588,21 @@ export default function EmployerApplicationsPage() {
           isLoading={isScheduling}
         />
       )}
+
+      {/* Success Toast */}
+      {successToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-full px-4">
+          <div className="flex items-start gap-3 bg-neutral-text text-white px-4 py-3.5 rounded-xl shadow-xl">
+            <div className="w-5 h-5 rounded-full bg-green-400 flex items-center justify-center shrink-0 mt-0.5">
+              <CheckCircle2 className="w-3 h-3 text-white" />
+            </div>
+            <p className="text-sm leading-snug flex-1">{successToast}</p>
+            <button onClick={() => setSuccessToast(null)} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </EmployerDashboardLayout>
   );
 }
@@ -720,7 +744,7 @@ function ApplicationRow({
             <MessageSquare className="w-3.5 h-3.5" />
           </button>
           
-          {application.status === "submitted" && (
+          {/* {application.status === "submitted" && (
             <>
               <button
                 onClick={() => onStatusUpdate(application._id, "shortlisted")}
@@ -735,9 +759,9 @@ function ApplicationRow({
                 Reject
               </button>
             </>
-          )}
+          )} */}
 
-          {application.status === "shortlisted" && (
+          {/* {application.status === "shortlisted" && (
             <>
               <button
                 onClick={() => onScheduleInterview(application._id, application.jobSeeker?.name || "Candidate", application.job?.title || "Position")}
@@ -752,24 +776,24 @@ function ApplicationRow({
                 Reject
               </button>
             </>
-          )}
-
-          {application.status === "interview" && (
-            <>
-              <button
-                onClick={() => onStatusUpdate(application._id, "accepted")}
-                className="px-3 py-1.5 text-xs font-medium text-green-600 border border-green-600 rounded-md hover:bg-green-50 transition-colors"
-              >
-                Accept
-              </button>
-              <button
-                onClick={() => onStatusUpdate(application._id, "rejected")}
-                className="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-600 rounded-md hover:bg-red-50 transition-colors"
-              >
-                Reject
-              </button>
-            </>
-          )}
+          )} */}
+  {/* 
+            {application.status === "interview" && (
+              <>
+                <button
+                  onClick={() => onStatusUpdate(application._id, "accepted")}
+                  className="px-3 py-1.5 text-xs font-medium text-green-600 border border-green-600 rounded-md hover:bg-green-50 transition-colors"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={() => onStatusUpdate(application._id, "rejected")}
+                  className="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-600 rounded-md hover:bg-red-50 transition-colors"
+                >
+                  Reject
+                </button>
+              </>
+            )} */}
         </div>
       </td>
     </tr>
