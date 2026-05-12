@@ -84,6 +84,7 @@ export const listMyConversations = query({
 
 /**
  * Get messages in a conversation. Returns null if user is not a participant.
+ * Exception: admins can view any support conversation (isSupport:true).
  */
 export const getMessages = query({
   args: { conversationId: v.id("conversations") },
@@ -98,7 +99,15 @@ export const getMessages = query({
 
     const conv = await ctx.db.get(args.conversationId);
     if (!conv) return null;
-    if (conv.participantA !== me._id && conv.participantB !== me._id) return null;
+
+    const isParticipant = conv.participantA === me._id || conv.participantB === me._id;
+    const isAdminUser =
+      me.isAdmin === true ||
+      me.roles?.includes("admin") ||
+      me.primaryRole === "admin";
+
+    // Admins can read any support conversation
+    if (!isParticipant && !(isAdminUser && conv.isSupport)) return null;
 
     const messages = await ctx.db
       .query("chatMessages")
@@ -157,8 +166,13 @@ export const totalUnreadCount = query({
 // ── Mutations ────────────────────────────────────────────────────────────────
 
 /**
- * Open (or fetch existing) conversation with admin.
- * Available to any authenticated user.
+ * Open (or fetch existing) support conversation with KaziCloud.
+ * Marked isSupport:true so ALL admins can see and reply to it — not just
+ * the one admin that happens to be participantB.
+ *
+ * Industry pattern: a shared support inbox. Any admin with chats:view can
+ * see the thread; any admin with chats:reply can respond. The conversation
+ * is assigned to a specific admin only when they claim it.
  */
 export const getOrCreateAdminConversation = mutation({
   args: {},
@@ -171,25 +185,27 @@ export const getOrCreateAdminConversation = mutation({
       .unique();
     if (!me) throw new Error("User not found");
 
+    // Check if a support conversation already exists for this user (either direction).
+    // We scan by_participant_a and by_participant_b to find any isSupport conversation.
+    const asA = await ctx.db
+      .query("conversations")
+      .withIndex("by_participant_a", (q) => q.eq("participantA", me._id))
+      .collect();
+    const existingSupport = asA.find((c) => c.isSupport === true);
+    if (existingSupport) return existingSupport._id;
+
+    const asB = await ctx.db
+      .query("conversations")
+      .withIndex("by_participant_b", (q) => q.eq("participantB", me._id))
+      .collect();
+    const existingSupportB = asB.find((c) => c.isSupport === true);
+    if (existingSupportB) return existingSupportB._id;
+
+    // No existing support thread — find any admin as a placeholder participantB.
+    // The specific admin doesn't matter: ALL admins see support threads through
+    // the listAllSupportConversations query. This is just a required DB field.
     const admin = await getAdminUser(ctx);
-    if (!admin) throw new Error("Admin not found");
-
-    // Check if conversation already exists (me → admin or admin → me)
-    const existing =
-      (await ctx.db
-        .query("conversations")
-        .withIndex("by_participants", (q) =>
-          q.eq("participantA", me._id).eq("participantB", admin._id)
-        )
-        .first()) ??
-      (await ctx.db
-        .query("conversations")
-        .withIndex("by_participants", (q) =>
-          q.eq("participantA", admin._id).eq("participantB", me._id)
-        )
-        .first());
-
-    if (existing) return existing._id;
+    if (!admin) throw new Error("No admin user configured. Please contact support at support@kazicloud.com");
 
     return await ctx.db.insert("conversations", {
       participantA: me._id,
@@ -198,6 +214,7 @@ export const getOrCreateAdminConversation = mutation({
       lastMessagePreview: "",
       unreadA: 0,
       unreadB: 0,
+      isSupport: true,
     });
   },
 });
@@ -288,6 +305,7 @@ export const getOrCreateEmployerConversation = mutation({
 /**
  * Send a message in a conversation.
  * Both participants can send once the conversation exists.
+ * Admins can also send to any support (isSupport:true) conversation.
  */
 export const sendMessage = mutation({
   args: {
@@ -312,7 +330,15 @@ export const sendMessage = mutation({
 
     const isA = conv.participantA === me._id;
     const isB = conv.participantB === me._id;
-    if (!isA && !isB) throw new Error("Not a participant in this conversation");
+    const isAdminUser =
+      me.isAdmin === true ||
+      me.roles?.includes("admin") ||
+      me.primaryRole === "admin";
+
+    // Admins can reply to any support conversation even if not the assigned participantB
+    if (!isA && !isB && !(isAdminUser && conv.isSupport)) {
+      throw new Error("Not a participant in this conversation");
+    }
 
     const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
     const now = Date.now();
@@ -324,15 +350,22 @@ export const sendMessage = mutation({
       createdAt: now,
     });
 
-    // Update conversation metadata: increment other participant's unread count
+    // For support conversations where the admin is not participantB, treat
+    // the user (participantA) as the one whose unread count goes up when
+    // anyone other than them sends.
+    const senderIsUser = conv.participantA === me._id;
     await ctx.db.patch(args.conversationId, {
       lastMessageAt: now,
       lastMessagePreview: preview,
-      unreadA: isB ? conv.unreadA + 1 : conv.unreadA,
-      unreadB: isA ? conv.unreadB + 1 : conv.unreadB,
-      // Un-delete for both if either had soft-deleted
+      // Increment unread for the other party
+      unreadA: !senderIsUser ? conv.unreadA + 1 : conv.unreadA,
+      unreadB: senderIsUser ? conv.unreadB + 1 : conv.unreadB,
       deletedByA: false,
       deletedByB: false,
+      // Auto-assign admin to the support thread on first reply
+      ...(isAdminUser && conv.isSupport && !conv.assignedAdminId
+        ? { assignedAdminId: me._id }
+        : {}),
     });
   },
 });
@@ -356,11 +389,18 @@ export const markConversationRead = mutation({
 
     const isA = conv.participantA === me._id;
     const isB = conv.participantB === me._id;
-    if (!isA && !isB) return;
+    const isAdminUser =
+      me.isAdmin === true ||
+      me.roles?.includes("admin") ||
+      me.primaryRole === "admin";
+
+    // Admins can mark support conversations as read
+    if (!isA && !isB && !(isAdminUser && conv.isSupport)) return;
 
     await ctx.db.patch(args.conversationId, {
       unreadA: isA ? 0 : conv.unreadA,
-      unreadB: isB ? 0 : conv.unreadB,
+      // For admins reading support threads where they're not participantB, reset unreadB
+      unreadB: isB || (isAdminUser && conv.isSupport && !isA) ? 0 : conv.unreadB,
     });
   },
 });
@@ -439,5 +479,92 @@ export const sendMessageInternal = internalMutation({
       deletedByA: false,
       deletedByB: false,
     });
+  },
+});
+
+// ── Admin-only queries ────────────────────────────────────────────────────────
+
+/**
+ * List ALL support conversations (isSupport:true) for the admin panel.
+ * Any admin can see all support threads — not just the one assigned to them.
+ * This is the shared support inbox pattern used by Intercom, Zendesk, etc.
+ */
+export const listAllSupportConversations = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    const me = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!me) return [];
+
+    const isAdminUser =
+      me.isAdmin === true ||
+      me.roles?.includes("admin") ||
+      me.primaryRole === "admin";
+    if (!isAdminUser) return [];
+
+    const supportConvos = await ctx.db
+      .query("conversations")
+      .withIndex("by_is_support", (q) => q.eq("isSupport", true))
+      .order("desc")
+      .collect();
+
+    // Enrich with user info
+    return await Promise.all(
+      supportConvos.map(async (conv) => {
+        const user = await ctx.db.get(conv.participantA);
+        const assignedAdmin = conv.assignedAdminId
+          ? await ctx.db.get(conv.assignedAdminId)
+          : null;
+        return {
+          ...conv,
+          otherUser: user
+            ? {
+                _id: user._id,
+                fullName: user.fullName ?? user.email,
+                primaryRole: user.primaryRole,
+                profilePhoto: user.profilePhoto ?? null,
+              }
+            : null,
+          assignedAdmin: assignedAdmin
+            ? { _id: assignedAdmin._id, fullName: assignedAdmin.fullName ?? assignedAdmin.email }
+            : null,
+          // "myUnread" for admins = unreadB (admin is always participantB or reviewing as admin)
+          myUnread: conv.unreadB,
+        };
+      })
+    );
+  },
+});
+
+/**
+ * Admin claims a support conversation — sets themselves as assignedAdminId.
+ * Use this to take ownership of an open support thread.
+ */
+export const claimSupportConversation = mutation({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const me = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!me) throw new Error("User not found");
+
+    const isAdminUser =
+      me.isAdmin === true ||
+      me.roles?.includes("admin") ||
+      me.primaryRole === "admin";
+    if (!isAdminUser) throw new Error("Admin access required");
+
+    const conv = await ctx.db.get(args.conversationId);
+    if (!conv || !conv.isSupport) throw new Error("Support conversation not found");
+
+    await ctx.db.patch(args.conversationId, { assignedAdminId: me._id });
+    return { success: true };
   },
 });

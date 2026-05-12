@@ -204,7 +204,9 @@ function AdminChatWindow({ conversationId, onBack }: { conversationId: string; o
 // ── Admin Inbox Panel ─────────────────────────────────────────────────────────
 
 export function AdminInboxPanel({ initialConversationId }: { initialConversationId?: string | null }) {
-  const conversations = useQuery(api.conversations.listMyConversations);
+  // Use listAllSupportConversations so ALL admins see ALL support threads,
+  // not just the ones where they're individually assigned as participantB.
+  const conversations = useQuery(api.conversations.listAllSupportConversations);
   const [selectedId, setSelectedId] = useState<string | null>(initialConversationId ?? null);
   const [mobileShowChat, setMobileShowChat] = useState(!!initialConversationId);
 
@@ -218,9 +220,9 @@ export function AdminInboxPanel({ initialConversationId }: { initialConversation
       {/* Left panel */}
       <div className={`${mobileShowChat ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-80 xl:w-96 border-r border-neutral-border shrink-0`}>
         <div className="px-4 py-3.5 border-b border-neutral-border flex items-center justify-between">
-          <h2 className="text-base font-semibold text-neutral-text">In-App Chats</h2>
+          <h2 className="text-base font-semibold text-neutral-text">Support Chats</h2>
           {conversations && conversations.length > 0 && (
-            <span className="text-xs text-neutral-text-muted">{conversations.length} conversation{conversations.length !== 1 ? "s" : ""}</span>
+            <span className="text-xs text-neutral-text-muted">{conversations.length} thread{conversations.length !== 1 ? "s" : ""}</span>
           )}
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -262,10 +264,12 @@ export function AdminInboxPanel({ initialConversationId }: { initialConversation
                           </span>
                           <span className="text-[11px] text-neutral-text-muted shrink-0">{timeAgo(conv.lastMessageAt)}</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <RoleChip role={conv.otherUser?.primaryRole ?? ""} />
-                          {conv.jobTitle && (
-                            <span className="text-[11px] text-neutral-text-muted truncate">{conv.jobTitle}</span>
+                          {conv.assignedAdmin && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600">
+                              <Shield className="w-2.5 h-2.5" /> {conv.assignedAdmin.fullName}
+                            </span>
                           )}
                         </div>
                         <p className={`text-xs mt-0.5 truncate ${conv.myUnread > 0 ? "text-neutral-text font-medium" : "text-neutral-text-muted"}`}>
@@ -280,8 +284,8 @@ export function AdminInboxPanel({ initialConversationId }: { initialConversation
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center py-16">
               <MessageSquare className="w-10 h-10 text-neutral-text-muted" />
-              <p className="text-sm text-neutral-text-secondary font-medium">No conversations yet</p>
-              <p className="text-xs text-neutral-text-muted">Users who contact support will appear here.</p>
+              <p className="text-sm text-neutral-text-secondary font-medium">No support conversations yet</p>
+              <p className="text-xs text-neutral-text-muted">Users who contact support will appear here for all admins.</p>
             </div>
           )}
         </div>

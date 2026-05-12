@@ -1,6 +1,7 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { assertAdminPermission, assertSuperAdmin, getAdminIdentity } from "./adminAuthHelpers";
 
 export const isAdmin = query({
   args: {},
@@ -116,6 +117,179 @@ export const getCurrentUser = query({
         primaryRole: user.primaryRole,
       } : null,
     };
+  },
+});
+
+// ── Admin User Management ─────────────────────────────────────────────────────
+
+/**
+ * List all admin users with their roles. Requires admins:view permission.
+ */
+export const listAdmins = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    const me = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!me) return [];
+
+    const isAdminUser =
+      me.isAdmin === true ||
+      me.roles?.includes("admin") ||
+      me.primaryRole === "admin";
+    if (!isAdminUser) return [];
+
+    // Fetch users with isAdmin:true plus legacy role-based admins
+    const byFlag = await ctx.db
+      .query("users")
+      .withIndex("by_is_admin", (q) => q.eq("isAdmin", true))
+      .collect();
+
+    const byRole = await ctx.db
+      .query("users")
+      .withIndex("by_primary_role", (q) => q.eq("primaryRole", "admin"))
+      .collect();
+
+    // Merge and deduplicate
+    const seen = new Set<string>();
+    const admins: typeof byFlag = [];
+    for (const u of [...byFlag, ...byRole]) {
+      if (!seen.has(u._id)) {
+        seen.add(u._id);
+        admins.push(u);
+      }
+    }
+
+    // Enrich with role info
+    return await Promise.all(
+      admins.map(async (u) => {
+        const role = u.adminRoleId ? await ctx.db.get(u.adminRoleId) : null;
+        return {
+          _id: u._id,
+          email: u.email,
+          fullName: u.fullName ?? u.email,
+          profilePhoto: u.profilePhoto ?? null,
+          isAdmin: u.isAdmin ?? false,
+          primaryRole: u.primaryRole,
+          adminRoleId: u.adminRoleId ?? null,
+          adminRoleName: role?.name ?? null,
+          permissions: role?.permissions ?? [],
+          isSuperAdmin: (role?.permissions ?? []).includes("*"),
+        };
+      })
+    );
+  },
+});
+
+/**
+ * Assign or change an admin's role. Requires admins:update + super-admin.
+ */
+export const setAdminRoleById = mutation({
+  args: { userId: v.id("users"), adminRoleId: v.optional(v.id("adminRoles")) },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const me = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!me) throw new Error("User not found");
+
+    const myRole = me.adminRoleId ? await ctx.db.get(me.adminRoleId) : null;
+    const isSuperAdmin = myRole?.permissions.includes("*") ?? false;
+    if (!isSuperAdmin) throw new Error("Only super-admins can change admin roles");
+
+    await ctx.db.patch(args.userId, {
+      adminRoleId: args.adminRoleId,
+      isAdmin: true,
+      roles: (await ctx.db.get(args.userId))?.roles?.includes("admin")
+        ? (await ctx.db.get(args.userId))!.roles
+        : [...((await ctx.db.get(args.userId))?.roles ?? []), "admin"],
+      primaryRole: "admin",
+    });
+    return { success: true };
+  },
+});
+
+/**
+ * Promote a user to admin and assign a role. Requires super-admin.
+ */
+export const promoteToAdmin = mutation({
+  args: {
+    userId: v.id("users"),
+    adminRoleId: v.optional(v.id("adminRoles")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const me = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!me) throw new Error("User not found");
+
+    const myRole = me.adminRoleId ? await ctx.db.get(me.adminRoleId) : null;
+    const isSuperAdmin =
+      myRole?.permissions.includes("*") ||
+      me.roles?.includes("admin"); // Legacy super-admin
+    if (!isSuperAdmin) throw new Error("Only super-admins can promote users to admin");
+
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("User not found");
+
+    const existingRoles = target.roles ?? [];
+    const updatedRoles = existingRoles.includes("admin")
+      ? existingRoles
+      : [...existingRoles, "admin"];
+
+    await ctx.db.patch(args.userId, {
+      isAdmin: true,
+      adminRoleId: args.adminRoleId,
+      roles: updatedRoles,
+      primaryRole: "admin",
+    });
+    return { success: true };
+  },
+});
+
+/**
+ * Revoke admin access from a user. Requires super-admin.
+ */
+export const revokeAdminAccess = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const me = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!me) throw new Error("User not found");
+
+    const myRole = me.adminRoleId ? await ctx.db.get(me.adminRoleId) : null;
+    const isSuperAdmin = myRole?.permissions.includes("*") ?? false;
+    if (!isSuperAdmin) throw new Error("Only super-admins can revoke admin access");
+
+    // Cannot revoke own access
+    if (args.userId === me._id) throw new Error("You cannot revoke your own admin access");
+
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("User not found");
+
+    await ctx.db.patch(args.userId, {
+      isAdmin: false,
+      adminRoleId: undefined,
+      roles: (target.roles ?? []).filter((r) => r !== "admin"),
+      primaryRole: target.roles?.includes("employer")
+        ? "employer"
+        : target.roles?.includes("job_seeker")
+        ? "job_seeker"
+        : "job_seeker",
+    });
+    return { success: true };
   },
 });
 
@@ -1184,6 +1358,271 @@ export const adminDeleteJob = mutation({
       .collect();
     await Promise.all(applications.map((a) => ctx.db.delete(a._id)));
     await ctx.db.delete(args.jobId);
+    return { success: true };
+  },
+});
+
+// ── Admin Invite Flow ─────────────────────────────────────────────────────────
+
+/**
+ * List all pending admin invites. Requires admins:invite permission.
+ */
+export const listInvites = query({
+  args: {},
+  handler: async (ctx) => {
+    await assertAdminPermission(ctx, "admins:invite");
+    const invites = await ctx.db.query("adminInvites").order("desc").collect();
+    const roles = await ctx.db.query("adminRoles").collect();
+    return invites.map((inv) => ({
+      ...inv,
+      role: roles.find((r) => r._id === inv.adminRoleId) ?? null,
+    }));
+  },
+});
+
+/**
+ * Send an admin invite email.
+ * Creates a pending invite record + schedules the email.
+ * Requires admins:invite permission (super-admin only by default).
+ */
+export const sendAdminInvite = mutation({
+  args: {
+    fullName: v.string(),
+    email: v.string(),
+    adminRoleId: v.optional(v.id("adminRoles")),
+  },
+  handler: async (ctx, args) => {
+    await assertAdminPermission(ctx, "admins:invite");
+    const { user } = await getAdminIdentity(ctx);
+
+    // Normalise email
+    const email = args.email.toLowerCase().trim();
+
+    // Prevent duplicate active invites for the same email
+    const existing = await ctx.db
+      .query("adminInvites")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+    if (existing && existing.status === "pending" && existing.inviteExpiresAt > Date.now()) {
+      throw new Error("An active invite already exists for this email address.");
+    }
+
+    // Also prevent inviting someone who is already an admin
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+    if (existingUser?.isAdmin) {
+      throw new Error("This email already belongs to an admin user.");
+    }
+
+    const inviteToken = crypto.randomUUID();
+    const inviteExpiresAt = Date.now() + 48 * 60 * 60 * 1000; // 48 hours
+
+    const inviteId = await ctx.db.insert("adminInvites", {
+      email,
+      fullName: args.fullName,
+      adminRoleId: args.adminRoleId,
+      inviteToken,
+      inviteExpiresAt,
+      status: "pending",
+      invitedBy: user._id,
+      createdAt: Date.now(),
+    });
+
+    // Fire-and-forget the email
+    await ctx.scheduler.runAfter(0, internal.admin.sendAdminInviteEmail, {
+      email,
+      fullName: args.fullName,
+      inviteToken,
+    });
+
+    return { inviteId, inviteToken };
+  },
+});
+
+/**
+ * Internal action — sends the invite email via Resend.
+ * Kept internal so it cannot be called from the client directly.
+ */
+export const sendAdminInviteEmail = internalAction({
+  args: {
+    email: v.string(),
+    fullName: v.string(),
+    inviteToken: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const adminAppUrl =
+      process.env.NEXT_PUBLIC_ADMIN_URL ?? "http://localhost:3001";
+    const inviteUrl = `${adminAppUrl}/accept-invite?token=${args.inviteToken}`;
+    const year = new Date().getFullYear();
+
+    await resend.emails.send({
+      from: "Kazicloud Admin <admin@kazicloud.com>",
+      to: args.email,
+      subject: "You've been invited to Kazicloud Admin",
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,.08);">
+    <!-- Header -->
+    <div style="padding:28px 40px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;">
+      <img src="https://kazicloud.com/images/kazicloud-logo.jpg" alt="Kazicloud" style="width:36px;height:36px;border-radius:8px;object-fit:cover;" />
+      <span style="font-size:18px;font-weight:700;color:#0f172a;">Kazi<span style="color:#DC842C;">cloud</span></span>
+    </div>
+    <!-- Body -->
+    <div style="padding:40px;">
+      <p style="margin:0 0 6px;font-size:15px;color:#64748b;">Hello ${args.fullName},</p>
+      <h1 style="margin:0 0 20px;font-size:26px;font-weight:700;color:#0f172a;line-height:1.25;">You've been invited to<br/>the <span style="color:#DC842C;">Admin Panel</span></h1>
+      <p style="margin:0 0 28px;font-size:15px;color:#475569;line-height:1.7;">
+        A Kazicloud super-admin has granted you access to the admin panel. Click the button below to accept your invitation, set your password, and start managing the platform.
+      </p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${inviteUrl}" style="display:inline-block;background:#DC842C;color:#fff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 36px;border-radius:10px;">Accept Invitation</a>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;margin:0 0 8px;">Or paste this link in your browser:</p>
+      <p style="font-size:13px;color:#DC842C;word-break:break-all;margin:0 0 24px;">${inviteUrl}</p>
+      <div style="background:#fff3e0;border:1px solid #fed7aa;border-radius:8px;padding:14px 18px;">
+        <p style="margin:0;font-size:13px;color:#c2410c;font-weight:600;">⏰ This invitation expires in 48 hours.</p>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:20px 40px;border-top:1px solid #f1f5f9;text-align:center;">
+      <p style="margin:0;font-size:12px;color:#94a3b8;">© ${year} Kazicloud. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>`,
+    });
+  },
+});
+
+/**
+ * Accept an admin invite.
+ * Called from the accept-invite page after the invitee creates their Clerk account.
+ * No auth check — the token is the credential.
+ */
+export const acceptAdminInvite = mutation({
+  args: {
+    inviteToken: v.string(),
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const invite = await ctx.db
+      .query("adminInvites")
+      .withIndex("by_token", (q) => q.eq("inviteToken", args.inviteToken))
+      .first();
+
+    if (!invite) throw new Error("Invalid or unknown invite link.");
+    if (invite.status !== "pending") throw new Error("This invitation has already been used.");
+    if (invite.inviteExpiresAt < Date.now()) {
+      await ctx.db.patch(invite._id, { status: "expired" });
+      throw new Error("This invitation has expired. Please ask an admin to send a new one.");
+    }
+
+    // Mark invite accepted
+    await ctx.db.patch(invite._id, { status: "accepted" });
+
+    // Find or create the user record
+    let user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) {
+      // First time — create the user
+      const userId = await ctx.db.insert("users", {
+        clerkId: args.clerkId,
+        email: invite.email,
+        fullName: invite.fullName,
+        roles: ["admin"],
+        primaryRole: "admin",
+        isAdmin: true,
+        adminRoleId: invite.adminRoleId,
+      });
+      return { userId };
+    } else {
+      // Existing user — promote to admin
+      const existingRoles = user.roles ?? [];
+      await ctx.db.patch(user._id, {
+        isAdmin: true,
+        adminRoleId: invite.adminRoleId,
+        roles: existingRoles.includes("admin")
+          ? existingRoles
+          : [...existingRoles, "admin"],
+        primaryRole: "admin",
+      });
+      return { userId: user._id };
+    }
+  },
+});
+
+/**
+ * Validate an invite token (used by the accept-invite page to show name/email before sign-up).
+ * No auth required — public query, token is the credential.
+ */
+export const getInviteByToken = query({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    const invite = await ctx.db
+      .query("adminInvites")
+      .withIndex("by_token", (q) => q.eq("inviteToken", args.token))
+      .first();
+    if (!invite) return null;
+    const role = invite.adminRoleId ? await ctx.db.get(invite.adminRoleId) : null;
+    return {
+      email: invite.email,
+      fullName: invite.fullName,
+      status: invite.status,
+      isExpired: invite.inviteExpiresAt < Date.now(),
+      roleName: role?.name ?? null,
+    };
+  },
+});
+
+/**
+ * Resend an existing invite (resets token + expiry).
+ */
+export const resendAdminInvite = mutation({
+  args: { inviteId: v.id("adminInvites") },
+  handler: async (ctx, args) => {
+    await assertAdminPermission(ctx, "admins:invite");
+
+    const invite = await ctx.db.get(args.inviteId);
+    if (!invite) throw new Error("Invite not found.");
+    if (invite.status === "accepted") throw new Error("Invite already accepted.");
+
+    const newToken = crypto.randomUUID();
+    const newExpiry = Date.now() + 48 * 60 * 60 * 1000;
+
+    await ctx.db.patch(args.inviteId, {
+      inviteToken: newToken,
+      inviteExpiresAt: newExpiry,
+      status: "pending",
+    });
+
+    await ctx.scheduler.runAfter(0, internal.admin.sendAdminInviteEmail, {
+      email: invite.email,
+      fullName: invite.fullName,
+      inviteToken: newToken,
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * Cancel / delete a pending invite.
+ */
+export const cancelAdminInvite = mutation({
+  args: { inviteId: v.id("adminInvites") },
+  handler: async (ctx, args) => {
+    await assertAdminPermission(ctx, "admins:invite");
+    await ctx.db.delete(args.inviteId);
     return { success: true };
   },
 });

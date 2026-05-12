@@ -293,7 +293,11 @@ function ChatWindow({
                   >
                     {msg.text}
                   </div>
-                  <span className="text-[10px] text-neutral-text-muted mt-1 px-1">{formatTime(msg.createdAt)}</span>
+                  <span className="text-[10px] text-neutral-text-muted mt-1 px-1">
+                    {!msg.isMe && isOtherAdmin && msg.senderName
+                      ? `by: ${msg.senderName} · ${formatTime(msg.createdAt)}`
+                      : formatTime(msg.createdAt)}
+                  </span>
                 </div>
               </div>
             </div>
