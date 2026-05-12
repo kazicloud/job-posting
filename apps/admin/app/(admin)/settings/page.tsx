@@ -1,33 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "../../../../../convex/_generated/api";
 import { 
-  Shield, 
   Bell, 
-  Database, 
-  Mail, 
-  Globe, 
-  DollarSign,
-  Users,
-  FileText,
   Settings as SettingsIcon,
-  Save,
-  AlertCircle
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
-  const [saved, setSaved] = useState(false);
-
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-
-  const tabs = [
-    { id: "general", label: "General", icon: SettingsIcon },
-    { id: "notifications", label: "Notifications", icon: Bell },
-  ];
+  const adminProfile = useQuery(api.adminRoles.getCurrentAdminRole);
+  const isSuperAdmin = adminProfile?.permissions.includes("*") ?? false;
 
   return (
     <div>
@@ -40,24 +27,52 @@ export default function SettingsPage() {
       <div className="flex gap-6">
         {/* Sidebar Tabs */}
         <div className="w-64 flex-shrink-0">
-          <div className="bg-white rounded-lg border border-neutral-border p-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === tab.id
-                      ? "bg-brand-orange text-white"
-                      : "text-neutral-text-secondary hover:bg-neutral-bg-secondary"
-                  }`}
+          <div className="bg-white rounded-lg border border-neutral-border p-2 space-y-1">
+            <button
+              onClick={() => setActiveTab("general")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                activeTab === "general"
+                  ? "bg-brand-orange text-white"
+                  : "text-neutral-text-secondary hover:bg-neutral-bg-secondary"
+              }`}
+            >
+              <SettingsIcon className="w-5 h-5" />
+              <span className="font-medium">General</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("notifications")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                activeTab === "notifications"
+                  ? "bg-brand-orange text-white"
+                  : "text-neutral-text-secondary hover:bg-neutral-bg-secondary"
+              }`}
+            >
+              <Bell className="w-5 h-5" />
+              <span className="font-medium">Notifications</span>
+            </button>
+
+            {/* RBAC section — super-admins only */}
+            {isSuperAdmin && (
+              <>
+                <div className="pt-2 pb-1 px-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-text-muted">Access Control</p>
+                </div>
+                <Link
+                  href="/settings/roles"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-neutral-text-secondary hover:bg-neutral-bg-secondary"
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{tab.label}</span>
-                </button>
-              );
-            })}
+                  <ShieldCheck className="w-5 h-5" />
+                  <span className="font-medium">Roles</span>
+                </Link>
+                <Link
+                  href="/settings/admins"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-neutral-text-secondary hover:bg-neutral-bg-secondary"
+                >
+                  <Users className="w-5 h-5" />
+                  <span className="font-medium">Admins</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -214,22 +229,12 @@ export default function SettingsPage() {
 
             {/* Save Button */}
             <div className="border-t border-neutral-border p-6">
-              <div className="flex items-center justify-between">
-                {saved && (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <AlertCircle className="w-5 h-5" />
-                    <span className="text-sm font-medium">Settings saved successfully</span>
-                  </div>
-                )}
-                <div className="ml-auto">
-                  <button
-                    onClick={handleSave}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-brand-orange text-white rounded-lg hover:bg-brand-orange/90 transition-colors"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </button>
-                </div>
+              <div className="flex items-center justify-end">
+                <button
+                  className="flex items-center gap-2 px-6 py-2.5 bg-brand-orange text-white rounded-lg hover:bg-brand-orange/90 transition-colors"
+                >
+                  Save Changes
+                </button>
               </div>
             </div>
           </div>

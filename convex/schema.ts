@@ -2,6 +2,36 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Admin Invites — pending invitations for new admin users.
+  // Flow: super-admin sends invite → token emailed → invitee clicks link →
+  //   Clerk sign-up → acceptAdminInvite mutation patches the user record.
+  adminInvites: defineTable({
+    email: v.string(),
+    fullName: v.string(),
+    adminRoleId: v.optional(v.id("adminRoles")),
+    inviteToken: v.string(),           // crypto.randomUUID()
+    inviteExpiresAt: v.number(),       // Date.now() + 48h
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired")),
+    invitedBy: v.id("users"),          // The super-admin who sent the invite
+    createdAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_token", ["inviteToken"])
+    .index("by_status", ["status"]),
+
+  // Admin Roles — fine-grained RBAC for admin users
+  // Permissions follow "resource:action" format, e.g. "employers:verify", "jobs:delete".
+  // Super-admin role uses ["*"] to bypass all checks.
+  adminRoles: defineTable({
+    name: v.string(),                       // "Super Admin", "Support Agent", "Content Moderator"
+    description: v.optional(v.string()),
+    permissions: v.array(v.string()),        // ["*"] or ["employers:view", "jobs:view", ...]
+    isDefault: v.optional(v.boolean()),      // Assigned to new admins by default
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_name", ["name"]),
+
   // Core user identity (lean)
   users: defineTable({
     clerkId: v.string(),
@@ -19,10 +49,14 @@ export default defineSchema({
     resumeStorageId: v.optional(v.string()), // Convex file storage ID
     onboardingCompleted: v.optional(v.boolean()),
     verified: v.optional(v.boolean()), // For employer verification
+    // Admin RBAC fields
+    isAdmin: v.optional(v.boolean()),              // Fast filter: true for all admin users
+    adminRoleId: v.optional(v.id("adminRoles")),  // Which role this admin has
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_email", ["email"])
-    .index("by_primary_role", ["primaryRole"]),
+    .index("by_primary_role", ["primaryRole"])
+    .index("by_is_admin", ["isAdmin"]),
 
   // Job Seeker Profile (1:1 with users)
   jobSeekerProfiles: defineTable({
@@ -538,10 +572,14 @@ export default defineSchema({
     unreadB: v.number(),
     deletedByA: v.optional(v.boolean()),
     deletedByB: v.optional(v.boolean()),
+    // Support chat fields — when isSupport is true, ALL admins can view/reply.
+    isSupport: v.optional(v.boolean()),           // Marks user→KaziCloud support threads
+    assignedAdminId: v.optional(v.id("users")),   // Admin who claimed/is handling this thread
   })
     .index("by_participant_a", ["participantA"])
     .index("by_participant_b", ["participantB"])
-    .index("by_participants", ["participantA", "participantB"]),
+    .index("by_participants", ["participantA", "participantB"])
+    .index("by_is_support", ["isSupport"]),
 
   // ── Chat Messages ────────────────────────────────────────────────────────
   chatMessages: defineTable({

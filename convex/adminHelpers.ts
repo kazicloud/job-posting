@@ -51,3 +51,39 @@ export const removeAdminRole = mutation({
     return { success: true, message: `Admin role removed from ${args.email}` };
   },
 });
+
+/**
+ * One-time bootstrap: promote the first super-admin by Convex user ID.
+ * Finds the "Super Admin" role (created by seedDefaultRoles) and assigns it.
+ * Safe to run from the Convex CLI without authentication.
+ * No auth check — intentionally, for initial bootstrapping only.
+ */
+export const bootstrapSuperAdmin = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error(`User ${args.userId} not found`);
+
+    const superAdminRole = await ctx.db
+      .query("adminRoles")
+      .withIndex("by_name", (q) => q.eq("name", "Super Admin"))
+      .first();
+    if (!superAdminRole) throw new Error("Super Admin role not found. Run adminRoles:seedDefaultRoles first.");
+
+    const existingRoles = user.roles ?? [];
+    await ctx.db.patch(args.userId, {
+      isAdmin: true,
+      adminRoleId: superAdminRole._id,
+      roles: existingRoles.includes("admin") ? existingRoles : [...existingRoles, "admin"],
+      primaryRole: "admin",
+    });
+
+    return {
+      success: true,
+      userId: args.userId,
+      email: user.email,
+      roleName: superAdminRole.name,
+      permissions: superAdminRole.permissions,
+    };
+  },
+});

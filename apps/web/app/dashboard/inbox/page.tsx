@@ -2,8 +2,13 @@
 
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { InboxPanel } from "@/components/inbox-panel";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function InboxPage() {
+function InboxContent() {
+  const searchParams = useSearchParams();
+  const conversationId = searchParams.get("conv");
+
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-neutral-bg-secondary p-4 sm:p-6 lg:p-8">
@@ -15,10 +20,18 @@ export default function InboxPage() {
             </p>
           </div>
           <div style={{ height: "calc(100vh - 200px)" }}>
-            <InboxPanel />
+            <InboxPanel initialConversationId={conversationId} />
           </div>
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function InboxPage() {
+  return (
+    <Suspense>
+      <InboxContent />
+    </Suspense>
   );
 }

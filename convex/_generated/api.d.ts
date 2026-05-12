@@ -9,7 +9,9 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as adminAuthHelpers from "../adminAuthHelpers.js";
 import type * as adminHelpers from "../adminHelpers.js";
+import type * as adminRoles from "../adminRoles.js";
 import type * as analytics from "../analytics.js";
 import type * as applicationMutations from "../applicationMutations.js";
 import type * as applications from "../applications.js";
@@ -58,7 +60,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  adminAuthHelpers: typeof adminAuthHelpers;
   adminHelpers: typeof adminHelpers;
+  adminRoles: typeof adminRoles;
   analytics: typeof analytics;
   applicationMutations: typeof applicationMutations;
   applications: typeof applications;

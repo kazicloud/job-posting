@@ -21,7 +21,6 @@ import {
   CornerDownRight,
 } from "lucide-react";
 import { ComposeEmailModal } from "../../../components/compose-email-modal";
-import { AdminInboxPanel } from "../../../components/admin-inbox";
 
 type StatusFilter = "all" | "unread" | "read" | "replied" | "archived";
 
@@ -314,9 +313,6 @@ export default function MessagesPage() {
 
   const adminInitial = (user?.firstName?.charAt(0) ?? user?.fullName?.charAt(0) ?? "A").toUpperCase();
 
-  const [sourceTab, setSourceTab] = useState<"website" | "inapp">("website");
-  const unreadChats = useQuery(api.conversations.totalUnreadCount) ?? 0;
-
   return (
     <div>
       {/* Page Header */}
@@ -324,11 +320,11 @@ export default function MessagesPage() {
         <div>
           <h2 className="text-2xl font-bold text-neutral-text">Messages</h2>
           <p className="text-neutral-text-secondary text-sm mt-1">
-            All communications — website enquiries and in-app chats
+            Website enquiries and contact form messages
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {sourceTab === "website" && unreadCount > 0 && (
+          {unreadCount > 0 && (
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
               <Mail className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-semibold text-blue-700">
@@ -336,61 +332,18 @@ export default function MessagesPage() {
               </span>
             </div>
           )}
-          {sourceTab === "website" && (
-            <button
-              onClick={() => setComposeOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-orange text-white text-sm font-semibold rounded-lg hover:bg-brand-orange/90 transition-colors shadow-sm"
-            >
-              <PenLine className="w-4 h-4" />
-              Compose
-            </button>
-          )}
+          <button
+            onClick={() => setComposeOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-orange text-white text-sm font-semibold rounded-lg hover:bg-brand-orange/90 transition-colors shadow-sm"
+          >
+            <PenLine className="w-4 h-4" />
+            Compose
+          </button>
         </div>
-      </div>
-
-      {/* Source tabs */}
-      <div className="flex gap-1 mb-4 border-b border-neutral-border">
-        <button
-          onClick={() => setSourceTab("website")}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
-            sourceTab === "website"
-              ? "border-brand-orange text-brand-orange"
-              : "border-transparent text-neutral-text-muted hover:text-neutral-text"
-          }`}
-        >
-          <Mail className="w-4 h-4" />
-          Website
-          {(counts?.unread ?? 0) > 0 && sourceTab !== "website" && (
-            <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-blue-500 text-white rounded-full">
-              {counts!.unread}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setSourceTab("inapp")}
-          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
-            sourceTab === "inapp"
-              ? "border-brand-orange text-brand-orange"
-              : "border-transparent text-neutral-text-muted hover:text-neutral-text"
-          }`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          In-App Chats
-          {unreadChats > 0 && sourceTab !== "inapp" && (
-            <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-brand-orange text-white rounded-full">
-              {unreadChats}
-            </span>
-          )}
-        </button>
       </div>
 
       <ComposeEmailModal isOpen={composeOpen} onClose={() => setComposeOpen(false)} />
 
-      {sourceTab === "inapp" ? (
-        <div style={{ height: "calc(100vh - 240px)" }}>
-          <AdminInboxPanel />
-        </div>
-      ) : (
       <div className="bg-white border border-neutral-border rounded-xl overflow-hidden flex h-[calc(100vh-240px)] min-h-[560px]">
         {/* ── Left Panel: message list ──────────────────────────────────────── */}
         <div className="w-full max-w-[340px] border-r border-neutral-border flex flex-col flex-shrink-0">
@@ -801,7 +754,6 @@ export default function MessagesPage() {
           )}
         </div>
       </div>
-      )}
     </div>
   );
 }
