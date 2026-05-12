@@ -68,7 +68,7 @@ export const completeEmployerOnboarding = mutation({
     const profileData = {
       userId,
       // Use company info from sign-up (stored in user metadata or retrieve from sessionStorage data)
-      companyName: data._signupData?.companyName || data.company?.companyName || "Company Name",
+      companyName: data._signupData?.companyName || data.company?.companyName || "",
       companySize: data._signupData?.companyType || data.company?.companySize,
       companyIndustries: data._signupData?.companyIndustry || data.company?.industries || [],
       companyDescription: data.company.description,

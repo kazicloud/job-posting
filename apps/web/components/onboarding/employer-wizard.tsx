@@ -810,7 +810,7 @@ function ReviewStep({ formData, country, signupData, userId, onBack, onComplete 
       };
       await completeOnboarding({
         userId,
-        data: { ...formData, verification: verificationData },
+        data: { ...formData, _signupData: signupData, verification: verificationData },
       });
       onComplete();
     } catch (error) {
