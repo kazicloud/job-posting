@@ -815,6 +815,117 @@ export const notifyEmployerEditsRejected = internalAction({
   },
 });
 
+// Send profile completion reminder to an employer — triggered by admin
+export const sendEmployerProfileReminder = action({
+  args: {
+    employerId: v.id("users"),
+    missingFields: v.array(v.string()),
+    completionPercentage: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const employer = await ctx.runQuery(api.users.get, { id: args.employerId });
+    if (!employer) return { success: false, error: "Employer not found" };
+
+    const profile = await ctx.runQuery(api.profile.getEmployerProfile, { userId: args.employerId });
+
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const contactName = employer.fullName || "there";
+    const companyName = profile?.companyName || "your company";
+    const pct = args.completionPercentage;
+    const remaining = args.missingFields.length;
+
+    const missingListHtml = args.missingFields
+      .map(
+        (f) =>
+          `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;">` +
+          `<span style="width:6px;height:6px;border-radius:50%;background:#DC842C;flex-shrink:0;display:inline-block;margin-top:1px;"></span>` +
+          `<span style="font-size:14px;color:#475569;font-weight:500;">${f}</span>` +
+          `</div>`
+      )
+      .join("");
+
+    const filledWidth = Math.max(0, Math.min(100, pct));
+    const emptyWidth = 100 - filledWidth;
+
+    const content = `
+      <div class="content">
+        <p class="greeting">Hello ${contactName},</p>
+        <h2 class="headline">Your profile is <span class="accent">${pct}% complete</span></h2>
+        <p class="body-text">
+          A complete company profile on Kazicloud builds trust with job seekers and significantly increases application rates.
+          You're almost there — just a few more details to go.
+        </p>
+
+        <!-- Progress bar (table-based for email compatibility) -->
+        <div style="margin:24px 0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:600;color:#0f172a;text-transform:uppercase;letter-spacing:0.5px;">Profile Completeness</span>
+            <span style="font-size:13px;font-weight:700;color:#DC842C;">${pct}%</span>
+          </div>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;">
+            <tr>
+              <td style="padding:0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;border-radius:100px;overflow:hidden;background:#f1f5f9;height:8px;">
+                  <tr>
+                    ${filledWidth > 0 ? `<td width="${filledWidth}%" style="background:linear-gradient(90deg,#DC842C,#f59e0b);height:8px;border-radius:100px 0 0 100px;"></td>` : ""}
+                    ${emptyWidth > 0 ? `<td width="${emptyWidth}%" style="background:#f1f5f9;height:8px;"></td>` : ""}
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Missing fields -->
+        <div class="detail-card" style="margin-bottom:28px;">
+          <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#0f172a;">
+            ${remaining} item${remaining !== 1 ? "s" : ""} still needed
+          </p>
+          <p style="margin:0 0 16px;font-size:13px;color:#94a3b8;">Complete these to reach 100% and unlock full platform trust signals</p>
+          ${missingListHtml}
+        </div>
+
+        <div class="btn-wrap">
+          <a href="${dashboardUrl}/employer-dashboard/settings" class="btn">Complete Your Profile &rarr;</a>
+        </div>
+
+        <div class="alert alert-orange" style="margin-top:28px;">
+          <p class="alert-title">Why this matters</p>
+          <p class="alert-text">
+            Employers with complete profiles receive <strong>3× more qualified applications</strong> and are ranked higher in candidate search results.
+            Your verification status and platform credibility both depend on a thorough, accurate profile.
+          </p>
+        </div>
+
+        <p class="footer-note">
+          This is a courtesy reminder from the Kazicloud team.
+          Questions? Reach us at <a href="mailto:info@contact.kazicloud.co.ke" style="color:#DC842C;text-decoration:none;">info@contact.kazicloud.co.ke</a>.
+        </p>
+      </div>
+    `;
+
+    try {
+      const result = await resend.emails.send({
+        from: "Kazicloud <notifications@contact.kazicloud.co.ke>",
+        to: [employer.email],
+        subject: `Action Required: Complete Your ${companyName} Profile on Kazicloud`,
+        html: getEmailTemplate(
+          content,
+          `Your profile is ${pct}% complete — ${remaining} item${remaining !== 1 ? "s" : ""} still needed`
+        ),
+      });
+      console.log("Profile reminder email sent:", result);
+      return { success: true, emailId: result.data?.id };
+    } catch (error) {
+      console.error("Error sending profile reminder email:", error);
+      return { success: false, error: "Failed to send email" };
+    }
+  },
+});
+
 // Notify admin that an employer is requesting verification / following up
 export const notifyAdminVerificationReminder = action({
   args: {

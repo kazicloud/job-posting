@@ -793,6 +793,50 @@ export const verifyEmployer = mutation({
   },
 });
 
+export const getEmployerDocumentUrls = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") throw new Error("Unauthorized");
+
+    let user: any;
+    try {
+      user = await ctx.db.get(args.userId as any);
+    } catch {
+      return null;
+    }
+    if (!user) return null;
+
+    const profile = await ctx.db
+      .query("employerProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .first();
+
+    if (!profile) return { incorporationCertUrl: null, kraCertUrl: null, registrationDocUrl: null };
+
+    const [incorporationCertUrl, kraCertUrl, registrationDocUrl] = await Promise.all([
+      profile.incorporationCertStorageId
+        ? ctx.storage.getUrl(profile.incorporationCertStorageId as any)
+        : null,
+      profile.kraCertStorageId
+        ? ctx.storage.getUrl(profile.kraCertStorageId as any)
+        : null,
+      profile.registrationDocStorageId
+        ? ctx.storage.getUrl(profile.registrationDocStorageId as any)
+        : null,
+    ]);
+
+    return { incorporationCertUrl, kraCertUrl, registrationDocUrl };
+  },
+});
+
 export const getEmployerDetails = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
