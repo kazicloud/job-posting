@@ -150,7 +150,7 @@ export const notifyEmployerNewApplication = internalAction({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
     const applicationUrl = `${webUrl}/employer-dashboard/applications/${args.applicationId}`;
     const jobApplicationsUrl = `${webUrl}/employer-dashboard/applications?jobId=${job._id}`;
 
@@ -224,7 +224,7 @@ export const notifyAdminNewEmployer = internalAction({
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     const adminEmail = process.env.ADMIN_EMAIL || "admin@contact.kazicloud.co.ke";
-    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.kazicloud.com";
     const companyName = profile?.companyName || "N/A";
     const employerName = employer.fullName || "N/A";
 
@@ -298,7 +298,7 @@ export const notifyEmployerVerified = action({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
     const companyName = profile?.companyName || "Your Company";
     const contactName = employer.fullName || "there";
 
@@ -377,7 +377,7 @@ export const notifyEmployerRejected = action({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const supportUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const supportUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
     const companyName = profile?.companyName || "Your Company";
     const contactName = employer.fullName || "there";
 
@@ -518,7 +518,7 @@ export const notifyAdminProfileChangeRequest = action({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.kazicloud.com";
 
     const content = `
       <div class="content">
@@ -581,7 +581,7 @@ export const notifyAdminPendingEdits = action({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.kazicloud.com";
     const adminEmail = process.env.ADMIN_EMAIL || "kazicloudcareers@gmail.com";
     const recipients = ["kazicloudcareers@gmail.com"];
     if (adminEmail !== "kazicloudcareers@gmail.com") recipients.push(adminEmail);
@@ -646,7 +646,7 @@ export const notifyAdminPendingEditsInternal = internalAction({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.kazicloud.com";
     const adminEmail = process.env.ADMIN_EMAIL || "kazicloudcareers@gmail.com";
     const recipients = ["kazicloudcareers@gmail.com"];
     if (adminEmail !== "kazicloudcareers@gmail.com") recipients.push(adminEmail);
@@ -708,7 +708,7 @@ export const notifyEmployerEditsApproved = internalAction({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
 
     const content = `
       <div class="content">
@@ -762,7 +762,7 @@ export const notifyEmployerEditsRejected = internalAction({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
 
     const content = `
       <div class="content">
@@ -831,7 +831,7 @@ export const sendEmployerProfileReminder = action({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
     const contactName = employer.fullName || "there";
     const companyName = profile?.companyName || "your company";
     const pct = args.completionPercentage;
@@ -938,7 +938,7 @@ export const notifyAdminVerificationReminder = action({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.kazicloud.com";
     const adminEmail = process.env.ADMIN_EMAIL || "kazicloudcareers@gmail.com";
     const recipients = ["kazicloudcareers@gmail.com"];
     if (adminEmail !== "kazicloudcareers@gmail.com") recipients.push(adminEmail);
@@ -1134,7 +1134,7 @@ export const notifyJobSeekerApplicationReceived = internalAction({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
     const applicationsUrl = `${webUrl}/dashboard/applications`;
 
     const content = `
@@ -1215,7 +1215,7 @@ export const notifyJobSeekerShortlisted = internalAction({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
     const applicationsUrl = `${webUrl}/dashboard/applications`;
 
     const content = `
@@ -1354,7 +1354,7 @@ export const notifyJobSeekerInterview = internalAction({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
     const applicationsUrl = `${webUrl}/dashboard/applications`;
 
     const locationOrLink = d.format === "virtual" && d.meetingLink
@@ -1471,7 +1471,7 @@ export const notifyJobSeekerRejected = internalAction({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const webUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
     const jobsUrl = `${webUrl}/jobs`;
 
     const content = `
@@ -1790,7 +1790,7 @@ export const notifyEmployerJobAction = internalAction({
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
     const contactName = employer.fullName?.split(" ")[0] || "there";
     const jobTitle = args.jobTitle;
 

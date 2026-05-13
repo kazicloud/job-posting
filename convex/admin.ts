@@ -1500,7 +1500,7 @@ export const sendAdminInviteEmail = internalAction({
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     const adminAppUrl =
-      process.env.NEXT_PUBLIC_ADMIN_URL ?? "http://localhost:3001";
+      process.env.NEXT_PUBLIC_ADMIN_URL ?? "https://admin.kazicloud.com";
     const inviteUrl = `${adminAppUrl}/accept-invite?token=${args.inviteToken}`;
     const year = new Date().getFullYear();
 

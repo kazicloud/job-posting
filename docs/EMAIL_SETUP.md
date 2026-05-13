@@ -16,7 +16,7 @@ Create `/apps/admin/.env.local` with:
 ```env
 RESEND_API_KEY=re_your_api_key_here
 ADMIN_EMAIL=your-admin-email@example.com
-NEXT_PUBLIC_ADMIN_URL=http://localhost:3001
+NEXT_PUBLIC_ADMIN_URL=https://admin.kazicloud.com
 ```
 
 For production, update `NEXT_PUBLIC_ADMIN_URL` to your actual admin dashboard URL.

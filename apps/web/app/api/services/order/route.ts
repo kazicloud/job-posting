@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
     const { serviceType, amount, currency, paymentReference, customerName, customerEmail, orderId } = await request.json();
 
     // Send admin notification via admin app API
-    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.kazicloud.com";
     
     try {
       await fetch(`${adminUrl}/api/emails/service-order`, {
