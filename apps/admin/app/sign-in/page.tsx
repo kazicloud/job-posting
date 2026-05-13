@@ -97,7 +97,7 @@ export default function AdminSignInPage() {
               Sign Out & Sign In as Admin
             </button>
             <a
-              href={process.env.NEXT_PUBLIC_WEB_URL || "https://kazicloud.co.ke"}
+              href={process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com"}
               className="block w-full py-3 border border-neutral-border text-neutral-text font-medium rounded-lg hover:bg-neutral-bg-secondary transition-colors text-center"
             >
               Go to Kazicloud

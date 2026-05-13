@@ -26,7 +26,7 @@ export const emailService = {
     employerId: string;
   }) {
     const adminEmail = process.env.ADMIN_EMAIL || "admin@kazicloud.co.ke";
-    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.kazicloud.com";
 
     try {
       const { data, error } = await resend.emails.send({
@@ -65,7 +65,7 @@ export const emailService = {
     contactName: string;
     email: string;
   }) {
-    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
 
     try {
       const { data, error } = await resend.emails.send({
@@ -102,7 +102,7 @@ export const emailService = {
     email: string;
     reason?: string;
   }) {
-    const supportUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const supportUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
 
     try {
       const { data, error } = await resend.emails.send({
@@ -145,7 +145,7 @@ export const emailService = {
     orderId: string;
   }) {
     const adminEmail = "kazicloudcareers@gmail.com";
-    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.kazicloud.com";
 
     try {
       // Send admin notification
@@ -203,7 +203,7 @@ export const emailService = {
     status: string;
     deliverables?: string;
   }) {
-    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+    const dashboardUrl = process.env.NEXT_PUBLIC_WEB_URL || "https://app.kazicloud.com";
 
     // If completed, send the special completion email
     if (status === "completed") {
