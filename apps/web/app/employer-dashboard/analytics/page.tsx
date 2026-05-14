@@ -307,17 +307,7 @@ export default function EmployerAnalyticsPage() {
               </div>
             ) : (
               <div className="p-6">
-                <div className="h-64 flex items-center justify-center text-neutral-text-secondary">
-                  <div className="text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
-                      <TrendingUp className="w-8 h-8 text-neutral-text-muted" />
-                    </div>
-                    <h4 className="text-base font-semibold text-neutral-text mb-2">No data available yet</h4>
-                    <p className="text-sm text-neutral-text-secondary">
-                      Data will appear once you start receiving applications
-                    </p>
-                  </div>
-                </div>
+                <ApplicationsBarChart data={employerAnalytics?.applicationsOverTime ?? []} />
               </div>
             )}
           </div>
@@ -334,17 +324,7 @@ export default function EmployerAnalyticsPage() {
               </div>
             ) : (
               <div className="p-6">
-                <div className="h-64 flex items-center justify-center text-neutral-text-secondary">
-                  <div className="text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
-                      <Briefcase className="w-8 h-8 text-neutral-text-muted" />
-                    </div>
-                    <h4 className="text-base font-semibold text-neutral-text mb-2">No jobs posted yet</h4>
-                    <p className="text-sm text-neutral-text-secondary">
-                      Post your first job to see performance metrics
-                    </p>
-                  </div>
-                </div>
+                <TopPerformingJobs jobAnalytics={employerAnalytics?.jobAnalytics ?? []} />
               </div>
             )}
           </div>
@@ -364,8 +344,7 @@ export default function EmployerAnalyticsPage() {
               </div>
             ) : (
               <div className="p-6">
-                {/* Show empty state only if all values are 0 */}
-                {0 + 0 + 0 + 0 === 0 ? (
+                {(employerAnalytics?.totalApplications ?? 0) === 0 ? (
                   <div className="text-center py-8">
                     <div className="w-12 h-12 mx-auto mb-3 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
                       <Users className="w-6 h-6 text-neutral-text-muted" />
@@ -375,11 +354,13 @@ export default function EmployerAnalyticsPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <SourceItem label="Direct" value={0} total={employerAnalytics?.totalApplications || 1} color="bg-blue-500" />
-                    <SourceItem label="LinkedIn" value={0} total={employerAnalytics?.totalApplications || 1} color="bg-purple-500" />
-                    <SourceItem label="Job Boards" value={0} total={employerAnalytics?.totalApplications || 1} color="bg-green-500" />
-                    <SourceItem label="Referrals" value={0} total={employerAnalytics?.totalApplications || 1} color="bg-orange-500" />
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
+                      <Users className="w-6 h-6 text-neutral-text-muted" />
+                    </div>
+                    <p className="text-sm text-neutral-text-secondary">
+                      Source tracking coming soon
+                    </p>
                   </div>
                 )}
               </div>
@@ -398,8 +379,7 @@ export default function EmployerAnalyticsPage() {
               </div>
             ) : (
               <div className="p-6">
-                {/* Show empty state only if all location counts are 0 */}
-                {0 + 0 + 0 + 0 === 0 ? (
+                {!employerAnalytics?.topLocations || employerAnalytics.topLocations.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="w-12 h-12 mx-auto mb-3 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
                       <MapPin className="w-6 h-6 text-neutral-text-muted" />
@@ -409,11 +389,10 @@ export default function EmployerAnalyticsPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <LocationItem location="Nairobi" count={0} />
-                    <LocationItem location="Mombasa" count={0} />
-                    <LocationItem location="Kisumu" count={0} />
-                    <LocationItem location="Nakuru" count={0} />
+                  <div className="space-y-2">
+                    {employerAnalytics.topLocations.map((loc) => (
+                      <LocationItem key={loc.location} location={loc.location} count={loc.count} />
+                    ))}
                   </div>
                 )}
               </div>
@@ -423,8 +402,8 @@ export default function EmployerAnalyticsPage() {
           {/* Candidate Quality */}
           <div className="bg-white border border-neutral-border rounded-lg overflow-hidden">
             <div className="px-6 py-5 border-b border-neutral-border">
-              <h3 className="text-lg font-semibold text-neutral-text">Candidate Quality</h3>
-              <p className="text-sm text-neutral-text-secondary mt-0.5">Qualification distribution</p>
+              <h3 className="text-lg font-semibold text-neutral-text">Candidate Pipeline</h3>
+              <p className="text-sm text-neutral-text-secondary mt-0.5">Application status breakdown</p>
             </div>
             {isLoading ? (
               <div className="p-6">
@@ -432,23 +411,44 @@ export default function EmployerAnalyticsPage() {
               </div>
             ) : (
               <div className="p-6">
-                {/* Show empty state only if all percentages are 0 */}
-                {0 + 0 + 0 === 0 ? (
+                {(employerAnalytics?.totalApplications ?? 0) === 0 ? (
                   <div className="text-center py-8">
                     <div className="w-12 h-12 mx-auto mb-3 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
                       <Award className="w-6 h-6 text-neutral-text-muted" />
                     </div>
                     <p className="text-sm text-neutral-text-secondary">
-                      No quality data yet
+                      No pipeline data yet
                     </p>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <QualityMetric label="Highly Qualified" percentage={0} color="bg-green-500" />
-                    <QualityMetric label="Qualified" percentage={0} color="bg-blue-500" />
-                    <QualityMetric label="Under Qualified" percentage={0} color="bg-yellow-500" />
-                  </div>
-                )}
+                ) : (() => {
+                  const total = employerAnalytics!.totalApplications;
+                  const sb = employerAnalytics!.statusBreakdown!;
+                  const pending = (sb.submitted ?? 0) + (sb.under_review ?? 0);
+                  const progressed = (sb.shortlisted ?? 0) + (sb.interview ?? 0) + (sb.accepted ?? 0);
+                  const rejected = sb.rejected ?? 0;
+                  return (
+                    <div className="space-y-4">
+                      <QualityMetric
+                        label="Progressed"
+                        percentage={Math.round((progressed / total) * 100)}
+                        color="bg-green-500"
+                        count={progressed}
+                      />
+                      <QualityMetric
+                        label="Under Review"
+                        percentage={Math.round((pending / total) * 100)}
+                        color="bg-blue-500"
+                        count={pending}
+                      />
+                      <QualityMetric
+                        label="Not Progressed"
+                        percentage={Math.round((rejected / total) * 100)}
+                        color="bg-red-400"
+                        count={rejected}
+                      />
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -583,23 +583,140 @@ function QualityMetric({
   label,
   percentage,
   color,
+  count,
 }: {
   label: string;
   percentage: number;
   color: string;
+  count?: number;
 }) {
   return (
     <div>
       <div className="flex items-center justify-between text-sm mb-2">
         <span className="text-neutral-text font-medium">{label}</span>
-        <span className="text-neutral-text-secondary font-semibold">{percentage}%</span>
+        <span className="text-neutral-text-secondary font-semibold">
+          {count !== undefined ? `${count} (${percentage}%)` : `${percentage}%`}
+        </span>
       </div>
       <div className="h-2.5 bg-neutral-bg-secondary rounded-full overflow-hidden">
-        <div 
-          className={`h-full ${color} transition-all duration-500`} 
-          style={{ width: `${percentage}%` }} 
+        <div
+          className={`h-full ${color} transition-all duration-500`}
+          style={{ width: `${percentage}%` }}
         />
       </div>
+    </div>
+  );
+}
+
+function ApplicationsBarChart({ data }: { data: Array<{ label: string; count: number }> }) {
+  const hasData = data.some((d) => d.count > 0);
+  const maxCount = Math.max(...data.map((d) => d.count), 1);
+
+  if (!hasData) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
+            <TrendingUp className="w-8 h-8 text-neutral-text-muted" />
+          </div>
+          <h4 className="text-base font-semibold text-neutral-text mb-2">No data available yet</h4>
+          <p className="text-sm text-neutral-text-secondary">
+            Data will appear once you start receiving applications
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-64 flex flex-col">
+      <div className="flex-1 flex items-end gap-1.5 pb-2 min-h-0">
+        {data.map((item, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 h-full min-w-0">
+            {item.count > 0 && (
+              <span className="text-xs font-semibold text-neutral-text-secondary">{item.count}</span>
+            )}
+            <div
+              className="w-full bg-brand-orange rounded-t-sm transition-all duration-500"
+              style={{
+                height: item.count > 0 ? `${Math.max((item.count / maxCount) * 85, 4)}%` : "2px",
+                opacity: item.count > 0 ? 1 : 0.12,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-1.5 border-t border-neutral-border pt-2">
+        {data.map((item, i) => (
+          <div key={i} className="flex-1 text-center min-w-0">
+            <span className="text-xs text-neutral-text-muted leading-tight block truncate">{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TopPerformingJobs({
+  jobAnalytics,
+}: {
+  jobAnalytics: Array<{
+    jobId: string;
+    jobTitle: string;
+    applicationCount: number;
+    viewCount: number;
+    conversionRate: number;
+  }>;
+}) {
+  const sorted = [...jobAnalytics]
+    .sort((a, b) => b.applicationCount - a.applicationCount)
+    .slice(0, 5);
+  const maxApps = Math.max(...sorted.map((j) => j.applicationCount), 1);
+  const hasData = sorted.some((j) => j.applicationCount > 0);
+
+  if (sorted.length === 0 || !hasData) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-neutral-bg-secondary rounded-full flex items-center justify-center">
+            <Briefcase className="w-8 h-8 text-neutral-text-muted" />
+          </div>
+          <h4 className="text-base font-semibold text-neutral-text mb-2">
+            {sorted.length === 0 ? "No jobs posted yet" : "No applications yet"}
+          </h4>
+          <p className="text-sm text-neutral-text-secondary">
+            {sorted.length === 0
+              ? "Post your first job to see performance metrics"
+              : "Applications will appear here once candidates apply"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {sorted.map((job) => (
+        <div key={job.jobId}>
+          <div className="flex items-center justify-between text-sm mb-1.5">
+            <span className="font-medium text-neutral-text truncate max-w-[65%]">{job.jobTitle}</span>
+            <span className="text-neutral-text-secondary font-semibold text-xs shrink-0 ml-2">
+              {job.applicationCount} app{job.applicationCount !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="h-2 bg-neutral-bg-secondary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-brand-orange rounded-full transition-all duration-500"
+              style={{ width: `${(job.applicationCount / maxApps) * 100}%` }}
+            />
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-neutral-text-muted">{job.viewCount} views</span>
+            <span className="text-xs text-neutral-text-muted">·</span>
+            <span className="text-xs text-neutral-text-muted">{job.conversionRate}% conversion</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

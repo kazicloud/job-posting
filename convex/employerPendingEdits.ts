@@ -204,6 +204,12 @@ export const approvePendingEdits = mutation({
       .first();
     if (!epProfile) throw new Error("Employer profile not found");
 
+    // Count only fields that actually differ from the live profile
+    const actualFieldCount = Object.entries(record.changes as Record<string, unknown>).filter(
+      ([key, newVal]) =>
+        JSON.stringify((epProfile as Record<string, unknown>)[key]) !== JSON.stringify(newVal)
+    ).length;
+
     // Apply the proposed changes to the live employer profile
     await ctx.db.patch(epProfile._id, record.changes as any);
 
@@ -222,7 +228,7 @@ export const approvePendingEdits = mutation({
         employerEmail: employer.email,
         employerName: employer.fullName || employer.email,
         companyName: epProfile.companyName || "Your Company",
-        fieldCount: Object.keys(record.changes as object).length,
+        fieldCount: Math.max(actualFieldCount, 1),
         adminNote: args.adminNote,
       });
     }
@@ -267,12 +273,19 @@ export const rejectPendingEdits = mutation({
       .query("employerProfiles")
       .withIndex("by_user", (q) => q.eq("userId", record.userId))
       .first();
+
+    // Count only fields that actually differ from the live profile
+    const actualFieldCount = Object.entries(record.changes as Record<string, unknown>).filter(
+      ([key, newVal]) =>
+        JSON.stringify((epProfile as Record<string, unknown> | null)?.[key]) !== JSON.stringify(newVal)
+    ).length;
+
     if (employer?.email) {
       await ctx.scheduler.runAfter(0, internal.emails.notifyEmployerEditsRejected, {
         employerEmail: employer.email,
         employerName: employer.fullName || employer.email,
         companyName: epProfile?.companyName || "Your Company",
-        fieldCount: Object.keys(record.changes as object).length,
+        fieldCount: Math.max(actualFieldCount, 1),
         adminNote: args.adminNote,
       });
     }

@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useState } from "react";
-import { CheckCircle, XCircle, Search, Filter, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, XCircle, Search, Filter, Eye, ChevronLeft, ChevronRight, Clock, AlertCircle } from "lucide-react";
 import { useDebounce } from "../../../hooks/useDebounce";
 import Link from "next/link";
 
@@ -37,6 +37,12 @@ export default function EmployersPage() {
     page: currentPage,
     pageSize,
   });
+  const allPendingEdits = useQuery(api.employerPendingEdits.getAllPendingEdits);
+
+  // Build a Set of userIds that have pending profile edit requests
+  const pendingEditUserIds = new Set(
+    (allPendingEdits ?? []).map((e: any) => e.userId as string)
+  );
   const verifyEmployer = useMutation(api.admin.verifyEmployer);
   const notifyVerified = useAction(api.emails.notifyEmployerVerified);
   const notifyRejected = useAction(api.emails.notifyEmployerRejected);
@@ -59,10 +65,25 @@ export default function EmployersPage() {
     }
   };
 
-  const filteredEmployers = data?.employers?.filter((employer: any) => {
+  const filteredEmployers = (data?.employers?.filter((employer: any) => {
     const matchesIndustry = industryFilter === "all" || employer.profile?.industry === industryFilter;
     return matchesIndustry;
-  }) || [];
+  }) || []).sort((a: any, b: any) => {
+    // Priority: needs most action first
+    // 0 = pending verification + pending edits (most urgent)
+    // 1 = pending verification only
+    // 2 = verified + pending edits
+    // 3 = verified, nothing pending
+    const priority = (emp: any) => {
+      const hasPendingEdit = pendingEditUserIds.has(emp._id);
+      const needsVerification = !emp.verified;
+      if (needsVerification && hasPendingEdit) return 0;
+      if (needsVerification) return 1;
+      if (hasPendingEdit) return 2;
+      return 3;
+    };
+    return priority(a) - priority(b);
+  });
 
   const SkeletonRow = () => (
     <tr className="animate-pulse">
@@ -152,22 +173,30 @@ export default function EmployersPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white rounded-lg border border-neutral-border p-6">
-          <p className="text-sm text-neutral-text-secondary mb-1">Total Employers</p>
-          <p className="text-3xl font-bold text-neutral-text">{data?.stats?.total || 0}</p>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+        <div className="bg-white rounded-lg border border-neutral-border p-5">
+          <p className="text-xs text-neutral-text-secondary mb-1 font-medium uppercase tracking-wide">Total</p>
+          <p className="text-3xl font-bold text-neutral-text">{data?.stats?.total ?? 0}</p>
         </div>
-        <div className="bg-white rounded-lg border border-neutral-border p-6">
-          <p className="text-sm text-neutral-text-secondary mb-1">Verified</p>
-          <p className="text-3xl font-bold text-green-600">
-            {data?.stats?.verified || 0}
-          </p>
+        <div className="bg-white rounded-lg border border-neutral-border p-5">
+          <p className="text-xs text-neutral-text-secondary mb-1 font-medium uppercase tracking-wide">Verified</p>
+          <p className="text-3xl font-bold text-green-600">{data?.stats?.verified ?? 0}</p>
         </div>
-        <div className="bg-white rounded-lg border border-neutral-border p-6">
-          <p className="text-sm text-neutral-text-secondary mb-1">Pending Verification</p>
-          <p className="text-3xl font-bold text-orange-600">
-            {data?.stats?.pending || 0}
-          </p>
+        <div className="bg-white rounded-lg border border-orange-200 bg-orange-50 p-5">
+          <p className="text-xs text-orange-700 mb-1 font-medium uppercase tracking-wide">Pending Verification</p>
+          <p className="text-3xl font-bold text-orange-600">{data?.stats?.pending ?? 0}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-yellow-200 bg-yellow-50 p-5">
+          <p className="text-xs text-yellow-700 mb-1 font-medium uppercase tracking-wide">Pending Edits</p>
+          <p className="text-3xl font-bold text-yellow-600">{data?.stats?.pendingEdits ?? 0}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-red-200 bg-red-50 p-5">
+          <p className="text-xs text-red-700 mb-1 font-medium uppercase tracking-wide">Rejected</p>
+          <p className="text-3xl font-bold text-red-600">{data?.stats?.rejected ?? 0}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-neutral-border p-5">
+          <p className="text-xs text-neutral-text-secondary mb-1 font-medium uppercase tracking-wide">Suspended</p>
+          <p className="text-3xl font-bold text-gray-500">{data?.stats?.suspended ?? 0}</p>
         </div>
       </div>
 
@@ -201,9 +230,21 @@ export default function EmployersPage() {
                   </td>
                 </tr>
               ) : (
-                filteredEmployers.map((employer: any) => (
-                  <tr key={employer._id} className="hover:bg-neutral-bg-secondary transition-colors">
-                    <td className="px-6 py-4">
+                filteredEmployers.map((employer: any) => {
+                  const hasPendingEdit = pendingEditUserIds.has(employer._id);
+                  const needsVerification = !employer.verified;
+                  const needsAction = hasPendingEdit || needsVerification;
+
+                  return (
+                  <tr
+                    key={employer._id}
+                    className={`transition-colors ${
+                      needsAction
+                        ? "bg-orange-50/60 hover:bg-orange-50"
+                        : "hover:bg-neutral-bg-secondary"
+                    }`}
+                  >
+                    <td className={`px-6 py-4 ${needsAction ? "border-l-4 border-brand-orange" : "border-l-4 border-transparent"}`}>
                       <div className="flex items-center gap-3">
                         {employer.profilePhoto ? (
                           <img
@@ -238,17 +279,25 @@ export default function EmployersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {employer.verified ? (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700">
-                          <CheckCircle className="w-3 h-3" />
-                          Verified
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700">
-                          <XCircle className="w-3 h-3" />
-                          Pending
-                        </span>
-                      )}
+                      <div className="flex flex-col gap-1.5">
+                        {employer.verified ? (
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 w-fit">
+                            <CheckCircle className="w-3 h-3" />
+                            Verified
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700 w-fit">
+                            <AlertCircle className="w-3 h-3" />
+                            Pending Verification
+                          </span>
+                        )}
+                        {hasPendingEdit && (
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 w-fit">
+                            <Clock className="w-3 h-3" />
+                            Pending Edits
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -270,7 +319,8 @@ export default function EmployersPage() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
