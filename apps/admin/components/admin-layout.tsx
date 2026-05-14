@@ -133,25 +133,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           />
           <div>
             <h1 className="text-[15px] font-bold text-neutral-text leading-none">Kazicloud</h1>
-            <p className="text-[10px] text-neutral-text-muted mt-0.5">Admin Panel</p>
+
+                {/* Role badge */}
+                {adminProfile?.role && (
+                  <div className="py-1 border-neutral-border shrink-0">
+                    <div className="flex items-center gap-0.5">
+                      {isSuperAdmin ? (
+                        <ShieldCheck className="w-3 h-3 text-brand-orange shrink-0" />
+                      ) : (
+                        <UserCog className="w-3 h-3 text-neutral-text-muted shrink-0" />
+                      )}
+                      <span className="text-[11px] font-semibold text-neutral-text truncate">
+                        {adminProfile.role.name}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
           </div>
         </div>
-
-        {/* Role badge */}
-        {adminProfile?.role && (
-          <div className="px-5 py-2.5 border-b border-neutral-border bg-neutral-bg-secondary shrink-0">
-            <div className="flex items-center gap-2">
-              {isSuperAdmin ? (
-                <ShieldCheck className="w-3 h-3 text-brand-orange shrink-0" />
-              ) : (
-                <UserCog className="w-3 h-3 text-neutral-text-muted shrink-0" />
-              )}
-              <span className="text-[11px] font-semibold text-neutral-text truncate">
-                {adminProfile.role.name}
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4">
