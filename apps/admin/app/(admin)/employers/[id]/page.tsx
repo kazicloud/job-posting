@@ -29,6 +29,9 @@ export default function EmployerDetailPage() {
   const documentUrls = useQuery(api.admin.getEmployerDocumentUrls, { userId: employerId as string });
   const changeRequests = useQuery(api.profileChangeRequests.getChangeRequestsForUser, { userId: employerId });
   const resolveChangeRequest = useMutation(api.profileChangeRequests.resolveChangeRequest);
+  const pendingEdits = useQuery(api.employerPendingEdits.getPendingEditsForUser, { userId: employerId });
+  const approvePendingEdits = useMutation(api.employerPendingEdits.approvePendingEdits);
+  const rejectPendingEdits = useMutation(api.employerPendingEdits.rejectPendingEdits);
 
   const sendProfileReminder = useAction(api.emails.sendEmployerProfileReminder);
 
@@ -36,6 +39,7 @@ export default function EmployerDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+  const [processingPendingEdit, setProcessingPendingEdit] = useState(false);
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
 
@@ -828,6 +832,83 @@ export default function EmployerDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Pending Profile Edits (submitted from Settings page) */}
+          {pendingEdits && (
+            <div className="bg-white rounded-lg border-2 border-yellow-300 p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="w-5 h-5 text-yellow-600" />
+                <h3 className="text-lg font-semibold text-neutral-text">Pending Profile Changes</h3>
+                <span className="ml-auto px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-xs font-semibold">
+                  Awaiting Review
+                </span>
+              </div>
+              <p className="text-xs text-neutral-text-secondary mb-4">
+                Submitted {new Date(pendingEdits.submittedAt ?? pendingEdits._creationTime).toLocaleString()}
+              </p>
+              <div className="space-y-3 mb-5">
+                {Object.entries((pendingEdits.changes as Record<string, unknown>) ?? {}).map(([field, newValue]) => {
+                  const currentValue = (profile as any)?.[field];
+                  const label = field
+                    .replace(/([A-Z])/g, " $1")
+                    .replace(/^./, (s) => s.toUpperCase())
+                    .trim();
+                  const fmt = (v: unknown) => {
+                    if (v === null || v === undefined || v === "") return <span className="italic text-neutral-text-muted">—</span>;
+                    if (Array.isArray(v)) return v.join(", ");
+                    return String(v);
+                  };
+                  return (
+                    <div key={field} className="rounded-md border border-neutral-border bg-neutral-50 p-3">
+                      <p className="text-xs font-semibold text-neutral-text-secondary uppercase tracking-wide mb-1.5">{label}</p>
+                      <div className="flex items-start gap-3 text-sm">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-neutral-text-muted mb-0.5">Current</p>
+                          <p className="text-neutral-text break-words">{fmt(currentValue)}</p>
+                        </div>
+                        <div className="text-neutral-text-muted mt-4">→</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-brand-orange mb-0.5">New</p>
+                          <p className="font-medium text-neutral-text break-words">{fmt(newValue)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    setProcessingPendingEdit(true);
+                    try {
+                      await approvePendingEdits({ editId: pendingEdits._id });
+                    } catch (e) { console.error(e); alert("Failed to approve changes"); }
+                    setProcessingPendingEdit(false);
+                  }}
+                  disabled={processingPendingEdit}
+                  className="flex-1 px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Approve &amp; Apply
+                </button>
+                <button
+                  onClick={async () => {
+                    const note = prompt("Reason for rejection (optional):");
+                    setProcessingPendingEdit(true);
+                    try {
+                      await rejectPendingEdits({ editId: pendingEdits._id, adminNote: note || undefined });
+                    } catch (e) { console.error(e); alert("Failed to reject changes"); }
+                    setProcessingPendingEdit(false);
+                  }}
+                  disabled={processingPendingEdit}
+                  className="flex-1 px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Reject
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Profile Change Requests */}
           {changeRequests && changeRequests.length > 0 && (

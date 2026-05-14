@@ -420,9 +420,15 @@ function CompanyProfileTab({ profile }: { profile: any }) {
     );
 
   const handleSaveLogo = async () => {
+    // Only submit if the logo actually changed from the live profile
+    const newLogo = logoPreview || undefined;
+    if (newLogo === (ep?.companyLogo || undefined)) {
+      flashSaved(setLogoSaved);
+      return;
+    }
     setLogoSaving(true);
     try {
-      await submitPendingEdits({ changes: { companyLogo: logoPreview || undefined } });
+      await submitPendingEdits({ changes: { companyLogo: newLogo } });
       flashSaved(setLogoSaved);
     } catch {
       alert("Failed to save logo. Please try again.");
@@ -450,18 +456,49 @@ function CompanyProfileTab({ profile }: { profile: any }) {
     }
     setCompSaving(true);
     try {
-      await submitPendingEdits({ changes: {
-        companyName: companyName || undefined,
-        companySize: companySize || undefined,
-        companyIndustries: selectedIndustries.length ? selectedIndustries : undefined,
-        website: website || undefined,
-        foundedYear: foundedYear ? parseInt(foundedYear) : undefined,
-        linkedInProfile: linkedIn || undefined,
-        companyDescription: description || undefined,
-        headquarters: headquarters || undefined,
-        isKenyaBased: selectedCountry?.isKenya ?? ep?.isKenyaBased,
-        country: selectedCountry?.name || ep?.country || undefined,
-      } });
+      // Build a diff: only include fields that actually changed from the live profile
+      const changes: Record<string, unknown> = {};
+
+      if ((companyName || "") !== (ep?.companyName || ""))
+        changes.companyName = companyName || undefined;
+
+      if ((companySize || "") !== (ep?.companySize || ""))
+        changes.companySize = companySize || undefined;
+
+      const sortedNew = [...selectedIndustries].sort().join(",");
+      const sortedOld = [...(ep?.companyIndustries ?? [])].sort().join(",");
+      if (sortedNew !== sortedOld)
+        changes.companyIndustries = selectedIndustries.length ? selectedIndustries : undefined;
+
+      if ((website || "") !== (ep?.website || ""))
+        changes.website = website || undefined;
+
+      const newYear = foundedYear ? parseInt(foundedYear) : undefined;
+      if (newYear !== ep?.foundedYear)
+        changes.foundedYear = newYear;
+
+      if ((linkedIn || "") !== (ep?.linkedInProfile || ""))
+        changes.linkedInProfile = linkedIn || undefined;
+
+      if ((description || "") !== (ep?.companyDescription || ""))
+        changes.companyDescription = description || undefined;
+
+      if ((headquarters || "") !== (ep?.headquarters || ""))
+        changes.headquarters = headquarters || undefined;
+
+      const newCountryName = selectedCountry?.name;
+      if (newCountryName && newCountryName !== (ep?.country || "")) {
+        changes.country = newCountryName;
+        changes.isKenyaBased = selectedCountry?.isKenya;
+      }
+
+      if (Object.keys(changes).length === 0) {
+        // Nothing actually changed — flash saved without creating a pending request
+        flashSaved(setCompSaved);
+        return;
+      }
+
+      await submitPendingEdits({ changes });
       flashSaved(setCompSaved);
     } catch {
       alert("Failed to save company information. Please try again.");
@@ -477,11 +514,24 @@ function CompanyProfileTab({ profile }: { profile: any }) {
     }
     setContactSaving(true);
     try {
-      await submitPendingEdits({ changes: {
-        contactPersonName: contactName || undefined,
-        contactPersonTitle: contactTitle || undefined,
-        contactPersonPhone: contactPhone || undefined,
-      } });
+      // Build a diff: only include fields that actually changed from the live profile
+      const changes: Record<string, unknown> = {};
+
+      if ((contactName || "") !== (ep?.contactPersonName || ""))
+        changes.contactPersonName = contactName || undefined;
+
+      if ((contactTitle || "") !== (ep?.contactPersonTitle || ""))
+        changes.contactPersonTitle = contactTitle || undefined;
+
+      if ((contactPhone || "") !== (ep?.contactPersonPhone || ""))
+        changes.contactPersonPhone = contactPhone || undefined;
+
+      if (Object.keys(changes).length === 0) {
+        flashSaved(setContactSaved);
+        return;
+      }
+
+      await submitPendingEdits({ changes });
       flashSaved(setContactSaved);
     } catch {
       alert("Failed to save contact information. Please try again.");

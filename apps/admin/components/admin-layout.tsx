@@ -51,7 +51,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Platform",
     items: [
-      { name: "Employers",     href: "/employers",     icon: Building2,  permission: "employers:view" },
+      { name: "Employers",     href: "/employers",     icon: Building2,  permission: "employers:view", badge: true },
       { name: "Job Seekers",   href: "/job-seekers",   icon: Users,      permission: "job_seekers:view" },
       { name: "Jobs",          href: "/jobs",          icon: Briefcase,  permission: "jobs:view" },
       { name: "Applications",  href: "/applications",  icon: FileText,   permission: "applications:view" },
@@ -90,6 +90,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user } = useUser();
   const unreadMessages = useQuery(api.contactMessages.unreadCount, {});
   const unreadChats = useQuery(api.conversations.totalUnreadCount);
+  const pendingEmployerActions = useQuery(api.admin.getPendingEmployerActionCount);
 
   const adminProfile = useQuery(api.adminRoles.getCurrentAdminRole);
   const permissions: string[] = adminProfile?.permissions ?? [];
@@ -107,7 +108,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const getBadgeCount = (itemName: string) => {
     if (itemName === "Messages") return unreadMessages ?? 0;
     if (itemName === "Chats") return unreadChats ?? 0;
-    return unreadTotal;
+    if (itemName === "Employers") return pendingEmployerActions ?? 0;
+    return 0;
   };
 
   // Current page label for topbar

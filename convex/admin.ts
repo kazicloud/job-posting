@@ -353,6 +353,36 @@ export const getDashboardStats = query({
   },
 });
 
+// Lightweight badge count for the sidebar: pending verifications + pending profile edits
+export const getPendingEmployerActionCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return 0;
+
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+    if (!admin?.roles?.includes("admin") && admin?.primaryRole !== "admin") return 0;
+
+    const [pendingVerifications, pendingEdits] = await Promise.all([
+      ctx.db
+        .query("employerProfiles")
+        .withIndex("by_verification_status", (q) => q.eq("verificationStatus", "under_review"))
+        .collect()
+        .then((r) => r.length),
+      ctx.db
+        .query("employerPendingEdits")
+        .withIndex("by_status", (q) => q.eq("status", "pending"))
+        .collect()
+        .then((r) => r.length),
+    ]);
+
+    return pendingVerifications + pendingEdits;
+  },
+});
+
 export const getAllEmployers = query({
   args: { 
     status: v.optional(v.string()),
@@ -407,8 +437,9 @@ export const getAllEmployers = query({
           (emp) => emp.profile?.verificationStatus === "verified"
         );
       } else if (args.status === "pending") {
+        const AWAITING = new Set(["pending", "documents_submitted", "under_review"]);
         filteredEmployers = filteredEmployers.filter(
-          (emp) => emp.profile?.verificationStatus !== "verified"
+          (emp) => !!emp.profile?.verificationStatus && AWAITING.has(emp.profile.verificationStatus)
         );
       }
     }
@@ -431,12 +462,28 @@ export const getAllEmployers = query({
     const paginatedEmployers = filteredEmployers.slice(start, end);
 
     // Calculate stats based on verificationStatus (source of truth)
+    // Only the statuses that represent active verification queue items
+    const AWAITING_STATUSES = new Set(["pending", "documents_submitted", "under_review"]);
+
     const verifiedCount = employersWithProfiles.filter(
       (e) => e.profile?.verificationStatus === "verified"
     ).length;
     const pendingCount = employersWithProfiles.filter(
-      (e) => e.profile?.verificationStatus !== "verified"
+      (e) => !!e.profile?.verificationStatus && AWAITING_STATUSES.has(e.profile.verificationStatus)
     ).length;
+    const rejectedCount = employersWithProfiles.filter(
+      (e) => e.profile?.verificationStatus === "rejected"
+    ).length;
+    const suspendedCount = employersWithProfiles.filter(
+      (e) => e.profile?.verificationStatus === "suspended"
+    ).length;
+
+    // Pending profile edits (employers with unapproved field changes)
+    const allPendingEdits = await ctx.db
+      .query("employerPendingEdits")
+      .withIndex("by_status", (q) => q.eq("status", "pending"))
+      .collect();
+    const pendingEditsCount = allPendingEdits.length;
 
     return {
       employers: paginatedEmployers,
@@ -450,6 +497,9 @@ export const getAllEmployers = query({
         total,
         verified: verifiedCount,
         pending: pendingCount,
+        rejected: rejectedCount,
+        suspended: suspendedCount,
+        pendingEdits: pendingEditsCount,
       },
     };
   },
