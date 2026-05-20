@@ -633,7 +633,7 @@ export const getAllJobs = query({
       allJobs = allJobs.filter((job) => job.status === args.status);
     }
 
-    // Get applications count for each job
+    // Get applications count for each job, using live employer profile company name
     const jobsWithCounts = await Promise.all(
       allJobs.map(async (job) => {
         const applicationsCount = await ctx.db
@@ -641,8 +641,15 @@ export const getAllJobs = query({
           .withIndex("by_job", (q) => q.eq("jobId", job._id))
           .collect()
           .then((apps) => apps.length);
-        
-        return { ...job, applicationsCount };
+        const employerProfile = await ctx.db
+          .query("employerProfiles")
+          .withIndex("by_user", (q) => q.eq("userId", job.employerId))
+          .first();
+        return {
+          ...job,
+          companyName: employerProfile?.companyName || job.companyName,
+          applicationsCount,
+        };
       })
     );
 
@@ -753,12 +760,23 @@ export const getAllApplications = query({
       allApplications = allApplications.filter((app) => app.status === args.status);
     }
 
-    // Get job and job seeker details for each application
+    // Get job and job seeker details for each application, using live employer profile company name
     const applicationsWithDetails = await Promise.all(
       allApplications.map(async (app) => {
         const job = await ctx.db.get(app.jobId);
         const jobSeeker = await ctx.db.get(app.jobSeekerId);
-        return { ...app, job, jobSeeker };
+        let jobWithName = job;
+        if (job) {
+          const employerProfile = await ctx.db
+            .query("employerProfiles")
+            .withIndex("by_user", (q) => q.eq("userId", job.employerId))
+            .first();
+          jobWithName = {
+            ...job,
+            companyName: employerProfile?.companyName || job.companyName,
+          };
+        }
+        return { ...app, job: jobWithName, jobSeeker };
       })
     );
 
@@ -1027,6 +1045,15 @@ export const getApplicationDetails = query({
 
     const employer = job ? await ctx.db.get(job.employerId) : null;
 
+    const employerProfile = job ? await ctx.db
+      .query("employerProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", job.employerId))
+      .first() : null;
+
+    const jobWithName = job && employerProfile?.companyName
+      ? { ...job, companyName: employerProfile.companyName }
+      : job;
+
     const notes = await ctx.db
       .query("applicationNotes")
       .withIndex("by_application", (q) => q.eq("applicationId", args.applicationId))
@@ -1034,7 +1061,7 @@ export const getApplicationDetails = query({
 
     return {
       application,
-      job,
+      job: jobWithName,
       jobSeeker,
       jobSeekerProfile,
       employer,

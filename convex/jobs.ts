@@ -159,6 +159,8 @@ export const getLatestPublished = query({
         
         return {
           ...job,
+          // Always use the live employer profile company name as source of truth
+          companyName: employerProfile?.companyName || job.companyName,
           employerProfile: employerProfile ? {
             companyLogo: employerProfile.companyLogo,
           } : null,
@@ -174,7 +176,16 @@ export const getLatestPublished = query({
 export const get = query({
   args: { id: v.id("jobs") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const job = await ctx.db.get(args.id);
+    if (!job) return null;
+    const employerProfile = await ctx.db
+      .query("employerProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", job.employerId))
+      .first();
+    return {
+      ...job,
+      companyName: employerProfile?.companyName || job.companyName,
+    };
   },
 });
 
@@ -222,6 +233,8 @@ export const getPublicBySlug = query({
 
     return {
       ...job,
+      // Always use the live employer profile company name as source of truth
+      companyName: employerProfile?.companyName || job.companyName,
       employerProfile: employerProfile ? {
         companyLogo: employerProfile.companyLogo,
       } : null,
@@ -260,6 +273,8 @@ export const listPublished = query({
         
         return {
           ...job,
+          // Always use the live employer profile company name as source of truth
+          companyName: employerProfile?.companyName || job.companyName,
           employerProfile: employerProfile ? {
             companyLogo: employerProfile.companyLogo,
           } : null,
@@ -392,27 +407,35 @@ export const getSimilarJobs = query({
     const minReturn = Math.min(2, candidates.length);
     const takeCount = Math.max(limit, minReturn);
 
-    return scored.slice(0, takeCount).map((j) => ({
-      _id: j._id,
-      _creationTime: j._creationTime,
-      slug: j.slug,
-      title: j.title,
-      companyName: j.companyName,
-      employerId: j.employerId,
-      location: j.location,
-      employmentType: j.employmentType,
-      workplaceType: j.workplaceType,
-      experienceLevel: j.experienceLevel,
-      department: j.department,
-      salaryDisclosure: j.salaryDisclosure,
-      salaryMin: j.salaryMin,
-      salaryMax: j.salaryMax,
-      currency: j.currency,
-      requiredSkills: j.requiredSkills,
-      applicationDeadline: j.applicationDeadline,
-      createdAt: j.createdAt,
-      similarityScore: j.similarityScore,
-    }));
+    return await Promise.all(
+      scored.slice(0, takeCount).map(async (j) => {
+        const employerProfile = await ctx.db
+          .query("employerProfiles")
+          .withIndex("by_user", (q) => q.eq("userId", j.employerId))
+          .first();
+        return {
+          _id: j._id,
+          _creationTime: j._creationTime,
+          slug: j.slug,
+          title: j.title,
+          companyName: employerProfile?.companyName || j.companyName,
+          employerId: j.employerId,
+          location: j.location,
+          employmentType: j.employmentType,
+          workplaceType: j.workplaceType,
+          experienceLevel: j.experienceLevel,
+          department: j.department,
+          salaryDisclosure: j.salaryDisclosure,
+          salaryMin: j.salaryMin,
+          salaryMax: j.salaryMax,
+          currency: j.currency,
+          requiredSkills: j.requiredSkills,
+          applicationDeadline: j.applicationDeadline,
+          createdAt: j.createdAt,
+          similarityScore: j.similarityScore,
+        };
+      })
+    );
   },
 });
 

@@ -99,13 +99,18 @@ export default function NewJobPage() {
 
   const handleSaveDraft = async () => {
     if (!profile) return;
+    const resolvedCompanyName = profile.employerProfile?.companyName;
+    if (!resolvedCompanyName) {
+      alert("Your company profile is incomplete. Please set your company name in Settings before posting a job.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const { location, county } = buildLocationArgs(formData);
       await createJob({
         employerId: profile._id,
         title: formData.title,
-        companyName: profile.employerProfile?.companyName || "Company",
+        companyName: resolvedCompanyName,
         department: formData.department === "other" ? formData.customDepartment : formData.department,
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,
@@ -154,13 +159,18 @@ export default function NewJobPage() {
 
   const handlePublish = async () => {
     if (!profile) return;
+    const resolvedCompanyName = profile.employerProfile?.companyName;
+    if (!resolvedCompanyName) {
+      alert("Your company profile is incomplete. Please set your company name in Settings before posting a job.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const { location, county } = buildLocationArgs(formData);
       await createJob({
         employerId: profile._id,
         title: formData.title,
-        companyName: profile.employerProfile?.companyName || "Company",
+        companyName: resolvedCompanyName,
         department: formData.department === "other" ? formData.customDepartment : formData.department,
         employmentType: formData.employmentType,
         workplaceType: formData.workplaceType,

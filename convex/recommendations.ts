@@ -521,13 +521,27 @@ export const getSmartRecommendationsPaginated = query({
     const hasMore = cursorIndex + numItems < scoredJobs.length;
     const continueCursor = hasMore ? (cursorIndex + numItems).toString() : null;
 
-    // Return with match percentage
+    // Return with match percentage and live employer profile data
+    const pageWithEmployers = await Promise.all(
+      page.map(async (job) => {
+        const employerProfile = await ctx.db
+          .query("employerProfiles")
+          .withIndex("by_user", (q) => q.eq("userId", job.employerId))
+          .first();
+        return {
+          ...job,
+          companyName: employerProfile?.companyName || job.companyName,
+          employerProfile: employerProfile
+            ? { companyLogo: employerProfile.companyLogo }
+            : null,
+          matchPercentage: job.score,
+          createdAt: job._creationTime,
+        };
+      })
+    );
+
     return {
-      page: page.map(job => ({
-        ...job,
-        matchPercentage: job.score,
-        createdAt: job._creationTime,
-      })),
+      page: pageWithEmployers,
       continueCursor,
       isDone: !hasMore,
     };
@@ -707,11 +721,20 @@ export const getSmartRecommendations = query({
     // Select final recommendations
     const selectedJobs = shuffled.slice(0, limit);
 
-    // Return with match percentage for display
-    return selectedJobs.map(job => ({
-      ...job,
-      matchPercentage: job.score,
-      createdAt: job._creationTime,
-    }));
+    // Return with match percentage for display, using live employer profile company name
+    return await Promise.all(
+      selectedJobs.map(async (job) => {
+        const employerProfile = await ctx.db
+          .query("employerProfiles")
+          .withIndex("by_user", (q) => q.eq("userId", job.employerId))
+          .first();
+        return {
+          ...job,
+          companyName: employerProfile?.companyName || job.companyName,
+          matchPercentage: job.score,
+          createdAt: job._creationTime,
+        };
+      })
+    );
   },
 });
