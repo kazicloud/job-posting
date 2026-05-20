@@ -55,7 +55,7 @@ export default function JobShowcase() {
             jobs.map((job) => (
               <div
                 key={job._id}
-                className="bg-white rounded-2xl border border-border p-6 hover:border-brand-orange/50 transition-all hover:shadow-xl group"
+                className="bg-white rounded-2xl border border-border p-6 hover:border-brand-orange/50 transition-all hover:shadow-xl group flex flex-col"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -77,7 +77,7 @@ export default function JobShowcase() {
                 </div>
 
                 {/* Content */}
-                <div className="space-y-3 mb-4">
+                <div className="space-y-3 mb-4 flex-1">
                   <div>
                     <h3 className="text-lg font-bold text-text-primary group-hover:text-brand-orange transition-colors mb-1">
                       {job.title}

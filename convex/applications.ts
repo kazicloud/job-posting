@@ -288,11 +288,20 @@ export const myApplications = query({
       .order("desc")
       .paginate(args.paginationOpts || { numItems: 20, cursor: null });
 
-    // Get job details for each application
+    // Get job details for each application, using live employer profile company name
     const applicationsWithJobs = await Promise.all(
       result.page.map(async (app) => {
         const job = await ctx.db.get(app.jobId);
-        return { ...app, job };
+        if (!job) return { ...app, job };
+        const employerProfile = await ctx.db
+          .query("employerProfiles")
+          .withIndex("by_user", (q) => q.eq("userId", job.employerId))
+          .first();
+        const jobWithName = {
+          ...job,
+          companyName: employerProfile?.companyName || job.companyName,
+        };
+        return { ...app, job: jobWithName };
       })
     );
 

@@ -25,7 +25,6 @@ import type * as crons from "../crons.js";
 import type * as cvParser from "../cvParser.js";
 import type * as cvUpload from "../cvUpload.js";
 import type * as dashboard from "../dashboard.js";
-import type * as debugApplications from "../debugApplications.js";
 import type * as educationSkillsMutations from "../educationSkillsMutations.js";
 import type * as emails from "../emails.js";
 import type * as employerDocuments from "../employerDocuments.js";
@@ -76,7 +75,6 @@ declare const fullApi: ApiFromModules<{
   cvParser: typeof cvParser;
   cvUpload: typeof cvUpload;
   dashboard: typeof dashboard;
-  debugApplications: typeof debugApplications;
   educationSkillsMutations: typeof educationSkillsMutations;
   emails: typeof emails;
   employerDocuments: typeof employerDocuments;
