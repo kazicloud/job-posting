@@ -93,22 +93,12 @@ export const metadata: Metadata = {
     title: 'Kazicloud – Jobs in Kenya, Uganda, Rwanda & Tanzania',
     description:
       "East Africa's #1 job platform. Find verified jobs in Kenya, Uganda, Rwanda and Tanzania.",
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: "Kazicloud – East Africa's Leading Job Platform",
-        type: 'image/png',
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Kazicloud – Jobs in Kenya, Uganda, Rwanda & Tanzania',
     description:
       "East Africa's #1 job platform. Find verified jobs in Kenya, Uganda, Rwanda and Tanzania.",
-    images: ['/og-image.png'],
     creator: '@kazicloud',
     site: '@kazicloud',
   },
